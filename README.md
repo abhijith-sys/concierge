@@ -93,6 +93,7 @@ Vite serves [http://localhost:5173](http://localhost:5173) and proxies `/api` to
 | `JWT_SECRET` | local-only placeholder | Signs the HttpOnly session cookie; replace outside local development |
 | `CORS_ORIGIN` | localhost `5173,8080` | Comma-separated browser origins accepted by Express |
 | `COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
+| `RUN_SEED` | `true` | Runs the idempotent demo seed on API startup; set `false` in production |
 | `VITE_API_URL` | empty | Optional API origin at web build time; empty uses same-origin `/api` |
 
 ## Architecture
@@ -213,7 +214,8 @@ Motion is limited to a short content entrance, mobile-navigation transition, and
 
 ## Production checklist
 
-- Replace `JWT_SECRET`, database credentials, and demo accounts before any public deployment.
+- Replace `JWT_SECRET`, database credentials, and demo accounts before any public deployment. The API refuses to start without a `JWT_SECRET` and warns when the development default is used with `NODE_ENV=production`.
+- Set `RUN_SEED=false` in production so API restarts never touch data.
 - Serve over HTTPS and set `COOKIE_SECURE=true`.
 - Set `CORS_ORIGIN` to exact trusted HTTPS origins.
 - Put PostgreSQL backups, secret management, TLS termination, observability, rate limiting/WAF controls, and an image-upload/CDN policy in the deployment platform.
