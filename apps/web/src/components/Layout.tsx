@@ -1,5 +1,5 @@
 import { Menu, UserRound, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Button } from "./ui";
@@ -7,7 +7,7 @@ import { Button } from "./ui";
 const pillars = [
   ["B2B", "b2b"],
   ["Real Estate", "real-estate"],
-  ["Home Services", "home-services"],
+  ["Home Services", "home-repairs"],
   ["Medical", "medical"],
 ] as const;
 
@@ -15,6 +15,16 @@ export function TopNav() {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
+
+  useEffect(() => setOpen(false), [location.pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-[1000] border-b border-line/60 bg-surface/90 backdrop-blur-xl">
@@ -58,7 +68,7 @@ export function TopNav() {
         </button>
       </nav>
       {open ? (
-        <div className="animate-fade-in border-t border-line bg-white p-5 sm:hidden">
+        <div className="animate-fade-in border-t border-line bg-white p-5 sm:hidden" aria-label="Mobile navigation">
           <div className="grid gap-2">
             {pillars.map(([name, slug]) => (
               <Link key={slug} to={`/listings/${slug}`} className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>

@@ -14,13 +14,12 @@ import {
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { SafeImage } from "../components/SafeImage";
 import { Button } from "../components/ui";
 import { api } from "../lib/api";
 
-const heroImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAOZEZhlHZbzI0QOBTz342yHWvc1Ib7Le5AfjUDhmgu0dOVcKFloSalCa9lC6cEs1bVXSYBfAsOztdpWlsT_VgOp1STGPoqwLfUT10gQdrGjaWyTkXgWXjgweEv95r7hinRddWjjMcCTyp1bPpFH3wNOXLdTNgxcgO7ZpqGAkzKSICu_VPiDCWBfruPZTsKTgsiQU6wCVzILVR2LTva8HZPILrX2BZZmCnjkWG144qqvcaWAiAKVu1H9p6bDuvLp5Lu0034E2vGb3s";
-const estateImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBZmhD-rbyVF3ft0H9nzyrEWzzHD2LKpuhJyy2qAGNONKOcBv44SN6_SFmxo0MCeqyn7mUqAcJyd3kVvnVfxhW1mcZXzhpr7Bs4y9UcAv0cKIVzcYbmGvblbrl25KP1Jmy33rmGxF7kXGjDVCAMGBKT-eiQ0fUPtltkYBan1OW0DSwRsa8zdkiul45LLLE4VtB5ytlpVvQ35SF8Hc6Loqto8aIuDGADLT2dFVuCD45Dn-V4qyq_3_iW6zRjk_HI8J6Yq7AiSZ8HdKE";
+const heroImage = "/assets/concierge-architectural-hero.jpg";
+const estateImage = "/assets/aura-showroom.jpg";
 
 const iconMap = [Utensils, Hotel, Sparkles, Store, Building2, HeartPulse, Wrench, Stethoscope];
 const pillars = [
@@ -50,7 +49,7 @@ export function Home() {
         <div className="page-shell">
           <div className="grid min-h-[480px] gap-4 lg:grid-cols-[2fr_1fr]">
             <div className="group relative min-h-[390px] overflow-hidden rounded-[2rem]">
-              <img src={heroImage} alt="Premium architectural workspace" className="h-full w-full object-cover transition duration-1000 group-hover:scale-105" />
+              <SafeImage src={heroImage} alt="Premium architectural workspace with natural materials" width={1200} height={800} loading="eager" fetchPriority="high" className="h-full w-full object-cover transition duration-1000 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent p-8 text-white md:p-12">
                 <div className="flex h-full max-w-xl flex-col justify-center">
                   <span className="label-caps mb-5 w-fit rounded-full bg-gold-light px-3 py-2 text-gold-dark">Limited offer</span>
@@ -121,11 +120,33 @@ export function Home() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {pillars.map((pillar) => (
               <Link key={pillar.slug} to={`/listings/${pillar.slug}`} className="group overflow-hidden rounded-3xl border border-line bg-white transition hover:-translate-y-1 hover:shadow-xl">
-                <div className="h-52 overflow-hidden"><img src={pillar.image} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-110" /></div>
+                <div className="h-52 overflow-hidden"><SafeImage src={pillar.image} alt={`${pillar.title} services`} width={640} height={420} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" /></div>
                 <div className="p-6"><h3 className="text-xl font-semibold">{pillar.title}</h3><p className="mt-3 text-sm leading-6 text-ink-soft">{pillar.copy}</p><span className="mt-6 flex items-center gap-2 text-sm font-bold">Discover <ArrowRight className="size-4 transition group-hover:translate-x-1" /></span></div>
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="page-shell py-20">
+        <div className="text-center">
+          <p className="label-caps text-gold-dark">Curated collections</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Discover the best in your city</h2>
+        </div>
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          {[
+            ["Architecture & building", "/assets/builders-hero.jpg", "contractors"],
+            ["Interiors & furniture", "/assets/aura-showroom.jpg", "home-decor"],
+            ["Artisanal materials", "/assets/elite-slab.jpg", "b2b"],
+          ].map(([title, image, slug]) => (
+            <Link key={slug} to={`/listings/${slug}`} className="group relative min-h-72 overflow-hidden rounded-3xl">
+              <SafeImage src={image} alt={title} width={640} height={560} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
+              <span className="absolute inset-x-0 bottom-0 flex items-center justify-between p-6 text-lg font-semibold text-white">
+                {title}<ArrowRight className="size-5 transition group-hover:translate-x-1" />
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 

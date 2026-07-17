@@ -56,21 +56,35 @@ searchRouter.get("/", async (req, res) => {
     },
   };
 
-  const businesses = await prisma.business.findMany({
-    where,
-    include: { listing: { include: { category: true } } },
-    orderBy: [
-      { listing: { featured: "desc" } },
-      { listing: { avgRating: "desc" } },
-      { name: "asc" },
-    ],
-  });
-  const filtered = query.open
-    ? businesses.filter((business) => isOpenNow(business.listing?.hours))
-    : businesses;
-  const total = filtered.length;
-  const start = (query.page - 1) * query.pageSize;
-  const items = filtered.slice(start, start + query.pageSize);
+  const orderBy: Prisma.BusinessOrderByWithRelationInput[] = [
+    { listing: { featured: "desc" } },
+    { listing: { avgRating: "desc" } },
+    { name: "asc" },
+  ];
+  let items;
+  let total;
+  if (query.open) {
+    const businesses = await prisma.business.findMany({
+      where,
+      include: { listing: { include: { category: true } } },
+      orderBy,
+    });
+    const filtered = businesses.filter((business) => isOpenNow(business.listing?.hours));
+    total = filtered.length;
+    const start = (query.page - 1) * query.pageSize;
+    items = filtered.slice(start, start + query.pageSize);
+  } else {
+    [items, total] = await prisma.$transaction([
+      prisma.business.findMany({
+        where,
+        include: { listing: { include: { category: true } } },
+        orderBy,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.business.count({ where }),
+    ]);
+  }
 
   res.json({
     items,

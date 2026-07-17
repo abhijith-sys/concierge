@@ -2,13 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Clock3, Globe2, MapPin, Phone, Star, Trash2 } from "lucide-react";
 import { lazy, Suspense, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Listing } from "../lib/api";
 
 const BusinessMap = lazy(() => import("../components/BusinessMap"));
-const fallbackHero =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAOZEZhlHZbzI0QOBTz342yHWvc1Ib7Le5AfjUDhmgu0dOVcKFloSalCa9lC6cEs1bVXSYBfAsOztdpWlsT_VgOp1STGPoqwLfUT10gQdrGjaWyTkXgWXjgweEv95r7hinRddWjjMcCTyp1bPpFH3wNOXLdTNgxcgO7ZpqGAkzKSICu_VPiDCWBfruPZTsKTgsiQU6wCVzILVR2LTva8HZPILrX2BZZmCnjkWG144qqvcaWAiAKVu1H9p6bDuvLp5Lu0034E2vGb3s";
+const fallbackHero = "/assets/concierge-architectural-hero.jpg";
 
 export function BusinessDetail() {
   const { slug = "" } = useParams();
@@ -49,7 +49,9 @@ export function BusinessDetail() {
   const listing = profile.listing ?? (profile as unknown as Listing);
   const images = listing.images?.length ? listing.images : [fallbackHero];
   const allReviews = reviews.data ?? profile.reviews ?? [];
-  const canReview = user?.role === "user" || user?.role === "admin";
+  const canReview = Boolean(user && (user.role === "admin" || user.id !== profile.ownerId));
+  const isAura = profile.slug === "aura-interior-furniture";
+  const isElite = profile.slug === "elite-build-masonry";
 
   function submitReview(event: FormEvent) {
     event.preventDefault();
@@ -60,7 +62,7 @@ export function BusinessDetail() {
   return (
     <>
       <section className="animate-reveal relative min-h-[68vh] overflow-hidden">
-        <img src={images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <SafeImage src={images[0]} alt={`${profile.name} signature work`} width={1600} height={1000} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
         <div className="page-shell relative flex min-h-[68vh] items-end pb-12 text-white md:pb-16">
           <div className="max-w-3xl">
@@ -99,11 +101,48 @@ export function BusinessDetail() {
         </aside>
       </section>
 
+      {isElite ? (
+        <section className="bg-surface-low py-20">
+          <div className="page-shell">
+            <p className="label-caps text-gold-dark">Live inventory</p>
+            <h2 className="mt-3 text-3xl font-semibold">Products &amp; architectural materials</h2>
+            <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
+              <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
+                <SafeImage src="/assets/elite-slab.jpg" alt="Calacatta marble slab selection" width={900} height={600} className="aspect-[16/10] w-full object-cover" />
+                <div className="p-7"><p className="label-caps text-emerald-700">In stock</p><h3 className="mt-2 text-2xl font-semibold">Calacatta Borghini selection</h3><p className="mt-2 text-sm text-ink-soft">Exclusive stone, engineered timber, architectural steel, and structural glass.</p></div>
+              </article>
+              <article className="overflow-hidden rounded-3xl bg-navy text-white">
+                <SafeImage src="/assets/elite-plans.jpg" alt="Architectural plans and material samples" width={640} height={640} className="aspect-square w-full object-cover opacity-90" />
+                <div className="p-7"><p className="label-caps text-gold-light">Our legacy</p><h3 className="mt-2 text-2xl font-semibold">Artistry in every atom.</h3><p className="mt-3 text-sm leading-6 text-white/70">Three decades of global sourcing and structural integration expertise.</p></div>
+              </article>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isAura ? (
+        <section className="bg-surface-low py-20">
+          <div className="page-shell">
+            <p className="label-caps text-gold-dark">Designer collections</p>
+            <h2 className="mt-3 text-3xl font-semibold">The Aura showroom experience</h2>
+            <div className="mt-8 grid overflow-hidden rounded-3xl bg-white shadow-sm md:grid-cols-2">
+              <SafeImage src="/assets/aura-chair.jpg" alt="Emerald velvet lounge chair with walnut frame" width={800} height={800} className="h-full min-h-96 w-full object-cover" />
+              <div className="flex flex-col justify-center p-8 md:p-12">
+                <p className="label-caps text-gold-dark">Featured piece</p>
+                <h3 className="mt-4 text-3xl font-semibold">The Emerald Lounge Chair</h3>
+                <p className="mt-5 leading-7 text-ink-soft">Solid walnut framing meets Italian velvet in a considered expression of bespoke living.</p>
+                <div className="mt-8 border-t border-line pt-6"><strong>Artisanal precision</strong><p className="mt-2 text-sm leading-6 text-ink-soft">Material sourcing, heritage joinery, and white-glove installation tailored to each interior.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {images.length > 1 ? (
         <section className="bg-surface-low py-20">
           <div className="page-shell"><p className="label-caps text-gold-dark">Selected work</p><h2 className="mt-3 text-3xl font-semibold">Gallery</h2>
             <div className="mt-8 grid auto-rows-[240px] gap-5 md:grid-cols-3">
-              {images.slice(1, 7).map((image, index) => <div key={image} className={`group overflow-hidden rounded-2xl ${index === 0 ? "md:col-span-2" : ""}`}><img src={image} alt={`${profile.name} project ${index + 1}`} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></div>)}
+              {images.slice(1, 7).map((image, index) => <div key={image} className={`group overflow-hidden rounded-2xl ${index === 0 ? "md:col-span-2" : ""}`}><SafeImage src={image} alt={`${profile.name} project ${index + 1}`} width={800} height={560} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></div>)}
             </div>
           </div>
         </section>
@@ -116,16 +155,19 @@ export function BusinessDetail() {
           {reviews.isLoading ? <div className="mt-8 h-32 animate-pulse rounded-2xl bg-surface-high" /> : reviews.isError ? (
             <p className="mt-6 text-sm text-red-700">Reviews are temporarily unavailable.</p>
           ) : allReviews.length ? (
-            <div className="mt-8 grid gap-4">
-              {allReviews.map((review) => (
-                <article key={review.id} className="rounded-2xl border border-line p-6">
-                  <div className="flex justify-between gap-4"><div><strong>{review.user?.name ?? "Concierge member"}</strong><div className="mt-1 flex gap-0.5">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-4 ${index < review.rating ? "fill-gold text-gold" : "text-line"}`} />)}</div></div>
-                    {user && (user.id === review.userId || user.role === "admin") ? <button onClick={() => deleteReview.mutate(review.id)} aria-label="Delete review" className="icon-button text-red-700"><Trash2 /></button> : null}
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-ink-soft">{review.comment}</p>
-                </article>
-              ))}
-            </div>
+            <>
+              <div className="mt-8 grid gap-4">
+                {allReviews.map((review) => (
+                  <article key={review.id} className="rounded-2xl border border-line p-6">
+                    <div className="flex justify-between gap-4"><div><strong>{review.user?.name ?? "Concierge member"}</strong><div className="mt-1 flex gap-0.5">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-4 ${index < review.rating ? "fill-gold text-gold" : "text-line"}`} />)}</div></div>
+                      {user && (user.id === review.userId || user.role === "admin") ? <button onClick={() => deleteReview.mutate(review.id)} disabled={deleteReview.isPending} aria-label="Delete review" className="icon-button text-red-700 disabled:opacity-50"><Trash2 /></button> : null}
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-ink-soft">{review.comment}</p>
+                  </article>
+                ))}
+              </div>
+              {deleteReview.isError ? <p className="mt-4 text-sm text-red-700">{deleteReview.error.message}</p> : null}
+            </>
           ) : <p className="mt-6 text-sm text-ink-soft">No reviews yet. Be the first to share your experience.</p>}
         </div>
         <div>

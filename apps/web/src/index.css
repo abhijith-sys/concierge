@@ -66,6 +66,11 @@
     background: var(--color-gold-light);
     color: var(--color-ink);
   }
+
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+  }
 }
 
 @layer components {
@@ -156,6 +161,14 @@
 
   .animate-reveal {
     animation: reveal 700ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   .leaflet-container {

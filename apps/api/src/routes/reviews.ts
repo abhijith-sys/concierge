@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { BusinessStatus, Role } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
 import { ApiError } from "../lib/errors.js";
@@ -15,6 +15,15 @@ const listQuerySchema = z.object({
 
 reviewsRouter.get("/", async (req, res) => {
   const query = listQuerySchema.parse(req.query);
+  const business = await prisma.business.findUnique({
+    where: { id: query.businessId },
+    select: { ownerId: true, status: true },
+  });
+  const canViewPending =
+    req.user?.role === Role.admin || (req.user?.id && req.user.id === business?.ownerId);
+  if (!business || (business.status !== BusinessStatus.active && !canViewPending)) {
+    throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
+  }
   const where = { businessId: query.businessId };
   const [reviews, total] = await prisma.$transaction([
     prisma.review.findMany({
@@ -47,9 +56,9 @@ reviewsRouter.post("/", requireAuth, async (req, res) => {
   const data = createSchema.parse(req.body);
   const business = await prisma.business.findUnique({
     where: { id: data.businessId },
-    select: { id: true, ownerId: true, listing: { select: { id: true } } },
+    select: { id: true, ownerId: true, status: true, listing: { select: { id: true } } },
   });
-  if (!business?.listing) {
+  if (!business?.listing || (business.status !== BusinessStatus.active && req.user!.role !== Role.admin)) {
     throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
   }
   if (business.ownerId === req.user!.id) {

@@ -173,7 +173,7 @@ export const api = {
   },
   reviews: async (businessId: string) => {
     const value = await request<unknown>(
-      `/api/reviews?businessId=${encodeURIComponent(businessId)}`,
+      `/api/reviews?businessId=${encodeURIComponent(businessId)}&pageSize=50`,
     );
     return unwrapArray<Review>(value, ["reviews", "items", "data"]);
   },

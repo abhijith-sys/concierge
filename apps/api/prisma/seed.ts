@@ -32,10 +32,10 @@ const childCategories = [
 ];
 
 const listingImages = [
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCkPy83L2hYccue0GMpC-PfWkDhGsx49ISAAHx8cmQQaOdpi3q7kIlXGClcyX13qcuuR7chykg2b0xFZ_LJfs1Ye0zJWg9pwFqCw6eZBCYhnAa0Q37v-0AVYtUewZzGUdEjOM7GVKJGXlYQkv5isD5pH_nl8-Cn3Prairvy_-V2bKamGn2Po44Pg1yK8y5Mc6GFJ8NLjU4AV7CcBd_6OkV4b1toO8wlszJ6__x2wugmu1RXHDppcH1ZAIpGEk-VERIlzBp9oSEEeZA",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBjXDKmj_R_ynVXSZYiNeU6rfaINfe0Yrekjpc0ipoKWjkE39235nfnmLKrxVtNbrxD2_RXwif5EVod6HAbY9sNo_W0AVFpFWDyq_YYhDl3rmHqxiQ7VLUqoYOsi17Zb_Mh1wMUsPk5XHj3fqNw6J9ho2Dxj4Q9H_PG65Ux_xZvRbO2TMKnTghIQW7YvMW5hCv_GoBtm5Z-cPi95db8C7JAq7VASJhGFG9AWFo9DQDgmcdoH0KeEkhS_A6IlVEKjr6y12pTpczglMY",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBgz_ll44-BGxZNamhqx5YD4s6VET4o9oBSMg2-8mh58YNEEtZQ-GpiFgmS6e1W9xg4MizWNx93wQXFDfwpEqVrCK7Y8YWPoC-w_H60Xqw0dhzw660QCyjCixqpCW6CapXZG5w-gfpoByn949vctDBQv463d-9JQJed8N7d05p05FkOL0dy_bGYFxM6rWplms6VbFKJL4v4EZnWbfHJvzb--vMn4IM91A30cqMgbHfCCpdw2DykgiGvx_g7-zuBUPXfLR3BbJMfkIE",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAAL8Xt-eBV9IrY2wqXeEm7QM2B0ySUXMtgZe6FuXe-1gVQL1uCgM92Q-V65IFlfdI-tG18hSVoAeAatM-Bo3aUVwA8Z63ohO6tUaOuURcfZCmXeujZSj87ilXKOQJlNAM_VP1yNWXaMAtWeR3UiQheHacE29MLci1SbzNjuZAi4l0XoJWszE4un-1Er9QlqdnF9I1dR5yZR_2eHN63fuJ4aE1NT1OKA8uK1MmK7Xu5ppvmOntus5rkIKDtSBUXRjaS3lom4gPN8xA",
+  "/assets/brett-villa.jpg",
+  "/assets/terra-stone.jpg",
+  "/assets/arcadian-desert.jpg",
+  "/assets/heritage-estate.jpg",
 ];
 
 const businesses = [
@@ -48,7 +48,7 @@ const businesses = [
     description: "Curating exquisite architectural materials and engineering luxury custom homes for more than three decades.",
     lat: 40.7458,
     lng: -73.9847,
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAOZEZhlHZbzI0QOBTz342yHWvc1Ib7Le5AfjUDhmgu0dOVcKFloSalCa9lC6cEs1bVXSYBfAsOztdpWlsT_VgOp1STGPoqwLfUT10gQdrGjaWyTkXgWXjgweEv95r7hinRddWjjMcCTyp1bPpFH3wNOXLdTNgxcgO7ZpqGAkzKSICu_VPiDCWBfruPZTsKTgsiQU6wCVzILVR2LTva8HZPILrX2BZZmCnjkWG144qqvcaWAiAKVu1H9p6bDuvLp5Lu0034E2vGb3s",
+    images: ["/assets/concierge-architectural-hero.jpg", "/assets/elite-slab.jpg", "/assets/elite-plans.jpg"],
   },
   {
     name: "Aura Interior & Furniture",
@@ -59,7 +59,7 @@ const businesses = [
     description: "A curated sanctuary of artisanal craftsmanship, contemporary furniture, and bespoke living.",
     lat: 40.723,
     lng: -74.0017,
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBZmhD-rbyVF3ft0H9nzyrEWzzHD2LKpuhJyy2qAGNONKOcBv44SN6_SFmxo0MCeqyn7mUqAcJyd3kVvnVfxhW1mcZXzhpr7Bs4y9UcAv0cKIVzcYbmGvblbrl25KP1Jmy33rmGxF7kXGjDVCAMGBKT-eiQ0fUPtltkYBan1OW0DSwRsa8zdkiul45LLLE4VtB5ytlpVvQ35SF8Hc6Loqto8aIuDGADLT2dFVuCD45Dn-V4qyq_3_iW6zRjk_HI8J6Yq7AiSZ8HdKE",
+    images: ["/assets/aura-showroom.jpg", "/assets/aura-chair.jpg", "/assets/aura-craft.jpg"],
   },
   {
     name: "Brett Architects & Builders",
@@ -70,7 +70,7 @@ const businesses = [
     description: "Award-winning architects and builders creating refined, sustainable homes with natural materials.",
     lat: 40.7033,
     lng: -73.9903,
-    image: listingImages[0],
+    images: [listingImages[0]],
   },
   {
     name: "Terra & Stone Collective",
@@ -81,7 +81,7 @@ const businesses = [
     description: "Premium stone sourcing and architectural material consultancy for exceptional residential projects.",
     lat: 40.7411,
     lng: -74.0002,
-    image: listingImages[1],
+    images: [listingImages[1]],
   },
   {
     name: "Arcadian Structures",
@@ -92,7 +92,7 @@ const businesses = [
     description: "Modern desert architecture combining rammed earth, glass, and integrated landscape design.",
     lat: 33.5021,
     lng: -111.9261,
-    image: listingImages[2],
+    images: [listingImages[2]],
   },
   {
     name: "Heritage Artisan Group",
@@ -103,7 +103,7 @@ const businesses = [
     description: "Expert restoration of landmark estates through traditional craft and modern precision.",
     lat: 40.7731,
     lng: -73.9652,
-    image: listingImages[3],
+    images: [listingImages[3]],
   },
 ];
 
@@ -181,7 +181,7 @@ async function main() {
         city: item.city,
         lat: item.lat,
         lng: item.lng,
-        images: [item.image],
+        images: item.images,
         featured: index < 2,
       },
       create: {
@@ -202,7 +202,7 @@ async function main() {
           saturday: ["10:00", "16:00"],
           sunday: null,
         },
-        images: [item.image],
+        images: item.images,
         website: `https://${item.slug}.example`,
         featured: index < 2,
       },

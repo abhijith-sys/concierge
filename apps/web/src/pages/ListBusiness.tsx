@@ -37,6 +37,9 @@ export function ListBusiness() {
   if (user.role === "user") {
     return <PageState title="Business account required" description="Create a business account to publish a listing." action={<Link to="/register"><Button>Create business account</Button></Link>} />;
   }
+  if (categories.isError) {
+    return <PageState title="Categories are unavailable" description="The form cannot be submitted safely until categories load." action={<Button onClick={() => void categories.refetch()}>Try again</Button>} />;
+  }
 
   function update<K extends keyof BusinessForm>(key: K, value: BusinessForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -88,7 +91,7 @@ export function ListBusiness() {
           <Field label="Phone"><Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field>
           <Field label="Category"><Select value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} required><option value="">Select category</option>{categories.data?.flatMap((category) => [category, ...(category.children ?? [])]).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</Select></Field>
           <Field label="Website"><Input type="url" value={form.website} onChange={(event) => update("website", event.target.value)} placeholder="https://" /></Field>
-          <div className="md:col-span-2"><Field label="Description"><Textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows={5} required /></Field></div>
+          <div className="md:col-span-2"><Field label="Description"><Textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows={5} minLength={20} placeholder="Describe your expertise in at least 20 characters." required /></Field></div>
           <Field label="Street address"><Input value={form.address} onChange={(event) => update("address", event.target.value)} required /></Field>
           <Field label="City"><Input value={form.city} onChange={(event) => update("city", event.target.value)} required /></Field>
           <Field label="Latitude (optional)"><Input type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} /></Field>

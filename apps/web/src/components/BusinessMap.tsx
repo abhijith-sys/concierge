@@ -31,5 +31,5 @@ export default function BusinessMap({
     };
   }, [lat, lng, name]);
 
-  return <div ref={elementRef} className="h-80 w-full rounded-2xl" aria-label={`Map showing ${name}`} />;
+  return <div ref={elementRef} className="h-80 w-full rounded-2xl" role="img" aria-label={`Map showing ${name}`} />;
 }

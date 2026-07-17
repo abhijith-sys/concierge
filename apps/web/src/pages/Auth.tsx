@@ -8,7 +8,7 @@ import { useAuth } from "../context/useAuth";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email."),
-  password: z.string().min(6, "Password must be at least 6 characters."),
+  password: z.string().min(1, "Enter your password."),
 });
 const registerSchema = z.object({
   name: z.string().min(2, "Enter your full name."),

@@ -7,7 +7,12 @@ import { requireRole } from "../middleware/auth.js";
 
 export const businessesRouter = Router();
 
-const hoursSchema = z.record(z.string(), z.tuple([z.string(), z.string()]).nullable());
+const httpUrl = z.url().refine((value) => {
+  const protocol = new URL(value).protocol;
+  return protocol === "http:" || protocol === "https:";
+}, "Only HTTP(S) URLs are allowed");
+const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm time format");
+const hoursSchema = z.record(z.string(), z.tuple([time, time]).nullable());
 
 const listingFields = {
   categoryId: z.string().uuid(),
@@ -18,8 +23,8 @@ const listingFields = {
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   hours: hoursSchema.optional(),
-  images: z.array(z.string().url()).max(20).default([]),
-  website: z.string().url().optional(),
+  images: z.array(httpUrl).max(20).default([]),
+  website: httpUrl.optional(),
   featured: z.boolean().optional(),
 };
 
@@ -28,7 +33,7 @@ const createSchema = z.object({
   slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(180).optional(),
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(7).max(30).optional(),
-  logoUrl: z.string().url().optional(),
+  logoUrl: httpUrl.optional(),
   ...listingFields,
 });
 
@@ -67,6 +72,11 @@ businessesRouter.get("/:slugOrId", async (req, res) => {
     },
   });
   if (!business) {
+    throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
+  }
+  const canViewPending =
+    req.user?.role === Role.admin || (req.user?.id && req.user.id === business.ownerId);
+  if (business.status !== BusinessStatus.active && !canViewPending) {
     throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
   }
   res.json({ business });
@@ -126,7 +136,7 @@ const updateSchema = z.object({
   name: z.string().trim().min(2).max(160).optional(),
   email: z.string().trim().email().max(254).optional(),
   phone: z.string().trim().min(7).max(30).nullable().optional(),
-  logoUrl: z.string().url().nullable().optional(),
+  logoUrl: httpUrl.nullable().optional(),
   categoryId: listingFields.categoryId.optional(),
   title: listingFields.title.optional(),
   description: listingFields.description.optional(),
@@ -135,8 +145,8 @@ const updateSchema = z.object({
   lat: listingFields.lat.nullable().optional(),
   lng: listingFields.lng.nullable().optional(),
   hours: hoursSchema.nullable().optional(),
-  images: z.array(z.string().url()).max(20).optional(),
-  website: z.string().url().nullable().optional(),
+  images: z.array(httpUrl).max(20).optional(),
+  website: httpUrl.nullable().optional(),
   verified: z.boolean().optional(),
   status: z.nativeEnum(BusinessStatus).optional(),
   featured: z.boolean().optional(),

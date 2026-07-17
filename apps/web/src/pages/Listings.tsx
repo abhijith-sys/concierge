@@ -2,13 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BadgeCheck, Search, SlidersHorizontal, Star } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { SafeImage } from "../components/SafeImage";
 import { Button, Input, PageState, Select } from "../components/ui";
 import { api, type Listing } from "../lib/api";
 
-const fallbackImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCkPy83L2hYccue0GMpC-PfWkDhGsx49ISAAHx8cmQQaOdpi3q7kIlXGClcyX13qcuuR7chykg2b0xFZ_LJfs1Ye0zJWg9pwFqCw6eZBCYhnAa0Q37v-0AVYtUewZzGUdEjOM7GVKJGXlYQkv5isD5pH_nl8-Cn3Prairvy_-V2bKamGn2Po44Pg1yK8y5Mc6GFJ8NLjU4AV7CcBd_6OkV4b1toO8wlszJ6__x2wugmu1RXHDppcH1ZAIpGEk-VERIlzBp9oSEEeZA";
-const heroImage =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDZqdMdpEdhI5jF0wLEyaMmgy3SaKnV-8MGDBVQ-oH46Ji4zLf8d-0IUgPRZp01Vmr9FdIgIBaRrIlBEKDEOgZW1hBxlFNqzpVmjCO72Ozx22mX6RUa2xn2GHUr04CxfOGJNfH74iV616AtPLMVCDZsWICERx6zrIPj_XQ1xSZ08HQF0psRfXQiOD91TaYVbI4K5u4jG34zNEkZQBmiRadE_QHlqVwjIWHNbvJ2i6BFUGKwRdtQRiwj42x2aWASFlJmUHLIHapUm3w";
+const fallbackImage = "/assets/brett-villa.jpg";
+const heroImage = "/assets/builders-hero.jpg";
 
 function resultSlug(listing: Listing) {
   return listing.business?.slug ?? listing.businessId ?? listing.id;
@@ -18,10 +17,25 @@ export function Listings() {
   const { categorySlug } = useParams();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
+  const [city, setCity] = useState(params.get("city") ?? "");
   const requestParams = new URLSearchParams(params);
   if (categorySlug) requestParams.set("category", categorySlug);
 
   useEffect(() => setQuery(params.get("q") ?? ""), [params]);
+  useEffect(() => setCity(params.get("city") ?? ""), [params]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setParams((current) => {
+        if ((current.get("city") ?? "") === city.trim()) return current;
+        const next = new URLSearchParams(current);
+        if (city.trim()) next.set("city", city.trim());
+        else next.delete("city");
+        next.delete("page");
+        return next;
+      });
+    }, 400);
+    return () => window.clearTimeout(timeout);
+  }, [city, setParams]);
 
   const results = useQuery({
     queryKey: ["search", requestParams.toString()],
@@ -48,7 +62,7 @@ export function Listings() {
   return (
     <div className="page-shell py-10">
       <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] bg-navy">
-        <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
+        <SafeImage src={heroImage} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="relative z-10 flex min-h-[340px] max-w-2xl flex-col justify-center p-8 text-white md:p-12">
           <p className="label-caps text-gold-light">Curated partners</p>
           <h1 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
@@ -71,7 +85,7 @@ export function Listings() {
             <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="size-5" /> Filters</h2>
             <div className="mt-6 grid gap-5">
               <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">City
-                <Input value={params.get("city") ?? ""} onChange={(event) => updateParam("city", event.target.value)} placeholder="Any city" className="bg-white normal-case tracking-normal" />
+                <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Any city" className="bg-white normal-case tracking-normal" />
               </label>
               <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">Minimum rating
                 <Select value={params.get("rating") ?? ""} onChange={(event) => updateParam("rating", event.target.value)} className="normal-case tracking-normal">
@@ -104,7 +118,7 @@ export function Listings() {
                 {results.data?.items.map((listing) => (
                   <article key={listing.id} className="group overflow-hidden rounded-2xl border border-line bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                     <Link to={`/business/${resultSlug(listing)}`} className="relative block h-60 overflow-hidden">
-                      <img src={listing.images?.[0] ?? fallbackImage} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                      <SafeImage src={listing.images?.[0] ?? fallbackImage} alt={`${listing.business?.name ?? listing.title} featured work`} width={720} height={480} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
                       {listing.business?.verified ? <span className="absolute left-4 top-4 flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white"><BadgeCheck className="size-4" /> Verified</span> : null}
                     </Link>
                     <div className="p-6">
