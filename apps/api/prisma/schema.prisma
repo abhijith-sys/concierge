@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  business
+  admin
+}
+
+enum BusinessStatus {
+  pending
+  active
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  role         Role       @default(user)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  businesses   Business[]
+  reviews      Review[]
+
+  @@index([role])
+}
+
+model Category {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String     @unique
+  parentId  String?    @db.Uuid
+  icon      String?
+  sortOrder Int        @default(0)
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryTree")
+  listings  Listing[]
+
+  @@index([parentId, sortOrder])
+}
+
+model Business {
+  id        String         @id @default(uuid()) @db.Uuid
+  ownerId   String         @db.Uuid
+  name      String
+  slug      String         @unique
+  email     String
+  phone     String?
+  logoUrl   String?
+  verified  Boolean        @default(false)
+  status    BusinessStatus @default(pending)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  listing   Listing?
+  reviews   Review[]
+
+  @@index([ownerId])
+  @@index([status, verified])
+}
+
+model Listing {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessId  String   @unique @db.Uuid
+  categoryId  String   @db.Uuid
+  title       String
+  description String
+  address     String
+  city        String
+  lat         Float?
+  lng         Float?
+  hours       Json?
+  images      String[]
+  website     String?
+  avgRating   Float    @default(0)
+  reviewCount Int      @default(0)
+  featured    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId])
+  @@index([city])
+  @@index([avgRating])
+  @@index([featured])
+}
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  businessId String   @db.Uuid
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@index([businessId, createdAt])
+  @@index([userId])
+}

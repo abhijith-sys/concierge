@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+uploads/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+coverage/
+*.tsbuildinfo
+*.local
