@@ -4,14 +4,8 @@ export const publicUserSelect = {
   email: true,
   phone: true,
   role: true,
+  avatarUrl: true,
+  emailVerifiedAt: true,
+  phoneVerifiedAt: true,
   createdAt: true,
 } as const;
-
-export type PublicUser = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  role: "user" | "business" | "admin";
-  createdAt: Date;
-};

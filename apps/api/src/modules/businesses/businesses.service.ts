@@ -19,6 +19,10 @@ export const businessesService = {
     return business!;
   },
 
+  async listMine(user: AuthUser) {
+    return businessesRepository.listMine(user.id);
+  },
+
   async create(input: CreateBusinessInput, user: AuthUser) {
     const {
       categoryId,
@@ -34,6 +38,10 @@ export const businessesService = {
       featured,
       ...businessData
     } = input;
+
+    if (!hours || Object.keys(hours).length === 0) {
+      throw new ApiError(400, "HOURS_REQUIRED", "Business hours are required to submit a listing");
+    }
 
     if (!(await businessesRepository.categoryExists(categoryId))) {
       throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist");
@@ -85,7 +93,16 @@ export const businessesService = {
       throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist");
     }
 
-    const businessKeys = ["name", "email", "phone", "logoUrl", "verified", "status"] as const;
+    const businessKeys = [
+      "name",
+      "email",
+      "phone",
+      "logoUrl",
+      "coverUrl",
+      "socialLinks",
+      "verified",
+      "status",
+    ] as const;
     const businessData = Object.fromEntries(
       businessKeys.filter((key) => input[key] !== undefined).map((key) => [key, input[key]]),
     );

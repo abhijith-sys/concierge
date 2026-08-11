@@ -26,4 +26,39 @@ export const authRepository = {
       select: publicUserSelect,
     });
   },
+
+  updateUser(id: string, data: Record<string, unknown>) {
+    return prisma.user.update({ where: { id }, data, select: publicUserSelect });
+  },
+
+  createOtp(data: {
+    userId: string;
+    channel: "email" | "sms";
+    purpose: "register" | "login" | "change";
+    codeHash: string;
+    expiresAt: Date;
+  }) {
+    return prisma.verificationChallenge.create({ data });
+  },
+
+  findLatestOtp(userId: string, channel: "email" | "sms", purpose: "register" | "login" | "change") {
+    return prisma.verificationChallenge.findFirst({
+      where: { userId, channel, purpose, consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  markOtpConsumed(id: string) {
+    return prisma.verificationChallenge.update({
+      where: { id },
+      data: { consumedAt: new Date() },
+    });
+  },
+
+  bumpOtpAttempts(id: string) {
+    return prisma.verificationChallenge.update({
+      where: { id },
+      data: { attempts: { increment: 1 } },
+    });
+  },
 };

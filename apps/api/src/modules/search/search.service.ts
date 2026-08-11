@@ -1,3 +1,4 @@
+import { haversineKm } from "../../shared/domain/business.js";
 import { paginate } from "../../shared/utils/index.js";
 import { searchRepository } from "./search.repository.js";
 import type { SearchQuery } from "./search.schemas.js";
@@ -21,15 +22,34 @@ function isOpenNow(hours: unknown, now = new Date()) {
 export const searchService = {
   async search(query: SearchQuery) {
     const where = searchRepository.buildWhere(query);
+    const needsClientFilter = Boolean(query.open || (query.lat !== undefined && query.lng !== undefined));
+
     let items;
     let total;
 
-    if (query.open) {
-      const businesses = await searchRepository.findAllMatching(where);
-      const filtered = businesses.filter((business) => isOpenNow(business.listing?.hours));
-      total = filtered.length;
+    if (needsClientFilter) {
+      let businesses = await searchRepository.findAllMatching(where);
+      if (query.open) {
+        businesses = businesses.filter((business) => isOpenNow(business.listing?.hours));
+      }
+      if (query.lat !== undefined && query.lng !== undefined) {
+        const radius = query.radiusKm ?? 10;
+        businesses = businesses
+          .map((business) => {
+            const lat = business.listing?.lat;
+            const lng = business.listing?.lng;
+            const distanceKm =
+              typeof lat === "number" && typeof lng === "number"
+                ? haversineKm(query.lat!, query.lng!, lat, lng)
+                : Number.POSITIVE_INFINITY;
+            return { ...business, distanceKm };
+          })
+          .filter((business) => business.distanceKm <= radius)
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+      }
+      total = businesses.length;
       const start = (query.page - 1) * query.pageSize;
-      items = filtered.slice(start, start + query.pageSize);
+      items = businesses.slice(start, start + query.pageSize);
     } else {
       [items, total] = await Promise.all([
         searchRepository.findMany(where, (query.page - 1) * query.pageSize, query.pageSize),
@@ -44,8 +64,12 @@ export const searchService = {
         q: query.q ?? null,
         city: query.city ?? null,
         category: query.category ?? null,
+        subcategory: query.subcategory ?? null,
         rating: query.rating ?? null,
         open: query.open ?? false,
+        lat: query.lat ?? null,
+        lng: query.lng ?? null,
+        radiusKm: query.lat !== undefined ? (query.radiusKm ?? 10) : null,
       },
     };
   },

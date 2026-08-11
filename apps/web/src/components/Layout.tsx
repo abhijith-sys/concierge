@@ -52,6 +52,7 @@ export function TopNav() {
           <Link to="/list-business"><Button>List Business</Button></Link>
           {user ? (
             <>
+              {user.role === "admin" ? <Link to="/admin"><Button variant="outline">Admin</Button></Link> : null}
               <Link to="/account" className="icon-button" aria-label="Account"><UserRound /></Link>
               <Button variant="ghost" onClick={() => void logout()}>Log out</Button>
             </>

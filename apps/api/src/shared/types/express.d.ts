@@ -8,6 +8,7 @@ declare global {
         role: Role;
       };
       requestId?: string;
+      csrfToken?: string;
     }
   }
 }

@@ -22,6 +22,14 @@ export const businessesRepository = {
     return prisma.business.findUnique({ where: { id }, select: { ownerId: true } });
   },
 
+  listMine(ownerId: string) {
+    return prisma.business.findMany({
+      where: { ownerId, status: { not: "deleted" } },
+      include: { listing: { include: { category: true } }, _count: { select: { services: true } } },
+      orderBy: { updatedAt: "desc" },
+    });
+  },
+
   categoryExists(id: string) {
     return prisma.category.findUnique({ where: { id }, select: { id: true } });
   },

@@ -18,11 +18,28 @@ interface BusinessForm {
   website: string;
   lat: string;
   lng: string;
+  instagram: string;
+  facebook: string;
+  openTime: string;
+  closeTime: string;
 }
 
 const initialForm: BusinessForm = {
-  name: "", email: "", phone: "", title: "", categoryId: "", description: "",
-  address: "", city: "", website: "", lat: "", lng: "",
+  name: "",
+  email: "",
+  phone: "",
+  title: "",
+  categoryId: "",
+  description: "",
+  address: "",
+  city: "",
+  website: "",
+  lat: "",
+  lng: "",
+  instagram: "",
+  facebook: "",
+  openTime: "09:00",
+  closeTime: "18:00",
 };
 
 export function ListBusiness() {
@@ -30,15 +47,40 @@ export function ListBusiness() {
   const location = useLocation();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
+  const [coverUrl, setCoverUrl] = useState<string | undefined>();
+  const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const create = useMutation({ mutationFn: api.createBusiness });
+  const upload = useMutation({
+    mutationFn: async ({ file, kind }: { file: File; kind: "cover" | "logo" }) => {
+      const stored = await api.upload(file, "public");
+      if (kind === "cover") setCoverUrl(stored.url);
+      else setLogoUrl(stored.url);
+    },
+  });
 
   if (isLoading) return <PageState title="Loading" loading />;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   if (user.role === "user") {
-    return <PageState title="Business account required" description="Create a business account to publish a listing." action={<Link to="/register"><Button>Create business account</Button></Link>} />;
+    return (
+      <PageState
+        title="Business account required"
+        description="Create a business account to publish a listing."
+        action={
+          <Link to="/register">
+            <Button>Create business account</Button>
+          </Link>
+        }
+      />
+    );
   }
   if (categories.isError) {
-    return <PageState title="Categories are unavailable" description="The form cannot be submitted safely until categories load." action={<Button onClick={() => void categories.refetch()}>Try again</Button>} />;
+    return (
+      <PageState
+        title="Categories are unavailable"
+        description="The form cannot be submitted safely until categories load."
+        action={<Button onClick={() => void categories.refetch()}>Try again</Button>}
+      />
+    );
   }
 
   function update<K extends keyof BusinessForm>(key: K, value: BusinessForm[K]) {
@@ -47,6 +89,15 @@ export function ListBusiness() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    const hours = {
+      monday: [form.openTime, form.closeTime] as [string, string],
+      tuesday: [form.openTime, form.closeTime] as [string, string],
+      wednesday: [form.openTime, form.closeTime] as [string, string],
+      thursday: [form.openTime, form.closeTime] as [string, string],
+      friday: [form.openTime, form.closeTime] as [string, string],
+      saturday: [form.openTime, form.closeTime] as [string, string],
+      sunday: null,
+    };
     create.mutate({
       name: form.name,
       email: form.email,
@@ -59,7 +110,14 @@ export function ListBusiness() {
       website: form.website || undefined,
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
-      images: [],
+      hours,
+      images: coverUrl ? [coverUrl] : [],
+      coverUrl,
+      logoUrl,
+      socialLinks: {
+        ...(form.instagram ? { instagram: form.instagram } : {}),
+        ...(form.facebook ? { facebook: form.facebook } : {}),
+      },
     });
   }
 
@@ -67,8 +125,19 @@ export function ListBusiness() {
     return (
       <PageState
         title="Your business was submitted"
-        description="Your profile is now in the Concierge review queue."
-        action={<Link to={`/business/${create.data.slug ?? create.data.id}`}><Button>View business <ArrowRight className="size-4" /></Button></Link>}
+        description="Your profile is now in the Concierge review queue. Add services and complete identity verification from your account."
+        action={
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to={`/business/${create.data.slug ?? create.data.id}/edit`}>
+              <Button>
+                Manage profile <ArrowRight className="size-4" />
+              </Button>
+            </Link>
+            <Link to="/verification">
+              <Button variant="outline">Start verification</Button>
+            </Link>
+          </div>
+        }
       />
     );
   }
@@ -78,26 +147,135 @@ export function ListBusiness() {
       <div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
         <div>
           <p className="label-caps text-gold-dark">For exceptional businesses</p>
-          <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">Be discovered by the right clients.</h1>
-          <p className="mt-5 leading-7 text-ink-soft">Build a focused profile that communicates your expertise, location, and point of difference.</p>
+          <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            Be discovered by the right clients.
+          </h1>
+          <p className="mt-5 leading-7 text-ink-soft">
+            Build a focused profile with hours, media, and socials — then submit for Concierge review.
+          </p>
           <div className="mt-8 grid gap-4 text-sm">
-            {["Curated directory presence", "Verified reviews from members", "A profile designed for your work"].map((item) => <p key={item} className="flex items-center gap-3"><CheckCircle2 className="size-5 text-emerald-600" />{item}</p>)}
+            {["Curated directory presence", "Verified reviews from members", "Services catalog & nearby discovery"].map(
+              (item) => (
+                <p key={item} className="flex items-center gap-3">
+                  <CheckCircle2 className="size-5 text-emerald-600" />
+                  {item}
+                </p>
+              ),
+            )}
           </div>
         </div>
         <form onSubmit={submit} className="grid gap-5 rounded-3xl border border-line bg-white p-6 shadow-sm md:grid-cols-2 md:p-9">
-          <Field label="Business name"><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
-          <Field label="Profile title"><Input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="e.g. Bespoke Interior Studio" required /></Field>
-          <Field label="Business email"><Input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} required /></Field>
-          <Field label="Phone"><Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field>
-          <Field label="Category"><Select value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} required><option value="">Select category</option>{categories.data?.flatMap((category) => [category, ...(category.children ?? [])]).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</Select></Field>
-          <Field label="Website"><Input type="url" value={form.website} onChange={(event) => update("website", event.target.value)} placeholder="https://" /></Field>
-          <div className="md:col-span-2"><Field label="Description"><Textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows={5} minLength={20} placeholder="Describe your expertise in at least 20 characters." required /></Field></div>
-          <Field label="Street address"><Input value={form.address} onChange={(event) => update("address", event.target.value)} required /></Field>
-          <Field label="City"><Input value={form.city} onChange={(event) => update("city", event.target.value)} required /></Field>
-          <Field label="Latitude (optional)"><Input type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} /></Field>
-          <Field label="Longitude (optional)"><Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} /></Field>
+          <Field label="Business name">
+            <Input value={form.name} onChange={(event) => update("name", event.target.value)} required />
+          </Field>
+          <Field label="Profile title">
+            <Input
+              value={form.title}
+              onChange={(event) => update("title", event.target.value)}
+              placeholder="e.g. Bespoke Interior Studio"
+              required
+            />
+          </Field>
+          <Field label="Business email">
+            <Input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} required />
+          </Field>
+          <Field label="Phone">
+            <Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} />
+          </Field>
+          <Field label="Category">
+            <Select value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} required>
+              <option value="">Select category</option>
+              {categories.data
+                ?.flatMap((category) => [category, ...(category.children ?? [])])
+                .map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+          <Field label="Website">
+            <Input
+              type="url"
+              value={form.website}
+              onChange={(event) => update("website", event.target.value)}
+              placeholder="https://"
+            />
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="Description">
+              <Textarea
+                value={form.description}
+                onChange={(event) => update("description", event.target.value)}
+                rows={5}
+                minLength={20}
+                placeholder="Describe your expertise in at least 20 characters."
+                required
+              />
+            </Field>
+          </div>
+          <Field label="Street address">
+            <Input value={form.address} onChange={(event) => update("address", event.target.value)} required />
+          </Field>
+          <Field label="City">
+            <Input value={form.city} onChange={(event) => update("city", event.target.value)} required />
+          </Field>
+          <Field label="Opens">
+            <Input type="time" value={form.openTime} onChange={(event) => update("openTime", event.target.value)} required />
+          </Field>
+          <Field label="Closes">
+            <Input type="time" value={form.closeTime} onChange={(event) => update("closeTime", event.target.value)} required />
+          </Field>
+          <Field label="Instagram">
+            <Input
+              type="url"
+              value={form.instagram}
+              onChange={(event) => update("instagram", event.target.value)}
+              placeholder="https://instagram.com/..."
+            />
+          </Field>
+          <Field label="Facebook">
+            <Input
+              type="url"
+              value={form.facebook}
+              onChange={(event) => update("facebook", event.target.value)}
+              placeholder="https://facebook.com/..."
+            />
+          </Field>
+          <Field label="Latitude (optional)">
+            <Input type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} />
+          </Field>
+          <Field label="Longitude (optional)">
+            <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} />
+          </Field>
+          <label className="text-sm md:col-span-1">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Logo</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) upload.mutate({ file, kind: "logo" });
+              }}
+            />
+            {logoUrl ? <p className="mt-1 text-xs text-emerald-700">Logo ready</p> : null}
+          </label>
+          <label className="text-sm md:col-span-1">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Cover</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) upload.mutate({ file, kind: "cover" });
+              }}
+            />
+            {coverUrl ? <p className="mt-1 text-xs text-emerald-700">Cover ready</p> : null}
+          </label>
           {create.isError ? <p className="text-sm text-red-700 md:col-span-2">{create.error.message}</p> : null}
-          <Button type="submit" className="mt-2 md:col-span-2" disabled={create.isPending || categories.isLoading}>{create.isPending ? "Submitting…" : "Submit business"}</Button>
+          <Button type="submit" className="mt-2 md:col-span-2" disabled={create.isPending || categories.isLoading}>
+            {create.isPending ? "Submitting…" : "Submit business"}
+          </Button>
         </form>
       </div>
     </section>

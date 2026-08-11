@@ -12,7 +12,7 @@ src/
   platform/               # router mounting
   shared/                 # kernel: auth, db, errors, logging, integrations, domain helpers
   modules/
-    health|auth|categories|search|businesses|reviews   # active
+    health|auth|categories|search|businesses|reviews|services|admin|verification|uploads   # active
     bookings|payments|messaging|ads|analytics|notifications  # scaffolds (unmounted)
 ```
 
@@ -43,6 +43,7 @@ npm run typecheck
 npm run lint
 npm run prisma:migrate
 npm run prisma:seed
+npm test             # Vitest unit + optional integration (needs DATABASE_URL)
 ```
 
 ## Adding a module
@@ -61,8 +62,10 @@ npm run prisma:seed
 
 ## Production hooks already present
 
-- Fail-fast Zod env (`config/env.ts`)
-- Request IDs + structured JSON logs
-- Optional in-memory rate limit (`RATE_LIMIT_ENABLED=true`)
-- Integration adapters under `shared/integrations/` (email stub; sms/payments reserved)
-- Health at `GET /api/health` with DB ping + uptime
+- Fail-fast Zod env (`config/env.ts`); production warnings for default JWT / insecure cookies
+- Request IDs + structured JSON logs + admin audit log helper
+- Rate limit auto-on in production; stricter buckets for auth/OTP/uploads
+- CSRF double-submit cookie for authenticated mutating routes
+- Local `StoragePort` uploads (`UPLOAD_ROOT`) with public + private prefixes
+- Integration adapters under `shared/integrations/` (email/SMS stubs; storage)
+- Liveness `GET /api/health` and readiness `GET /api/ready`

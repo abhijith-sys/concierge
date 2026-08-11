@@ -126,8 +126,8 @@ async function main() {
   for (const user of demoUsers) {
     const saved = await prisma.user.upsert({
       where: { email: user.email },
-      update: { name: user.name, role: user.role, passwordHash },
-      create: { ...user, passwordHash },
+      update: { name: user.name, role: user.role, passwordHash, emailVerifiedAt: new Date() },
+      create: { ...user, passwordHash, emailVerifiedAt: new Date() },
       select: { id: true },
     });
     users.set(user.email, saved);
@@ -161,6 +161,10 @@ async function main() {
         email: `hello@${item.slug}.example`,
         verified: true,
         status: BusinessStatus.active,
+        coverUrl: item.images[0],
+        socialLinks: {
+          instagram: `https://instagram.com/${item.slug}`,
+        },
       },
       create: {
         ownerId: users.get("business@demo.com")!.id,
@@ -170,6 +174,10 @@ async function main() {
         phone: "+1 212 555 0100",
         verified: true,
         status: BusinessStatus.active,
+        coverUrl: item.images[0],
+        socialLinks: {
+          instagram: `https://instagram.com/${item.slug}`,
+        },
       },
     });
     businessIds.push(business.id);
@@ -207,6 +215,19 @@ async function main() {
         images: item.images,
         website: `https://${item.slug}.example`,
         featured: index < 2,
+      },
+    });
+    await prisma.service.deleteMany({ where: { businessId: business.id, name: "Design consultation" } });
+    await prisma.service.create({
+      data: {
+        businessId: business.id,
+        name: "Design consultation",
+        description: "A one-hour consultation to scope your project and recommend next steps.",
+        price: 150,
+        currency: "USD",
+        durationMinutes: 60,
+        isActive: true,
+        images: [],
       },
     });
   }

@@ -7,7 +7,6 @@ import { Account } from "./pages/Account";
 import { Home } from "./pages/Home";
 import { Listings } from "./pages/Listings";
 
-// Primary routes stay eager so nav clicks never hit a stale lazy chunk after rebuilds.
 const BusinessDetail = lazyWithReload(
   () => import("./pages/BusinessDetail"),
   (module) => module.BusinessDetail,
@@ -17,6 +16,15 @@ const Register = lazyWithReload(() => import("./pages/Auth"), (module) => module
 const ListBusiness = lazyWithReload(
   () => import("./pages/ListBusiness"),
   (module) => module.ListBusiness,
+);
+const EditBusiness = lazyWithReload(
+  () => import("./pages/EditBusiness"),
+  (module) => module.EditBusiness,
+);
+const Admin = lazyWithReload(() => import("./pages/Admin"), (module) => module.Admin);
+const Verification = lazyWithReload(
+  () => import("./pages/Verification"),
+  (module) => module.Verification,
 );
 
 function ScrollToTop() {
@@ -37,10 +45,13 @@ function AppRoutes() {
           <Route path="listings" element={<Listings />} />
           <Route path="listings/:categorySlug" element={<Listings />} />
           <Route path="business/:slug" element={<BusinessDetail />} />
+          <Route path="business/:slug/edit" element={<EditBusiness />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="account" element={<Account />} />
           <Route path="list-business" element={<ListBusiness />} />
+          <Route path="admin" element={<Admin />} />
+          <Route path="verification" element={<Verification />} />
           <Route
             path="*"
             element={

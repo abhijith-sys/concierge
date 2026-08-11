@@ -1,13 +1,28 @@
 import { BusinessStatus } from "@prisma/client";
 import { z } from "zod";
 
-const httpUrl = z.url().refine((value) => {
-  const protocol = new URL(value).protocol;
-  return protocol === "http:" || protocol === "https:";
-}, "Only HTTP(S) URLs are allowed");
+const mediaUrl = z.string().min(1).max(500).refine((value) => {
+  if (value.startsWith("/uploads/")) return true;
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}, "Only HTTP(S) or /uploads paths are allowed");
 
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm time format");
 export const hoursSchema = z.record(z.string(), z.tuple([time, time]).nullable());
+
+const socialLinksSchema = z
+  .object({
+    instagram: z.string().url().optional(),
+    facebook: z.string().url().optional(),
+    twitter: z.string().url().optional(),
+    linkedin: z.string().url().optional(),
+  })
+  .partial()
+  .optional();
 
 export const listingFields = {
   categoryId: z.string().uuid(),
@@ -18,8 +33,8 @@ export const listingFields = {
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   hours: hoursSchema.optional(),
-  images: z.array(httpUrl).max(20).default([]),
-  website: httpUrl.optional(),
+  images: z.array(mediaUrl).max(20).default([]),
+  website: mediaUrl.optional(),
   featured: z.boolean().optional(),
 };
 
@@ -33,7 +48,9 @@ export const createBusinessSchema = z.object({
     .optional(),
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(7).max(30).optional(),
-  logoUrl: httpUrl.optional(),
+  logoUrl: mediaUrl.optional(),
+  coverUrl: mediaUrl.optional(),
+  socialLinks: socialLinksSchema,
   ...listingFields,
 });
 
@@ -42,7 +59,9 @@ export const updateBusinessSchema = z
     name: z.string().trim().min(2).max(160).optional(),
     email: z.string().trim().email().max(254).optional(),
     phone: z.string().trim().min(7).max(30).nullable().optional(),
-    logoUrl: httpUrl.nullable().optional(),
+    logoUrl: mediaUrl.nullable().optional(),
+    coverUrl: mediaUrl.nullable().optional(),
+    socialLinks: socialLinksSchema.nullable().optional(),
     categoryId: listingFields.categoryId.optional(),
     title: listingFields.title.optional(),
     description: listingFields.description.optional(),
@@ -51,8 +70,8 @@ export const updateBusinessSchema = z
     lat: listingFields.lat.nullable().optional(),
     lng: listingFields.lng.nullable().optional(),
     hours: hoursSchema.nullable().optional(),
-    images: z.array(httpUrl).max(20).optional(),
-    website: httpUrl.nullable().optional(),
+    images: z.array(mediaUrl).max(20).optional(),
+    website: mediaUrl.nullable().optional(),
     verified: z.boolean().optional(),
     status: z.nativeEnum(BusinessStatus).optional(),
     featured: z.boolean().optional(),
