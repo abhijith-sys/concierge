@@ -12,14 +12,17 @@ const categories = [
   { name: "Restaurants", slug: "restaurants", icon: "restaurant", sortOrder: 5 },
   { name: "Hotels", slug: "hotels", icon: "hotel", sortOrder: 6 },
   { name: "Beauty & Spa", slug: "beauty-spa", icon: "spa", sortOrder: 7 },
-  { name: "Home Decor", slug: "home-decor", icon: "chair", sortOrder: 8 },
-  { name: "Contractors", slug: "contractors", icon: "construction", sortOrder: 9 },
-  { name: "Events", slug: "events", icon: "celebration", sortOrder: 10 },
-  { name: "Lifestyle", slug: "lifestyle", icon: "local_activity", sortOrder: 11 },
+  { name: "Contractors", slug: "contractors", icon: "construction", sortOrder: 8 },
+  { name: "Events", slug: "events", icon: "celebration", sortOrder: 9 },
+  { name: "Lifestyle", slug: "lifestyle", icon: "local_activity", sortOrder: 10 },
 ];
 
 const childCategories = [
-  { name: "Architects & Builders", slug: "architects-builders", parentSlug: "contractors", icon: "architecture", sortOrder: 1 },
+  // Keep nav pillars populated: /listings/b2b, /listings/real-estate, /listings/home-repairs
+  { name: "Material Suppliers", slug: "material-suppliers", parentSlug: "b2b", icon: "inventory_2", sortOrder: 1 },
+  { name: "Architects & Builders", slug: "architects-builders", parentSlug: "real-estate", icon: "architecture", sortOrder: 1 },
+  { name: "Home Decor", slug: "home-decor", parentSlug: "home-repairs", icon: "chair", sortOrder: 1 },
+  { name: "Tech Repair", slug: "tech-repair", parentSlug: "home-repairs", icon: "devices", sortOrder: 2 },
   { name: "Banquet Halls", slug: "banquet-halls", parentSlug: "events", icon: "festival", sortOrder: 1 },
   { name: "Bridal Wear", slug: "bridal-wear", parentSlug: "events", icon: "checkroom", sortOrder: 2 },
   { name: "Caterers", slug: "caterers", parentSlug: "events", icon: "room_service", sortOrder: 3 },
@@ -28,8 +31,7 @@ const childCategories = [
   { name: "Elite Gyms", slug: "elite-gyms", parentSlug: "beauty-spa", icon: "fitness_center", sortOrder: 3 },
   { name: "Grocery", slug: "grocery", parentSlug: "lifestyle", icon: "local_grocery_store", sortOrder: 1 },
   { name: "Movies", slug: "movies", parentSlug: "lifestyle", icon: "movie", sortOrder: 2 },
-  { name: "Tech Repair", slug: "tech-repair", parentSlug: "home-repairs", icon: "devices", sortOrder: 1 },
-];
+]
 
 const listingImages = [
   "/assets/brett-villa.jpg",
@@ -42,7 +44,7 @@ const businesses = [
   {
     name: "Elite Build & Masonry",
     slug: "elite-build-masonry",
-    category: "architects-builders",
+    category: "material-suppliers",
     city: "New York",
     address: "150 Madison Avenue, New York, NY",
     description: "Curating exquisite architectural materials and engineering luxury custom homes for more than three decades.",
@@ -75,7 +77,7 @@ const businesses = [
   {
     name: "Terra & Stone Collective",
     slug: "terra-stone-collective",
-    category: "architects-builders",
+    category: "material-suppliers",
     city: "New York",
     address: "210 West 18th Street, New York, NY",
     description: "Premium stone sourcing and architectural material consultancy for exceptional residential projects.",

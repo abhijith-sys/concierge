@@ -1,7 +1,8 @@
 import { Menu, UserRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { Button } from "./ui";
 
 const pillars = [
@@ -118,11 +119,33 @@ export function Footer() {
   );
 }
 
+function RouteLoading() {
+  return (
+    <div className="page-shell min-h-[65vh] py-10" aria-live="polite" aria-busy="true">
+      <span className="sr-only">Opening page</span>
+      <div className="route-loading-shimmer h-[min(48vh,28rem)] rounded-[2rem] bg-surface-high" />
+      <div className="mt-8 grid max-w-3xl gap-3">
+        <div className="route-loading-shimmer h-8 w-2/3 rounded-lg bg-surface-high" />
+        <div className="route-loading-shimmer h-4 w-full rounded bg-surface-high" />
+        <div className="route-loading-shimmer h-4 w-4/5 rounded bg-surface-high" />
+      </div>
+    </div>
+  );
+}
+
 export function Layout() {
+  const location = useLocation();
+
   return (
     <>
       <TopNav />
-      <main><Outlet /></main>
+      <main>
+        <RouteErrorBoundary key={`${location.pathname}${location.search}`}>
+          <Suspense fallback={<RouteLoading />}>
+            <Outlet />
+          </Suspense>
+        </RouteErrorBoundary>
+      </main>
       <Footer />
     </>
   );

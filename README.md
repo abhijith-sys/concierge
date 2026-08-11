@@ -94,6 +94,8 @@ Vite serves [http://localhost:5173](http://localhost:5173) and proxies `/api` to
 | `CORS_ORIGIN` | localhost `5173,8080` | Comma-separated browser origins accepted by Express |
 | `COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
 | `RUN_SEED` | `true` | Runs the idempotent demo seed on API startup; set `false` in production |
+| `RATE_LIMIT_ENABLED` | `false` | Enables simple in-memory rate limiting (swap for Redis later) |
+| `LOG_LEVEL` | `info` | API structured log level (`debug` \| `info` \| `warn` \| `error`) |
 | `VITE_API_URL` | empty | Optional API origin at web build time; empty uses same-origin `/api` |
 
 ## Architecture
@@ -110,10 +112,12 @@ Repository layout:
 
 ```text
 apps/web/       React 19, Vite, TanStack Query, Leaflet, nginx
-apps/api/       Express, Prisma, PostgreSQL migrations and seed
+apps/api/       Modular Express monolith (domain modules + shared kernel)
 design/         Original HTML visual references
 docker-compose.yml
 ```
+
+The API is a **modular monolith**: active domains live under `apps/api/src/modules/{auth,categories,search,businesses,reviews,health}` with routes → service → repository layers. Shared kernel code is in `apps/api/src/shared/`. Future domains (`bookings`, `payments`, `messaging`, `ads`, `analytics`, `notifications`) are scaffolded but unmounted. See [`apps/api/README.md`](apps/api/README.md) for dependency rules and how to extract a microservice later.
 
 Authentication uses a seven-day, HttpOnly, SameSite=Lax JWT cookie named `concierge_session`. Roles are `user`, `business`, and `admin`.
 

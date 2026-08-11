@@ -11,4 +11,4 @@ else
   echo "[entrypoint] RUN_SEED=${RUN_SEED:-true}; skipping seed"
 fi
 
-exec node dist/index.js
+exec node dist/main.js

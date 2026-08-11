@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Clock3, Globe2, MapPin, Phone, Star, Trash2 } from "lucide-react";
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Listing } from "../lib/api";
+import { lazyWithReload } from "../lib/lazyWithReload";
 
-const BusinessMap = lazy(() => import("../components/BusinessMap"));
+const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
 const fallbackHero = "/assets/concierge-architectural-hero.jpg";
 
 export function BusinessDetail() {
