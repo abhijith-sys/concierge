@@ -38,6 +38,67 @@ enum VerificationStatus {
   rejected
 }
 
+enum AssetVisibility {
+  public
+  private
+}
+
+enum AssetStatus {
+  pending
+  ready
+  rejected
+  deleted
+}
+
+enum AttachmentEntityType {
+  user
+  business
+  listing
+  service
+  verification
+  review
+  message
+  field_value
+}
+
+enum AttachmentPurpose {
+  avatar
+  logo
+  cover
+  gallery
+  kyc_owner
+  kyc_location
+  kyc_storefront
+  kyc_document
+  kyc_selfie
+  kyc_video
+  review_photo
+  message_file
+  field
+}
+
+enum CategoryFieldType {
+  text
+  textarea
+  number
+  boolean
+  select
+  multiselect
+  date
+  url
+  phone
+  email
+  json
+  asset_ref
+  asset_gallery
+}
+
+enum CategoryFieldScope {
+  listing
+  service
+  business
+}
+
 model User {
   id              String                  @id @default(uuid()) @db.Uuid
   name            String
@@ -48,14 +109,66 @@ model User {
   emailVerifiedAt DateTime?
   phoneVerifiedAt DateTime?
   avatarUrl       String?
+  mfaEnabled      Boolean                 @default(false)
+  disabledAt      DateTime?
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
   businesses      Business[]
   reviews         Review[]
   otpChallenges   VerificationChallenge[]
   auditLogs       AuditLog[]              @relation("AuditActor")
+  userRoles       UserRole[]
+  assignedRoles   UserRole[]              @relation("RoleAssigner")
+  uploadedAssets  Asset[]                 @relation("AssetUploader")
 
   @@index([role])
+}
+
+/// RBAC permission catalog (stable string keys).
+model Permission {
+  id              String           @id @default(uuid()) @db.Uuid
+  key             String           @unique
+  description     String?
+  createdAt       DateTime         @default(now())
+  rolePermissions RolePermission[]
+}
+
+/// Named role independent of legacy User.role enum.
+model RoleDef {
+  id              String           @id @default(uuid()) @db.Uuid
+  key             String           @unique
+  name            String
+  description     String?
+  isSystem        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         RoleDef    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  roleId       String   @db.Uuid
+  assignedAt   DateTime @default(now())
+  assignedById String?  @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         RoleDef  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("RoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@index([assignedById])
 }
 
 model VerificationChallenge {
@@ -75,18 +188,21 @@ model VerificationChallenge {
 }
 
 model Category {
-  id        String     @id @default(uuid()) @db.Uuid
+  id        String          @id @default(uuid()) @db.Uuid
   name      String
-  slug      String     @unique
-  parentId  String?    @db.Uuid
+  slug      String          @unique
+  parentId  String?         @db.Uuid
   icon      String?
-  sortOrder Int        @default(0)
-  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children  Category[] @relation("CategoryTree")
+  sortOrder Int             @default(0)
+  isActive  Boolean         @default(true)
+  parent    Category?       @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[]      @relation("CategoryTree")
   listings  Listing[]
   services  Service[]
+  fields    CategoryField[]
 
   @@index([parentId, sortOrder])
+  @@index([isActive])
 }
 
 model Business {
@@ -114,9 +230,9 @@ model Business {
 }
 
 model Listing {
-  id          String   @id @default(uuid()) @db.Uuid
-  businessId  String   @unique @db.Uuid
-  categoryId  String   @db.Uuid
+  id          String              @id @default(uuid()) @db.Uuid
+  businessId  String              @unique @db.Uuid
+  categoryId  String              @db.Uuid
   title       String
   description String
   address     String
@@ -126,13 +242,14 @@ model Listing {
   hours       Json?
   images      String[]
   website     String?
-  avgRating   Float    @default(0)
-  reviewCount Int      @default(0)
-  featured    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  avgRating   Float               @default(0)
+  reviewCount Int                 @default(0)
+  featured    Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  business    Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category    Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  fieldValues ListingFieldValue[]
 
   @@index([categoryId])
   @@index([city])
@@ -142,23 +259,86 @@ model Listing {
 }
 
 model Service {
-  id              String   @id @default(uuid()) @db.Uuid
-  businessId      String   @db.Uuid
-  categoryId      String?  @db.Uuid
+  id              String              @id @default(uuid()) @db.Uuid
+  businessId      String              @db.Uuid
+  categoryId      String?             @db.Uuid
   name            String
   description     String
-  price           Decimal  @db.Decimal(10, 2)
-  currency        String   @default("USD") @db.VarChar(3)
+  price           Decimal             @db.Decimal(10, 2)
+  currency        String              @default("USD") @db.VarChar(3)
   durationMinutes Int?
   images          String[]
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  business        Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category        Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  fieldValues     ServiceFieldValue[]
 
   @@index([businessId, isActive])
   @@index([name])
+}
+
+model CategoryField {
+  id             String                 @id @default(uuid()) @db.Uuid
+  categoryId     String                 @db.Uuid
+  key            String
+  label          String
+  helpText       String?
+  fieldType      CategoryFieldType
+  required       Boolean                @default(false)
+  options        Json?
+  validation     Json?
+  scope          CategoryFieldScope     @default(listing)
+  sortOrder      Int                    @default(0)
+  section        String?
+  isFilterable   Boolean                @default(false)
+  isSearchable   Boolean                @default(false)
+  isActive       Boolean                @default(true)
+  schemaVersion  Int                    @default(1)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  category       Category               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listingValues  ListingFieldValue[]
+  serviceValues  ServiceFieldValue[]
+
+  @@unique([categoryId, key])
+  @@index([categoryId, scope, sortOrder])
+  @@index([isActive])
+}
+
+model ListingFieldValue {
+  id          String        @id @default(uuid()) @db.Uuid
+  listingId   String        @db.Uuid
+  fieldId     String        @db.Uuid
+  valueText   String?
+  valueNumber Decimal?      @db.Decimal(18, 4)
+  valueBool   Boolean?
+  valueJson   Json?
+  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime      @default(now())
+  listing     Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  field       CategoryField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, fieldId])
+  @@index([fieldId])
+}
+
+model ServiceFieldValue {
+  id          String        @id @default(uuid()) @db.Uuid
+  serviceId   String        @db.Uuid
+  fieldId     String        @db.Uuid
+  valueText   String?
+  valueNumber Decimal?      @db.Decimal(18, 4)
+  valueBool   Boolean?
+  valueJson   Json?
+  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime      @default(now())
+  service     Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  field       CategoryField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, fieldId])
+  @@index([fieldId])
 }
 
 model VerificationSubmission {
@@ -214,4 +394,50 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId, createdAt])
   @@index([createdAt])
+}
+
+model Asset {
+  id           String          @id @default(uuid()) @db.Uuid
+  storageKey   String          @unique
+  mimeType     String
+  byteSize     Int
+  checksum     String?
+  visibility   AssetVisibility @default(public)
+  status       AssetStatus     @default(ready)
+  uploadedById String?         @db.Uuid
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  uploadedBy   User?           @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  variants     AssetVariant[]
+  attachments  Attachment[]
+
+  @@index([uploadedById, createdAt])
+  @@index([visibility, status])
+}
+
+model AssetVariant {
+  id         String @id @default(uuid()) @db.Uuid
+  assetId    String @db.Uuid
+  kind       String
+  storageKey String @unique
+  width      Int?
+  height     Int?
+  asset      Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, kind])
+}
+
+model Attachment {
+  id         String               @id @default(uuid()) @db.Uuid
+  assetId    String               @db.Uuid
+  entityType AttachmentEntityType
+  entityId   String               @db.Uuid
+  purpose    AttachmentPurpose
+  sortOrder  Int                  @default(0)
+  createdAt  DateTime             @default(now())
+  asset      Asset                @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([entityType, entityId, purpose, assetId])
+  @@index([entityType, entityId, purpose])
+  @@index([assetId])
 }

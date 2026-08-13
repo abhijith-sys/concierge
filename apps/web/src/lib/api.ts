@@ -9,6 +9,9 @@ export interface User {
   avatarUrl?: string | null;
   emailVerifiedAt?: string | null;
   phoneVerifiedAt?: string | null;
+  mfaEnabled?: boolean;
+  permissions?: string[];
+  roles?: string[];
 }
 
 export interface Category {
@@ -17,6 +20,87 @@ export interface Category {
   slug: string;
   icon?: string;
   children?: Category[];
+}
+
+export type CategoryFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "boolean"
+  | "select"
+  | "multiselect"
+  | "date"
+  | "url"
+  | "phone"
+  | "email"
+  | "json"
+  | "asset_ref"
+  | "asset_gallery";
+
+export interface CategoryField {
+  id: string;
+  key: string;
+  label: string;
+  helpText?: string | null;
+  fieldType: CategoryFieldType;
+  required: boolean;
+  options?: string[] | null;
+  validation?: Record<string, unknown> | null;
+  scope: "listing" | "service" | "business";
+  sortOrder: number;
+  section?: string | null;
+}
+
+export interface FieldValue {
+  fieldId: string;
+  key: string;
+  label: string;
+  section?: string | null;
+  fieldType: CategoryFieldType;
+  scope: string;
+  value: unknown;
+}
+
+export type AttachmentEntityType =
+  | "user"
+  | "business"
+  | "listing"
+  | "service"
+  | "verification"
+  | "review"
+  | "message"
+  | "field_value";
+
+export type AttachmentPurpose =
+  | "avatar"
+  | "logo"
+  | "cover"
+  | "gallery"
+  | "kyc_owner"
+  | "kyc_location"
+  | "kyc_storefront"
+  | "kyc_document"
+  | "kyc_selfie"
+  | "kyc_video"
+  | "review_photo"
+  | "message_file"
+  | "field";
+
+export interface UploadOptions {
+  visibility?: "public" | "private";
+  entityType?: AttachmentEntityType;
+  entityId?: string;
+  purpose?: AttachmentPurpose;
+  sortOrder?: number;
+}
+
+export interface UploadedFile {
+  url: string;
+  key: string;
+  mime: string;
+  bytes: number;
+  visibility: "public" | "private";
+  assetId: string;
 }
 
 export interface Review {
@@ -62,6 +146,7 @@ export interface Business {
   listing?: Listing;
   reviews?: Review[];
   services?: Service[];
+  fieldValues?: FieldValue[];
 }
 
 export interface Listing {
@@ -199,22 +284,61 @@ export const api = {
     return value.user;
   },
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
-  upload: async (file: File, visibility: "public" | "private" = "public") => {
+  upload: async (file: File, options: UploadOptions | "public" | "private" = "public") => {
+    const opts: UploadOptions =
+      typeof options === "string" ? { visibility: options } : options;
     const data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
-    const value = await request<{ file: { url: string } }>("/api/uploads", {
+    const value = await request<{ file: UploadedFile }>("/api/uploads", {
       method: "POST",
-      body: JSON.stringify({ data, mime: file.type || "application/octet-stream", fileName: file.name, visibility }),
+      body: JSON.stringify({
+        data,
+        mime: file.type || "application/octet-stream",
+        fileName: file.name,
+        visibility: opts.visibility ?? "public",
+        ...(opts.entityType && opts.entityId && opts.purpose
+          ? {
+              entityType: opts.entityType,
+              entityId: opts.entityId,
+              purpose: opts.purpose,
+              sortOrder: opts.sortOrder,
+            }
+          : {}),
+      }),
     });
     return value.file;
   },
   categories: async () => {
     const value = await request<unknown>("/api/categories");
     return unwrapArray<Category>(value, ["categories", "items", "data"]);
+  },
+  categoryFields: async (idOrSlug: string, scope?: "listing" | "service" | "business") => {
+    const params = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+    const value = await request<{
+      category: Pick<Category, "id" | "name" | "slug">;
+      fields: CategoryField[];
+    }>(`/api/categories/${encodeURIComponent(idOrSlug)}/fields${params}`);
+    return value;
+  },
+  entityAttachments: async (
+    entityType: AttachmentEntityType,
+    entityId: string,
+    purpose?: AttachmentPurpose,
+  ) => {
+    const params = purpose ? `?purpose=${encodeURIComponent(purpose)}` : "";
+    const value = await request<{
+      attachments: Array<{
+        id: string;
+        purpose: AttachmentPurpose;
+        sortOrder: number;
+        asset: { id: string; url: string; mimeType: string; visibility: string; status: string };
+      }>;
+    }>(`/api/assets/entity/${entityType}/${encodeURIComponent(entityId)}${params}`);
+    return value.attachments;
   },
   search: async (params: URLSearchParams): Promise<SearchResult> => {
     const value = await request<unknown>(`/api/search?${params.toString()}`);

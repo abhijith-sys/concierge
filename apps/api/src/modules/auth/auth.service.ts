@@ -4,6 +4,7 @@ import { ApiError } from "../../shared/errors/index.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { SmsService } from "../../shared/integrations/sms.js";
 import { generateOtpCode, hashOtp } from "../../shared/integrations/storage.js";
+import { assetsService } from "../assets/assets.service.js";
 import { authRepository } from "./auth.repository.js";
 import type {
   LoginInput,
@@ -32,7 +33,7 @@ export const authService = {
       subject: "Welcome to Concierge",
       body: `Welcome, ${user.name}. Verify your email to continue.`,
     });
-    return user;
+    return authRepository.withAccess(user);
   },
 
   async login(input: LoginInput) {
@@ -40,8 +41,11 @@ export const authService = {
     if (!record || !(await bcrypt.compare(input.password, record.passwordHash))) {
       throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect");
     }
+    if (record.disabledAt) {
+      throw new ApiError(403, "ACCOUNT_DISABLED", "This account has been disabled");
+    }
     const { passwordHash: _passwordHash, updatedAt: _updatedAt, ...user } = record;
-    return user;
+    return authRepository.withAccess(user);
   },
 
   async me(userId: string) {
@@ -49,11 +53,24 @@ export const authService = {
     if (!user) {
       throw new ApiError(401, "UNAUTHENTICATED", "Session user no longer exists");
     }
-    return user;
+    if (user.disabledAt) {
+      throw new ApiError(403, "ACCOUNT_DISABLED", "This account has been disabled");
+    }
+    return authRepository.withAccess(user);
   },
 
   async updateMe(userId: string, input: UpdateMeInput) {
-    return authRepository.updateUser(userId, input);
+    const user = await authRepository.updateUser(userId, input);
+    if (input.avatarUrl !== undefined) {
+      await assetsService.dualWriteUrl({
+        url: input.avatarUrl,
+        uploadedById: userId,
+        entityType: "user",
+        entityId: userId,
+        purpose: "avatar",
+      });
+    }
+    return authRepository.withAccess(user);
   },
 
   async requestOtp(userId: string, input: OtpRequestInput) {
@@ -116,7 +133,8 @@ export const authService = {
       input.channel === "email"
         ? { emailVerifiedAt: new Date() }
         : { phoneVerifiedAt: new Date() };
-    return authRepository.updateUser(userId, patch);
+    const user = await authRepository.updateUser(userId, patch);
+    return authRepository.withAccess(user);
   },
 
   assertEmailVerifiedIfRequired(user: { role: string; emailVerifiedAt?: Date | null }) {

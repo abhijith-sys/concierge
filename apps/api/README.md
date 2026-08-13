@@ -12,14 +12,14 @@ src/
   platform/               # router mounting
   shared/                 # kernel: auth, db, errors, logging, integrations, domain helpers
   modules/
-    health|auth|categories|search|businesses|reviews|services|admin|verification|uploads   # active
+    health|auth|categories|search|businesses|reviews|services|admin|verification|uploads|assets   # active
     bookings|payments|messaging|ads|analytics|notifications  # scaffolds (unmounted)
 ```
 
 ### Dependency rule
 
 - `modules/*` may import `shared/*` and their own files
-- Modules must **not** import other modules’ internals
+- Modules must **not** import other modules’ internals (exception: `assets` / `uploads` are shared media infrastructure used for dual-write attachments)
 - Cross-domain rules live in `shared/domain/` (e.g. pending visibility, rating aggregates)
 
 ### Per-module shape

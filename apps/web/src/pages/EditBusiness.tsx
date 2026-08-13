@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import {
+  CategoryFieldsEditor,
+  toFieldValuePayload,
+  valuesFromFieldValues,
+  type FieldValueMap,
+} from "../components/CategoryFieldsEditor";
 import { Button, Field, Input, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
@@ -26,12 +32,26 @@ export function EditBusiness() {
     queryFn: () => api.services(business.data!.id),
     enabled: Boolean(business.data?.id),
   });
+  const categoryId = business.data?.listing?.category?.id;
+  const categoryFields = useQuery({
+    queryKey: ["category-fields", categoryId],
+    queryFn: () => api.categoryFields(categoryId!, "listing"),
+    enabled: Boolean(categoryId),
+  });
 
   const [serviceForm, setServiceForm] = useState({ name: "", description: "", price: "100" });
+  const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const canEdit = useMemo(() => {
     if (!user || !business.data) return false;
     return user.role === "admin" || user.id === business.data.ownerId;
   }, [user, business.data]);
+
+  useEffect(() => {
+    if (!categoryFields.data?.fields) return;
+    setFieldValues(
+      valuesFromFieldValues(categoryFields.data.fields, business.data?.fieldValues),
+    );
+  }, [categoryFields.data, business.data?.fieldValues]);
 
   const save = useMutation({
     mutationFn: (input: Record<string, unknown>) => api.updateBusiness(business.data!.id, input),
@@ -61,8 +81,27 @@ export function EditBusiness() {
   });
   const uploadCover = useMutation({
     mutationFn: async (file: File) => {
-      const stored = await api.upload(file, "public");
+      const stored = await api.upload(file, {
+        visibility: "public",
+        entityType: "business",
+        entityId: business.data!.id,
+        purpose: "cover",
+      });
       return api.updateBusiness(business.data!.id, { coverUrl: stored.url });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["business", slug] });
+    },
+  });
+  const uploadLogo = useMutation({
+    mutationFn: async (file: File) => {
+      const stored = await api.upload(file, {
+        visibility: "public",
+        entityType: "business",
+        entityId: business.data!.id,
+        purpose: "logo",
+      });
+      return api.updateBusiness(business.data!.id, { logoUrl: stored.url });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["business", slug] });
@@ -80,6 +119,7 @@ export function EditBusiness() {
   function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const fields = categoryFields.data?.fields ?? [];
     save.mutate({
       name: String(form.get("name") || ""),
       phone: String(form.get("phone") || "") || null,
@@ -92,6 +132,7 @@ export function EditBusiness() {
         facebook: String(form.get("facebook") || "") || undefined,
       },
       hours: defaultHours,
+      fieldValues: fields.length ? toFieldValuePayload(fields, fieldValues) : undefined,
     });
   }
 
@@ -119,7 +160,28 @@ export function EditBusiness() {
         <Field label="Website"><Input name="website" defaultValue={listing?.website ?? ""} /></Field>
         <Field label="Instagram"><Input name="instagram" defaultValue={profile.socialLinks?.instagram ?? ""} /></Field>
         <Field label="Facebook"><Input name="facebook" defaultValue={profile.socialLinks?.facebook ?? ""} /></Field>
-        <label className="md:col-span-2">
+
+        {categoryFields.data?.fields?.length ? (
+          <CategoryFieldsEditor
+            fields={categoryFields.data.fields}
+            values={fieldValues}
+            onChange={setFieldValues}
+          />
+        ) : null}
+
+        <label className="md:col-span-1">
+          <span className="text-xs font-bold uppercase tracking-wider">Logo</span>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full text-sm"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadLogo.mutate(file);
+            }}
+          />
+        </label>
+        <label className="md:col-span-1">
           <span className="text-xs font-bold uppercase tracking-wider">Cover image</span>
           <input
             type="file"

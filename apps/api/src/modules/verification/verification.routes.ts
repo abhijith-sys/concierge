@@ -1,7 +1,7 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../../shared/auth/index.js";
+import { PERMISSIONS, requireAuth, requirePermission, requireRole } from "../../shared/auth/index.js";
 import { verificationDraftSchema, verificationReviewSchema } from "./verification.schemas.js";
 import { verificationService } from "./verification.service.js";
 
@@ -25,20 +25,30 @@ verificationRouter.post("/business/:businessId/submit", requireAuth, requireRole
   res.json({ submission });
 });
 
-verificationRouter.get("/queue", requireAuth, requireRole(Role.admin), async (req, res) => {
-  const page = z.coerce.number().int().min(1).default(1).parse(req.query.page ?? 1);
-  const pageSize = z.coerce.number().int().min(1).max(50).default(20).parse(req.query.pageSize ?? 20);
-  const result = await verificationService.queue(page, pageSize);
-  res.json(result);
-});
+verificationRouter.get(
+  "/queue",
+  requireAuth,
+  requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
+  async (req, res) => {
+    const page = z.coerce.number().int().min(1).default(1).parse(req.query.page ?? 1);
+    const pageSize = z.coerce.number().int().min(1).max(50).default(20).parse(req.query.pageSize ?? 20);
+    const result = await verificationService.queue(page, pageSize);
+    res.json(result);
+  },
+);
 
-verificationRouter.post("/:id/review", requireAuth, requireRole(Role.admin), async (req, res) => {
-  const id = z.string().uuid().parse(req.params.id);
-  const data = verificationReviewSchema.parse(req.body);
-  const submission = await verificationService.review(id, data, {
-    actorId: req.user!.id,
-    ip: req.ip,
-    requestId: req.requestId,
-  });
-  res.json({ submission });
-});
+verificationRouter.post(
+  "/:id/review",
+  requireAuth,
+  requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const data = verificationReviewSchema.parse(req.body);
+    const submission = await verificationService.review(id, data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ submission });
+  },
+);

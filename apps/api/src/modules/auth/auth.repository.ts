@@ -1,4 +1,9 @@
 import { prisma } from "../../shared/db/prisma.js";
+import {
+  assignDefaultRoleForLegacy,
+  getPermissionKeysForUser,
+  getRoleKeysForUser,
+} from "../../shared/auth/rbac.service.js";
 import { publicUserSelect } from "./auth.types.js";
 
 export const authRepository = {
@@ -14,21 +19,31 @@ export const authRepository = {
     return prisma.user.findUnique({ where: { id }, select: publicUserSelect });
   },
 
-  createUser(data: {
+  async createUser(data: {
     name: string;
     email: string;
     phone?: string;
     passwordHash: string;
     role: "user" | "business";
   }) {
-    return prisma.user.create({
+    const user = await prisma.user.create({
       data,
       select: publicUserSelect,
     });
+    await assignDefaultRoleForLegacy(user.id, data.role);
+    return user;
   },
 
   updateUser(id: string, data: Record<string, unknown>) {
     return prisma.user.update({ where: { id }, data, select: publicUserSelect });
+  },
+
+  async withAccess(user: { id: string; role: "user" | "business" | "admin" } & Record<string, unknown>) {
+    const [permissions, roles] = await Promise.all([
+      getPermissionKeysForUser(user.id, user.role),
+      getRoleKeysForUser(user.id),
+    ]);
+    return { ...user, permissions, roles };
   },
 
   createOtp(data: {

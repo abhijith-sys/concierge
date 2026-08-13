@@ -52,7 +52,11 @@ export function TopNav() {
           <Link to="/list-business"><Button>List Business</Button></Link>
           {user ? (
             <>
-              {user.role === "admin" ? <Link to="/admin"><Button variant="outline">Admin</Button></Link> : null}
+              {user.role === "admin" ? (
+                <a href={import.meta.env.VITE_ADMIN_URL || "http://localhost:8081"}>
+                  <Button variant="outline">Admin</Button>
+                </a>
+              ) : null}
               <Link to="/account" className="icon-button" aria-label="Account"><UserRound /></Link>
               <Button variant="ghost" onClick={() => void logout()}>Log out</Button>
             </>

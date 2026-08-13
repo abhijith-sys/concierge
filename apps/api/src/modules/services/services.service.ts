@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { ApiError } from "../../shared/errors/index.js";
 import type { AuthUser } from "../../shared/domain/business.js";
+import { assetsService } from "../assets/assets.service.js";
 import { servicesRepository } from "./services.repository.js";
 import type { CreateServiceInput, UpdateServiceInput } from "./services.schemas.js";
 
@@ -22,14 +23,34 @@ export const servicesService = {
     const business = await servicesRepository.findBusinessOwner(input.businessId);
     if (!business) throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
     assertOwner(business.ownerId, user);
-    return servicesRepository.create(input);
+    const service = await servicesRepository.create(input);
+    if (input.images?.length) {
+      await assetsService.dualWriteUrlList({
+        urls: input.images,
+        uploadedById: user.id,
+        entityType: "service",
+        entityId: service.id,
+        purpose: "gallery",
+      });
+    }
+    return service;
   },
 
   async update(id: string, input: UpdateServiceInput, user: AuthUser) {
     const existing = await servicesRepository.findById(id);
     if (!existing) throw new ApiError(404, "SERVICE_NOT_FOUND", "Service not found");
     assertOwner(existing.business.ownerId, user);
-    return servicesRepository.update(id, input);
+    const service = await servicesRepository.update(id, input);
+    if (input.images) {
+      await assetsService.dualWriteUrlList({
+        urls: input.images,
+        uploadedById: user.id,
+        entityType: "service",
+        entityId: service.id,
+        purpose: "gallery",
+      });
+    }
+    return service;
   },
 
   async remove(id: string, user: AuthUser) {

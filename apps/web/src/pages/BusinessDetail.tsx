@@ -112,6 +112,24 @@ export function BusinessDetail() {
             {profile.email ? <a className="font-semibold underline" href={`mailto:${profile.email}`}>{profile.email}</a> : null}
             {socials.instagram ? <a className="font-semibold underline" href={socials.instagram} target="_blank" rel="noreferrer">Instagram</a> : null}
             {socials.facebook ? <a className="font-semibold underline" href={socials.facebook} target="_blank" rel="noreferrer">Facebook</a> : null}
+            {profile.fieldValues?.length
+              ? profile.fieldValues
+                  .filter((item) => item.value != null && item.value !== "" && !(Array.isArray(item.value) && !item.value.length))
+                  .map((item) => (
+                    <div key={item.fieldId}>
+                      <p className="text-xs uppercase tracking-wider text-ink-soft">{item.label}</p>
+                      <p className="mt-1 font-semibold">
+                        {typeof item.value === "boolean"
+                          ? item.value
+                            ? "Yes"
+                            : "No"
+                          : Array.isArray(item.value)
+                            ? item.value.join(", ")
+                            : String(item.value)}
+                      </p>
+                    </div>
+                  ))
+              : null}
           </div>
         </aside>
       </section>

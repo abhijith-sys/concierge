@@ -21,7 +21,10 @@ const EditBusiness = lazyWithReload(
   () => import("./pages/EditBusiness"),
   (module) => module.EditBusiness,
 );
-const Admin = lazyWithReload(() => import("./pages/Admin"), (module) => module.Admin);
+const AdminRedirect = lazyWithReload(
+  () => import("./pages/AdminRedirect"),
+  (module) => module.AdminRedirect,
+);
 const Verification = lazyWithReload(
   () => import("./pages/Verification"),
   (module) => module.Verification,
@@ -50,7 +53,7 @@ function AppRoutes() {
           <Route path="register" element={<Register />} />
           <Route path="account" element={<Account />} />
           <Route path="list-business" element={<ListBusiness />} />
-          <Route path="admin" element={<Admin />} />
+          <Route path="admin" element={<AdminRedirect />} />
           <Route path="verification" element={<Verification />} />
           <Route
             path="*"

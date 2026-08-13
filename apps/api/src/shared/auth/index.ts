@@ -4,6 +4,12 @@ import jwt from "jsonwebtoken";
 import { AUTH_COOKIE_NAME, JWT_TTL_SECONDS } from "../../config/constants.js";
 import { getEnv } from "../../config/env.js";
 import { ApiError } from "../errors/index.js";
+import type { PermissionKey } from "./permissions.js";
+import {
+  getPermissionKeysForUser,
+  userHasAnyPermission,
+  userHasPermission,
+} from "./rbac.service.js";
 
 function jwtSecret() {
   return getEnv().JWT_SECRET;
@@ -65,3 +71,61 @@ export function requireRole(...roles: Role[]): RequestHandler {
     next();
   };
 }
+
+async function ensurePermissions(req: Parameters<RequestHandler>[0]) {
+  if (!req.user) return [] as PermissionKey[];
+  if (req.user.permissions) return req.user.permissions;
+  const permissions = await getPermissionKeysForUser(req.user.id, req.user.role);
+  req.user.permissions = permissions;
+  return permissions;
+}
+
+/** Require every listed permission. */
+export function requirePermission(...keys: PermissionKey[]): RequestHandler {
+  return async (req, _res, next) => {
+    try {
+      if (!req.user) {
+        next(new ApiError(401, "UNAUTHENTICATED", "Authentication required"));
+        return;
+      }
+      const permissions = await ensurePermissions(req);
+      const missing = keys.filter((key) => !userHasPermission(permissions, key));
+      if (missing.length > 0) {
+        next(new ApiError(403, "FORBIDDEN", "You do not have permission to perform this action"));
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/** Require at least one of the listed permissions. */
+export function requireAnyPermission(...keys: PermissionKey[]): RequestHandler {
+  return async (req, _res, next) => {
+    try {
+      if (!req.user) {
+        next(new ApiError(401, "UNAUTHENTICATED", "Authentication required"));
+        return;
+      }
+      const permissions = await ensurePermissions(req);
+      if (!userHasAnyPermission(permissions, keys)) {
+        next(new ApiError(403, "FORBIDDEN", "You do not have permission to perform this action"));
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+export { PERMISSIONS, ROLE_KEYS, ALL_PERMISSIONS, ROLE_PRESETS } from "./permissions.js";
+export {
+  ensureRbacCatalog,
+  assignRoleByKey,
+  assignDefaultRoleForLegacy,
+  getPermissionKeysForUser,
+  getRoleKeysForUser,
+} from "./rbac.service.js";

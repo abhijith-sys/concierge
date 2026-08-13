@@ -1,12 +1,18 @@
-import { BusinessStatus, Role } from "@prisma/client";
+import { BusinessStatus, CategoryFieldScope, Role } from "@prisma/client";
 import { z } from "zod";
 import {
   assertCanViewBusiness,
   availableBusinessSlug,
   type AuthUser,
 } from "../../shared/domain/business.js";
+import {
+  normalizeAndValidateFieldValues,
+  serializeFieldValue,
+} from "../../shared/domain/category-fields.js";
 import { ApiError } from "../../shared/errors/index.js";
 import { slugify } from "../../shared/utils/index.js";
+import { assetsService } from "../assets/assets.service.js";
+import { categoriesRepository } from "../categories/categories.repository.js";
 import { businessesRepository } from "./businesses.repository.js";
 import type { CreateBusinessInput, UpdateBusinessInput } from "./businesses.schemas.js";
 
@@ -16,7 +22,11 @@ export const businessesService = {
     const isId = z.string().uuid().safeParse(value).success;
     const business = await businessesRepository.findBySlugOrId(value, isId);
     assertCanViewBusiness(business, user);
-    return business!;
+    const listingId = business!.listing?.id;
+    const fieldValues = listingId
+      ? (await categoriesRepository.listListingValues(listingId)).map(serializeFieldValue)
+      : [];
+    return { ...business!, fieldValues };
   },
 
   async listMine(user: AuthUser) {
@@ -36,6 +46,7 @@ export const businessesService = {
       images,
       website,
       featured,
+      fieldValues,
       ...businessData
     } = input;
 
@@ -47,8 +58,16 @@ export const businessesService = {
       throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist");
     }
 
+    const listingFields = await categoriesRepository.listFields(categoryId, {
+      activeOnly: true,
+      scope: CategoryFieldScope.listing,
+    });
+    const normalized = normalizeAndValidateFieldValues(listingFields, fieldValues ?? [], {
+      requireRequired: true,
+    });
+
     const slug = await availableBusinessSlug(input.slug ?? slugify(input.name));
-    return businessesRepository.create({
+    const business = await businessesRepository.create({
       ...businessData,
       slug,
       ownerId: user.id,
@@ -69,6 +88,13 @@ export const businessesService = {
         },
       },
     });
+
+    if (business.listing && normalized.length) {
+      await categoriesRepository.upsertListingValues(business.listing.id, normalized);
+    }
+
+    await dualWriteBusinessMedia(business, user.id);
+    return business;
   },
 
   async update(id: string, input: UpdateBusinessInput, user: AuthUser) {
@@ -123,9 +149,58 @@ export const businessesService = {
       listingKeys.filter((key) => input[key] !== undefined).map((key) => [key, input[key]]),
     );
 
-    return businessesRepository.update(id, {
+    const business = await businessesRepository.update(id, {
       ...businessData,
       ...(Object.keys(listingData).length ? { listing: { update: listingData } } : {}),
     });
+
+    if (input.fieldValues && business.listing) {
+      const categoryId = input.categoryId ?? business.listing.categoryId;
+      const listingFields = await categoriesRepository.listFields(categoryId, {
+        activeOnly: true,
+        scope: CategoryFieldScope.listing,
+      });
+      const normalized = normalizeAndValidateFieldValues(listingFields, input.fieldValues, {
+        requireRequired: false,
+      });
+      await categoriesRepository.upsertListingValues(business.listing.id, normalized);
+    }
+
+    await dualWriteBusinessMedia(business, user.id);
+    return business;
   },
 };
+
+async function dualWriteBusinessMedia(
+  business: {
+    id: string;
+    logoUrl?: string | null;
+    coverUrl?: string | null;
+    listing?: { id: string; images: string[] } | null;
+  },
+  uploadedById: string,
+) {
+  await assetsService.dualWriteUrl({
+    url: business.logoUrl,
+    uploadedById,
+    entityType: "business",
+    entityId: business.id,
+    purpose: "logo",
+  });
+  await assetsService.dualWriteUrl({
+    url: business.coverUrl,
+    uploadedById,
+    entityType: "business",
+    entityId: business.id,
+    purpose: "cover",
+  });
+  if (business.listing) {
+    await assetsService.dualWriteUrlList({
+      urls: business.listing.images ?? [],
+      uploadedById,
+      entityType: "listing",
+      entityId: business.listing.id,
+      purpose: "gallery",
+    });
+  }
+}

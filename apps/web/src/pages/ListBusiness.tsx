@@ -1,7 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
+import {
+  CategoryFieldsEditor,
+  toFieldValuePayload,
+  valuesFromFieldValues,
+  type FieldValueMap,
+} from "../components/CategoryFieldsEditor";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
@@ -47,16 +53,30 @@ export function ListBusiness() {
   const location = useLocation();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
+  const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
+  const categoryFields = useQuery({
+    queryKey: ["category-fields", form.categoryId],
+    queryFn: () => api.categoryFields(form.categoryId, "listing"),
+    enabled: Boolean(form.categoryId),
+  });
   const create = useMutation({ mutationFn: api.createBusiness });
   const upload = useMutation({
     mutationFn: async ({ file, kind }: { file: File; kind: "cover" | "logo" }) => {
-      const stored = await api.upload(file, "public");
+      const stored = await api.upload(file, { visibility: "public" });
       if (kind === "cover") setCoverUrl(stored.url);
       else setLogoUrl(stored.url);
     },
   });
+
+  useEffect(() => {
+    if (!categoryFields.data?.fields) {
+      setFieldValues({});
+      return;
+    }
+    setFieldValues(valuesFromFieldValues(categoryFields.data.fields));
+  }, [categoryFields.data]);
 
   if (isLoading) return <PageState title="Loading" loading />;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
@@ -98,6 +118,7 @@ export function ListBusiness() {
       saturday: [form.openTime, form.closeTime] as [string, string],
       sunday: null,
     };
+    const fields = categoryFields.data?.fields ?? [];
     create.mutate({
       name: form.name,
       email: form.email,
@@ -118,6 +139,7 @@ export function ListBusiness() {
         ...(form.instagram ? { instagram: form.instagram } : {}),
         ...(form.facebook ? { facebook: form.facebook } : {}),
       },
+      fieldValues: fields.length ? toFieldValuePayload(fields, fieldValues) : undefined,
     });
   }
 
@@ -248,6 +270,21 @@ export function ListBusiness() {
           <Field label="Longitude (optional)">
             <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} />
           </Field>
+
+          {form.categoryId && categoryFields.isLoading ? (
+            <p className="text-sm text-ink-soft md:col-span-2">Loading category fields…</p>
+          ) : null}
+          {categoryFields.isError ? (
+            <p className="text-sm text-red-700 md:col-span-2">Could not load category fields.</p>
+          ) : null}
+          {categoryFields.data?.fields?.length ? (
+            <CategoryFieldsEditor
+              fields={categoryFields.data.fields}
+              values={fieldValues}
+              onChange={setFieldValues}
+            />
+          ) : null}
+
           <label className="text-sm md:col-span-1">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Logo</span>
             <input
@@ -273,7 +310,11 @@ export function ListBusiness() {
             {coverUrl ? <p className="mt-1 text-xs text-emerald-700">Cover ready</p> : null}
           </label>
           {create.isError ? <p className="text-sm text-red-700 md:col-span-2">{create.error.message}</p> : null}
-          <Button type="submit" className="mt-2 md:col-span-2" disabled={create.isPending || categories.isLoading}>
+          <Button
+            type="submit"
+            className="mt-2 md:col-span-2"
+            disabled={create.isPending || categories.isLoading || (Boolean(form.categoryId) && categoryFields.isLoading)}
+          >
             {create.isPending ? "Submitting…" : "Submit business"}
           </Button>
         </form>

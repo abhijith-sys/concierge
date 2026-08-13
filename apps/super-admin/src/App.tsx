@@ -1,0 +1,41 @@
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { AdminLayout } from "./components/AdminLayout";
+import { useAuth } from "./context/auth";
+import { AssetsPage } from "./pages/AssetsPage";
+import { AuditPage } from "./pages/AuditPage";
+import { BusinessesPage } from "./pages/BusinessesPage";
+import { CategoriesPage } from "./pages/CategoriesPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { LoginPage } from "./pages/LoginPage";
+import { RolesPage } from "./pages/RolesPage";
+import { UsersPage } from "./pages/UsersPage";
+import { VerificationPage } from "./pages/VerificationPage";
+
+function RequireStaff() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <p className="muted">Loading session…</p>;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return <Outlet />;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireStaff />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="businesses" element={<BusinessesPage />} />
+          <Route path="verification" element={<VerificationPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="roles" element={<RolesPage />} />
+          <Route path="assets" element={<AssetsPage />} />
+          <Route path="audit" element={<AuditPage />} />
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}

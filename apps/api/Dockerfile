@@ -14,6 +14,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+# Seed imports RBAC helpers from src via tsx
+COPY src ./src
 RUN npm ci --include=dev && npm run prisma:generate
 COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh ./

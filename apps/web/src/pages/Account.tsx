@@ -151,9 +151,9 @@ export function Account() {
                 </>
               ) : null}
               {user.role === "admin" ? (
-                <Link to="/admin">
+                <a href={import.meta.env.VITE_ADMIN_URL || "http://localhost:8081"}>
                   <Button variant="outline">Admin console</Button>
-                </Link>
+                </a>
               ) : null}
             </div>
             {mine.data?.length ? (

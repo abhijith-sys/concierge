@@ -1,5 +1,6 @@
 import { BusinessStatus, PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { assignDefaultRoleForLegacy, ensureRbacCatalog } from "../src/shared/auth/rbac.service.js";
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "Concierge123!";
@@ -111,6 +112,9 @@ const businesses = [
 
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+
+  await ensureRbacCatalog(prisma);
+
   const demoUsers = [
     { name: "Demo User", email: "user@demo.com", role: Role.user },
     { name: "Demo Business", email: "business@demo.com", role: Role.business },
@@ -128,9 +132,10 @@ async function main() {
       where: { email: user.email },
       update: { name: user.name, role: user.role, passwordHash, emailVerifiedAt: new Date() },
       create: { ...user, passwordHash, emailVerifiedAt: new Date() },
-      select: { id: true },
+      select: { id: true, role: true },
     });
     users.set(user.email, saved);
+    await assignDefaultRoleForLegacy(saved.id, saved.role);
   }
 
   const categoryIds = new Map<string, string>();
@@ -150,6 +155,79 @@ async function main() {
       create: { ...data, parentId: categoryIds.get(parentSlug)! },
     });
     categoryIds.set(data.slug, saved.id);
+  }
+
+  const contractorsId = categoryIds.get("contractors");
+  if (contractorsId) {
+    const contractorFields = [
+      {
+        key: "license_number",
+        label: "License number",
+        helpText: "State contractor license or registration ID",
+        fieldType: "text" as const,
+        required: false,
+        section: "Credentials",
+        sortOrder: 1,
+        validation: { minLength: 3, maxLength: 64 },
+      },
+      {
+        key: "years_in_business",
+        label: "Years in business",
+        fieldType: "number" as const,
+        required: false,
+        section: "Credentials",
+        sortOrder: 2,
+        validation: { min: 0, max: 200 },
+      },
+      {
+        key: "specialties",
+        label: "Specialties",
+        fieldType: "multiselect" as const,
+        required: false,
+        section: "Services",
+        sortOrder: 3,
+        options: ["Masonry", "Framing", "Roofing", "Remodeling", "New construction"],
+      },
+      {
+        key: "insured",
+        label: "Fully insured",
+        fieldType: "boolean" as const,
+        required: false,
+        section: "Credentials",
+        sortOrder: 4,
+      },
+    ];
+    for (const field of contractorFields) {
+      await prisma.categoryField.upsert({
+        where: { categoryId_key: { categoryId: contractorsId, key: field.key } },
+        update: {
+          label: field.label,
+          helpText: field.helpText ?? null,
+          fieldType: field.fieldType,
+          required: field.required,
+          section: field.section,
+          sortOrder: field.sortOrder,
+          options: field.options,
+          validation: field.validation,
+          isActive: true,
+          scope: "listing",
+        },
+        create: {
+          categoryId: contractorsId,
+          key: field.key,
+          label: field.label,
+          helpText: field.helpText ?? null,
+          fieldType: field.fieldType,
+          required: field.required,
+          section: field.section,
+          sortOrder: field.sortOrder,
+          options: field.options,
+          validation: field.validation,
+          scope: "listing",
+          isActive: true,
+        },
+      });
+    }
   }
 
   const businessIds: string[] = [];
@@ -271,7 +349,9 @@ async function main() {
     });
   }
 
-  console.log(`[seed] upserted ${categories.length + childCategories.length} categories, ${businesses.length} businesses, and demo reviews`);
+  console.log(
+    `[seed] upserted RBAC catalog, ${categories.length + childCategories.length} categories, ${businesses.length} businesses, and demo reviews`,
+  );
 }
 
 main()

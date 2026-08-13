@@ -9,6 +9,7 @@ import { servicesRouter } from "../modules/services/index.js";
 import { adminRouter } from "../modules/admin/index.js";
 import { verificationRouter } from "../modules/verification/index.js";
 import { uploadsRouter } from "../modules/uploads/index.js";
+import { assetsRouter } from "../modules/assets/index.js";
 
 /**
  * Mounts active domain routers under /api.
@@ -27,5 +28,6 @@ export function composeApiRouter() {
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/verification", verificationRouter);
   apiRouter.use("/uploads", uploadsRouter);
+  apiRouter.use("/assets", assetsRouter);
   return apiRouter;
 }

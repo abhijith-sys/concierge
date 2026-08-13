@@ -4,10 +4,11 @@ import { writeAuditLog } from "../../shared/logging/audit.js";
 import { paginate } from "../../shared/utils/index.js";
 import type { AuthUser } from "../../shared/domain/business.js";
 import { prisma } from "../../shared/db/prisma.js";
+import { assetsRepository, urlForStorageKey } from "../assets/assets.repository.js";
+import { assetsService } from "../assets/assets.service.js";
 import { verificationRepository } from "./verification.repository.js";
 import type { z } from "zod";
 import type { verificationDraftSchema, verificationReviewSchema } from "./verification.schemas.js";
-
 type DraftInput = z.infer<typeof verificationDraftSchema>;
 type ReviewInput = z.infer<typeof verificationReviewSchema>;
 
@@ -32,8 +33,12 @@ export const verificationService = {
       videoUrl: input.videoUrl ?? null,
       status: VerificationStatus.draft,
     };
-    if (existing) return verificationRepository.update(existing.id, payload);
-    return verificationRepository.create({ businessId: input.businessId, ...payload });
+    const submission = existing
+      ? await verificationRepository.update(existing.id, payload)
+      : await verificationRepository.create({ businessId: input.businessId, ...payload });
+
+    await assetsService.dualWriteKycFields(submission.id, payload, user.id);
+    return submission;
   },
 
   async submit(businessId: string, user: AuthUser) {
@@ -42,17 +47,30 @@ export const verificationService = {
     assertOwner(business.ownerId, user);
     const draft = await verificationRepository.findDraft(businessId);
     if (!draft) throw new ApiError(400, "NO_DRAFT", "Create a verification draft first");
-    const required = [
-      draft.ownerPhotoUrl,
-      draft.locationPhotoUrl,
-      draft.storefrontPhotoUrl,
-      draft.documentUrl,
-      draft.selfieUrl,
-    ];
-    if (required.some((value) => !value)) {
+
+    const attachments = await assetsRepository.listAttachments("verification", draft.id);
+    const byPurpose = new Map(
+      attachments
+        .filter((row) => row.asset.status === "ready")
+        .map((row) => [row.purpose, urlForStorageKey(row.asset.storageKey, row.asset.visibility)]),
+    );
+
+    const ownerPhotoUrl = draft.ownerPhotoUrl ?? byPurpose.get("kyc_owner") ?? null;
+    const locationPhotoUrl = draft.locationPhotoUrl ?? byPurpose.get("kyc_location") ?? null;
+    const storefrontPhotoUrl = draft.storefrontPhotoUrl ?? byPurpose.get("kyc_storefront") ?? null;
+    const documentUrl = draft.documentUrl ?? byPurpose.get("kyc_document") ?? null;
+    const selfieUrl = draft.selfieUrl ?? byPurpose.get("kyc_selfie") ?? null;
+
+    if (![ownerPhotoUrl, locationPhotoUrl, storefrontPhotoUrl, documentUrl, selfieUrl].every(Boolean)) {
       throw new ApiError(400, "INCOMPLETE", "All required verification photos/documents must be provided");
     }
+
     return verificationRepository.update(draft.id, {
+      ownerPhotoUrl,
+      locationPhotoUrl,
+      storefrontPhotoUrl,
+      documentUrl,
+      selfieUrl,
       status: VerificationStatus.submitted,
       submittedAt: new Date(),
     });

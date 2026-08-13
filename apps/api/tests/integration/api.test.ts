@@ -21,6 +21,11 @@ describe.skipIf(!hasDb)("API integration", () => {
     loadEnv();
     await prisma.$connect();
 
+    const { assignDefaultRoleForLegacy, ensureRbacCatalog } = await import(
+      "../../src/shared/auth/rbac.service"
+    );
+    await ensureRbacCatalog(prisma);
+
     const category = await prisma.category.findFirst({ where: { parentId: { not: null } } });
     if (!category) {
       const parent = await prisma.category.create({
@@ -72,7 +77,7 @@ describe.skipIf(!hasDb)("API integration", () => {
 
     const adminEmail = `admin-${suffix}@test.local`;
     const passwordHash = await import("bcryptjs").then((m) => m.hash("Concierge123!", 10));
-    await prisma.user.create({
+    const adminUser = await prisma.user.create({
       data: {
         name: "Admin",
         email: adminEmail,
@@ -81,6 +86,7 @@ describe.skipIf(!hasDb)("API integration", () => {
         emailVerifiedAt: new Date(),
       },
     });
+    await assignDefaultRoleForLegacy(adminUser.id, "admin");
     adminAgent = request.agent(app);
     await adminAgent.post("/api/auth/login").send({ email: adminEmail, password: "Concierge123!" }).expect(200);
   });
@@ -94,6 +100,22 @@ describe.skipIf(!hasDb)("API integration", () => {
       .post("/api/uploads")
       .send({ data: "aaaa", mime: "image/png" })
       .expect(401);
+  });
+
+  it("authenticated upload creates an Asset row", async () => {
+    // 1x1 PNG
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const res = await userAgent
+      .post("/api/uploads")
+      .send({ data: png, mime: "image/png", visibility: "public" })
+      .expect(201);
+    expect(res.body.file.url).toMatch(/^\/uploads\/public\//);
+    expect(res.body.asset.id).toBeTruthy();
+    expect(res.body.file.assetId).toBe(res.body.asset.id);
+    const asset = await prisma.asset.findUnique({ where: { id: res.body.asset.id } });
+    expect(asset?.status).toBe("ready");
+    expect(asset?.uploadedById).toBeTruthy();
   });
 
   it("supports OTP request and verify", async () => {
@@ -117,6 +139,13 @@ describe.skipIf(!hasDb)("API integration", () => {
   });
 
   it("creates business with hours and lists for owner", async () => {
+    const fieldsRes = await request(app).get(`/api/categories/${categoryId}/fields`).expect(200);
+    const required = (fieldsRes.body.fields as { key: string; required: boolean }[]).filter((f) => f.required);
+    const fieldValues = required.map((f) => ({
+      key: f.key,
+      value: f.key === "license_number" ? "LIC-12345" : "value",
+    }));
+
     const created = await businessAgent
       .post("/api/businesses")
       .send({
@@ -133,6 +162,7 @@ describe.skipIf(!hasDb)("API integration", () => {
         images: [],
         coverUrl: "https://example.com/cover.jpg",
         socialLinks: { instagram: "https://instagram.com/example" },
+        ...(fieldValues.length ? { fieldValues } : {}),
       })
       .expect(201);
     businessId = created.body.business.id;
@@ -200,5 +230,41 @@ describe.skipIf(!hasDb)("API integration", () => {
 
   it("non-admin cannot access admin APIs", async () => {
     await userAgent.get("/api/admin/businesses").expect(403);
+    await businessAgent.get("/api/admin/businesses").expect(403);
+    await request(app).get("/api/admin/businesses").expect(401);
+  });
+
+  it("login returns RBAC permissions for admin", async () => {
+    const me = await adminAgent.get("/api/auth/me").expect(200);
+    expect(me.body.user.roles).toContain("super_admin");
+    expect(me.body.user.permissions).toContain("businesses.moderate");
+    expect(me.body.user.permissions).toContain("roles.manage");
+  });
+
+  it("consumer login has no admin permissions", async () => {
+    const me = await userAgent.get("/api/auth/me").expect(200);
+    expect(me.body.user.roles).toContain("consumer");
+    expect(me.body.user.permissions ?? []).not.toContain("businesses.read");
+  });
+
+  it("admin can manage category fields", async () => {
+    const created = await adminAgent
+      .post(`/api/admin/categories/${categoryId}/fields`)
+      .send({
+        key: `test_field_${suffix}`,
+        label: "Test field",
+        fieldType: "text",
+        required: false,
+        scope: "listing",
+      })
+      .expect(201);
+    expect(created.body.field.key).toBe(`test_field_${suffix}`);
+
+    const publicFields = await request(app).get(`/api/categories/${categoryId}/fields`).expect(200);
+    expect(publicFields.body.fields.some((f: { key: string }) => f.key === `test_field_${suffix}`)).toBe(
+      true,
+    );
+
+    await adminAgent.delete(`/api/admin/category-fields/${created.body.field.id}`).expect(204);
   });
 });

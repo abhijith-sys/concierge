@@ -1,5 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
+ARG VITE_ADMIN_URL=http://localhost:8081
+ENV VITE_ADMIN_URL=$VITE_ADMIN_URL
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

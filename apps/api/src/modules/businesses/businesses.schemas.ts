@@ -36,6 +36,18 @@ export const listingFields = {
   images: z.array(mediaUrl).max(20).default([]),
   website: mediaUrl.optional(),
   featured: z.boolean().optional(),
+  fieldValues: z
+    .array(
+      z
+        .object({
+          fieldId: z.string().uuid().optional(),
+          key: z.string().min(1).max(80).optional(),
+          value: z.unknown(),
+        })
+        .refine((v) => Boolean(v.fieldId || v.key), "fieldId or key is required"),
+    )
+    .max(100)
+    .optional(),
 };
 
 export const createBusinessSchema = z.object({
@@ -75,6 +87,18 @@ export const updateBusinessSchema = z
     verified: z.boolean().optional(),
     status: z.nativeEnum(BusinessStatus).optional(),
     featured: z.boolean().optional(),
+    fieldValues: z
+      .array(
+        z
+          .object({
+            fieldId: z.string().uuid().optional(),
+            key: z.string().min(1).max(80).optional(),
+            value: z.unknown(),
+          })
+          .refine((v) => Boolean(v.fieldId || v.key), "fieldId or key is required"),
+      )
+      .max(100)
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field is required");
 
