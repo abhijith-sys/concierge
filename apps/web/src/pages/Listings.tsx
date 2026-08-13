@@ -96,6 +96,40 @@ export function Listings() {
                 <input type="checkbox" checked={params.get("open") === "true"} onChange={(event) => updateParam("open", event.target.checked ? "true" : "")} className="size-5 accent-black" />
                 Open now
               </label>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  navigator.geolocation.getCurrentPosition((position) => {
+                    const next = new URLSearchParams(params);
+                    next.set("lat", String(position.coords.latitude));
+                    next.set("lng", String(position.coords.longitude));
+                    next.set("radiusKm", params.get("radiusKm") ?? "10");
+                    next.delete("page");
+                    setParams(next);
+                  });
+                }}
+              >
+                Near me
+              </Button>
+              {params.get("lat") && params.get("lng") ? (
+                <p className="text-xs text-ink-soft">
+                  Searching within {params.get("radiusKm") ?? "10"} km of your location.
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() => {
+                      const next = new URLSearchParams(params);
+                      next.delete("lat");
+                      next.delete("lng");
+                      next.delete("radiusKm");
+                      setParams(next);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </p>
+              ) : null}
               <Button variant="outline" onClick={() => setParams(new URLSearchParams())}>Clear filters</Button>
             </div>
           </div>

@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Clock3, Globe2, MapPin, Phone, Star, Trash2 } from "lucide-react";
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Listing } from "../lib/api";
+import { lazyWithReload } from "../lib/lazyWithReload";
 
-const BusinessMap = lazy(() => import("../components/BusinessMap"));
+const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
 const fallbackHero = "/assets/concierge-architectural-hero.jpg";
 
 export function BusinessDetail() {
@@ -20,6 +21,11 @@ export function BusinessDetail() {
   const reviews = useQuery({
     queryKey: ["reviews", business.data?.id],
     queryFn: () => api.reviews(business.data!.id),
+    enabled: Boolean(business.data?.id),
+  });
+  const services = useQuery({
+    queryKey: ["services", business.data?.id],
+    queryFn: () => api.services(business.data!.id),
     enabled: Boolean(business.data?.id),
   });
   const createReview = useMutation({
@@ -47,11 +53,17 @@ export function BusinessDetail() {
 
   const profile = business.data;
   const listing = profile.listing ?? (profile as unknown as Listing);
-  const images = listing.images?.length ? listing.images : [fallbackHero];
+  const images = listing.images?.length
+    ? listing.images
+    : profile.coverUrl
+      ? [profile.coverUrl]
+      : [fallbackHero];
   const allReviews = reviews.data ?? profile.reviews ?? [];
   const canReview = Boolean(user && (user.role === "admin" || user.id !== profile.ownerId));
+  const canEdit = Boolean(user && (user.role === "admin" || user.id === profile.ownerId));
   const isAura = profile.slug === "aura-interior-furniture";
   const isElite = profile.slug === "elite-build-masonry";
+  const socials = profile.socialLinks ?? {};
 
   function submitReview(event: FormEvent) {
     event.preventDefault();
@@ -75,6 +87,7 @@ export function BusinessDetail() {
             <div className="mt-7 flex flex-wrap gap-3">
               {profile.phone ? <a href={`tel:${profile.phone}`}><Button variant="gold"><Phone className="size-4" /> Call business</Button></a> : null}
               {listing.website ? <a href={listing.website} target="_blank" rel="noreferrer"><Button className="border border-white/40 bg-white/10 backdrop-blur hover:bg-white/20"><Globe2 className="size-4" /> Website</Button></a> : null}
+              {canEdit ? <Link to={`/business/${profile.slug}/edit`}><Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white/20">Edit profile</Button></Link> : null}
             </div>
           </div>
         </div>
@@ -97,9 +110,30 @@ export function BusinessDetail() {
             {listing.address || listing.city ? <div className="flex gap-3"><MapPin className="mt-0.5 size-5 shrink-0" /><span>{listing.address}{listing.address && listing.city ? ", " : ""}{listing.city}</span></div> : null}
             {listing.hours ? <div className="flex gap-3"><Clock3 className="mt-0.5 size-5 shrink-0" /><div>{Object.entries(listing.hours).map(([day, value]) => <p key={day}><span className="capitalize">{day}</span>: {value ? `${value[0]}–${value[1]}` : "Closed"}</p>)}</div></div> : null}
             {profile.email ? <a className="font-semibold underline" href={`mailto:${profile.email}`}>{profile.email}</a> : null}
+            {socials.instagram ? <a className="font-semibold underline" href={socials.instagram} target="_blank" rel="noreferrer">Instagram</a> : null}
+            {socials.facebook ? <a className="font-semibold underline" href={socials.facebook} target="_blank" rel="noreferrer">Facebook</a> : null}
           </div>
         </aside>
       </section>
+
+      {services.data?.length ? (
+        <section className="page-shell py-16">
+          <p className="label-caps text-gold-dark">Services</p>
+          <h2 className="mt-3 text-3xl font-semibold">What this partner offers</h2>
+          <ul className="mt-8 grid gap-4 md:grid-cols-2">
+            {services.data.map((service) => (
+              <li key={service.id} className="rounded-3xl border border-line p-6">
+                <h3 className="text-lg font-semibold">{service.name}</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-soft">{service.description}</p>
+                <p className="mt-4 text-sm font-bold">
+                  {service.currency} {Number(service.price).toFixed(2)}
+                  {service.durationMinutes ? ` · ${service.durationMinutes} min` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {isElite ? (
         <section className="bg-surface-low py-20">

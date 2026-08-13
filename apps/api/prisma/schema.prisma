@@ -16,21 +16,62 @@ enum Role {
 enum BusinessStatus {
   pending
   active
+  suspended
+  deleted
+}
+
+enum OtpChannel {
+  email
+  sms
+}
+
+enum OtpPurpose {
+  register
+  login
+  change
+}
+
+enum VerificationStatus {
+  draft
+  submitted
+  approved
+  rejected
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  name         String
-  email        String     @unique
-  phone        String?
-  passwordHash String
-  role         Role       @default(user)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  businesses   Business[]
-  reviews      Review[]
+  id              String                  @id @default(uuid()) @db.Uuid
+  name            String
+  email           String                  @unique
+  phone           String?
+  passwordHash    String
+  role            Role                    @default(user)
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+  avatarUrl       String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  businesses      Business[]
+  reviews         Review[]
+  otpChallenges   VerificationChallenge[]
+  auditLogs       AuditLog[]              @relation("AuditActor")
 
   @@index([role])
+}
+
+model VerificationChallenge {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @db.Uuid
+  channel    OtpChannel
+  purpose    OtpPurpose
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int        @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, channel, purpose])
+  @@index([expiresAt])
 }
 
 model Category {
@@ -43,25 +84,30 @@ model Category {
   parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children  Category[] @relation("CategoryTree")
   listings  Listing[]
+  services  Service[]
 
   @@index([parentId, sortOrder])
 }
 
 model Business {
-  id        String         @id @default(uuid()) @db.Uuid
-  ownerId   String         @db.Uuid
-  name      String
-  slug      String         @unique
-  email     String
-  phone     String?
-  logoUrl   String?
-  verified  Boolean        @default(false)
-  status    BusinessStatus @default(pending)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  listing   Listing?
-  reviews   Review[]
+  id             String                   @id @default(uuid()) @db.Uuid
+  ownerId        String                   @db.Uuid
+  name           String
+  slug           String                   @unique
+  email          String
+  phone          String?
+  logoUrl        String?
+  coverUrl       String?
+  socialLinks    Json?
+  verified       Boolean                  @default(false)
+  status         BusinessStatus           @default(pending)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  owner          User                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  listing        Listing?
+  reviews        Review[]
+  services       Service[]
+  verifications  VerificationSubmission[]
 
   @@index([ownerId])
   @@index([status, verified])
@@ -92,6 +138,49 @@ model Listing {
   @@index([city])
   @@index([avgRating])
   @@index([featured])
+  @@index([lat, lng])
+}
+
+model Service {
+  id              String   @id @default(uuid()) @db.Uuid
+  businessId      String   @db.Uuid
+  categoryId      String?  @db.Uuid
+  name            String
+  description     String
+  price           Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD") @db.VarChar(3)
+  durationMinutes Int?
+  images          String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, isActive])
+  @@index([name])
+}
+
+model VerificationSubmission {
+  id               String             @id @default(uuid()) @db.Uuid
+  businessId       String             @db.Uuid
+  status           VerificationStatus @default(draft)
+  ownerPhotoUrl    String?
+  locationPhotoUrl String?
+  storefrontPhotoUrl String?
+  documentUrl      String?
+  selfieUrl        String?
+  videoUrl         String?
+  reviewerId       String?            @db.Uuid
+  reviewNotes      String?
+  submittedAt      DateTime?
+  reviewedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  business         Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status])
+  @@index([status, submittedAt])
 }
 
 model Review {
@@ -108,4 +197,21 @@ model Review {
   @@unique([userId, businessId])
   @@index([businessId, createdAt])
   @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String?
+  meta       Json?
+  ip         String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
 }

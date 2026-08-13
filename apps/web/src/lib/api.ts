@@ -4,8 +4,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone?: string | null;
   role: UserRole;
+  avatarUrl?: string | null;
+  emailVerifiedAt?: string | null;
+  phoneVerifiedAt?: string | null;
 }
 
 export interface Category {
@@ -25,18 +28,40 @@ export interface Review {
   user?: Pick<User, "id" | "name">;
 }
 
+export interface Service {
+  id: string;
+  businessId: string;
+  name: string;
+  description: string;
+  price: number | string;
+  currency: string;
+  durationMinutes?: number | null;
+  images: string[];
+  isActive: boolean;
+}
+
+export interface SocialLinks {
+  instagram?: string;
+  facebook?: string;
+  twitter?: string;
+  linkedin?: string;
+}
+
 export interface Business {
   id: string;
   name: string;
   slug: string;
   email?: string;
   phone?: string;
-  logoUrl?: string;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  socialLinks?: SocialLinks | null;
   verified: boolean;
-  status?: "pending" | "active";
+  status?: "pending" | "active" | "suspended" | "deleted";
   ownerId?: string;
   listing?: Listing;
   reviews?: Review[];
+  services?: Service[];
 }
 
 export interface Listing {
@@ -65,6 +90,19 @@ export interface SearchResult {
   pages: number;
 }
 
+export interface VerificationSubmission {
+  id: string;
+  businessId: string;
+  status: "draft" | "submitted" | "approved" | "rejected";
+  ownerPhotoUrl?: string | null;
+  locationPhotoUrl?: string | null;
+  storefrontPhotoUrl?: string | null;
+  documentUrl?: string | null;
+  selfieUrl?: string | null;
+  videoUrl?: string | null;
+  reviewNotes?: string | null;
+}
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export class ApiError extends Error {
@@ -76,15 +114,26 @@ export class ApiError extends Error {
   }
 }
 
+function csrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)concierge_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const mutating = method !== "GET" && method !== "HEAD";
+  const token = csrfToken();
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(mutating && token ? { "X-CSRF-Token": token } : {}),
       ...init?.headers,
     },
   });
+
+  if (response.status === 204) return undefined as T;
 
   const body = (await response.json().catch(() => null)) as
     | { error?: string | { message?: string }; message?: string }
@@ -113,6 +162,22 @@ export const api = {
     const value = await request<{ user: User }>("/api/auth/me");
     return value.user;
   },
+  updateMe: async (input: { name?: string; phone?: string | null; avatarUrl?: string | null }) => {
+    const value = await request<{ user: User }>("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.user;
+  },
+  requestOtp: (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; phone?: string }) =>
+    request<{ sent: boolean }>("/api/auth/otp/request", { method: "POST", body: JSON.stringify(input) }),
+  verifyOtp: async (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; code: string }) => {
+    const value = await request<{ user: User }>("/api/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.user;
+  },
   login: async (input: { email: string; password: string }) => {
     const value = await request<{ user: User }>("/api/auth/login", {
       method: "POST",
@@ -134,6 +199,19 @@ export const api = {
     return value.user;
   },
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  upload: async (file: File, visibility: "public" | "private" = "public") => {
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    const value = await request<{ file: { url: string } }>("/api/uploads", {
+      method: "POST",
+      body: JSON.stringify({ data, mime: file.type || "application/octet-stream", fileName: file.name, visibility }),
+    });
+    return value.file;
+  },
   categories: async () => {
     const value = await request<unknown>("/api/categories");
     return unwrapArray<Category>(value, ["categories", "items", "data"]);
@@ -170,6 +248,104 @@ export const api = {
       `/api/businesses/${encodeURIComponent(slug)}`,
     );
     return "business" in value ? value.business : value;
+  },
+  myBusinesses: async () => {
+    const value = await request<{ businesses: Business[] }>("/api/businesses/mine");
+    return value.businesses;
+  },
+  updateBusiness: async (id: string, input: Record<string, unknown>) => {
+    const value = await request<{ business: Business }>(`/api/businesses/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.business;
+  },
+  services: async (businessId: string) => {
+    const value = await request<{ services: Service[] }>(
+      `/api/services/business/${encodeURIComponent(businessId)}`,
+    );
+    return value.services;
+  },
+  createService: async (input: Record<string, unknown>) => {
+    const value = await request<{ service: Service }>("/api/services", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.service;
+  },
+  updateService: async (id: string, input: Record<string, unknown>) => {
+    const value = await request<{ service: Service }>(`/api/services/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.service;
+  },
+  deleteService: (id: string) =>
+    request<void>(`/api/services/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  verification: async (businessId: string) => {
+    const value = await request<{ submission: VerificationSubmission | null }>(
+      `/api/verification/business/${encodeURIComponent(businessId)}`,
+    );
+    return value.submission;
+  },
+  saveVerificationDraft: async (input: Record<string, unknown>) => {
+    const value = await request<{ submission: VerificationSubmission }>("/api/verification/draft", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+    return value.submission;
+  },
+  submitVerification: async (businessId: string) => {
+    const value = await request<{ submission: VerificationSubmission }>(
+      `/api/verification/business/${encodeURIComponent(businessId)}/submit`,
+      { method: "POST", body: "{}" },
+    );
+    return value.submission;
+  },
+  adminBusinesses: async (params: URLSearchParams) => {
+    const value = await request<{
+      items: Business[];
+      pagination: { total: number; page: number; totalPages: number };
+    }>(`/api/admin/businesses?${params.toString()}`);
+    return value;
+  },
+  adminBusiness: async (id: string) => {
+    const value = await request<{ business: Business }>(`/api/admin/businesses/${encodeURIComponent(id)}`);
+    return value.business;
+  },
+  adminUpdateBusiness: async (id: string, input: Record<string, unknown>) => {
+    const value = await request<{ business: Business }>(`/api/admin/businesses/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.business;
+  },
+  adminSuspend: (id: string) =>
+    request<{ business: Business }>(`/api/admin/businesses/${encodeURIComponent(id)}/suspend`, {
+      method: "POST",
+      body: "{}",
+    }),
+  adminActivate: (id: string) =>
+    request<{ business: Business }>(`/api/admin/businesses/${encodeURIComponent(id)}/activate`, {
+      method: "POST",
+      body: "{}",
+    }),
+  adminDelete: (id: string, hard = false) =>
+    request<void>(`/api/admin/businesses/${encodeURIComponent(id)}?hard=${hard ? "true" : "false"}`, {
+      method: "DELETE",
+    }),
+  verificationQueue: async () => {
+    const value = await request<{ items: Array<VerificationSubmission & { business?: Business }> }>(
+      "/api/verification/queue",
+    );
+    return value.items;
+  },
+  reviewVerification: async (id: string, input: { decision: "approved" | "rejected"; reviewNotes?: string; activateBusiness?: boolean }) => {
+    const value = await request<{ submission: VerificationSubmission }>(
+      `/api/verification/${encodeURIComponent(id)}/review`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+    return value.submission;
   },
   reviews: async (businessId: string) => {
     const value = await request<unknown>(

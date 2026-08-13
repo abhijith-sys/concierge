@@ -94,7 +94,19 @@ Vite serves [http://localhost:5173](http://localhost:5173) and proxies `/api` to
 | `CORS_ORIGIN` | localhost `5173,8080` | Comma-separated browser origins accepted by Express |
 | `COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
 | `RUN_SEED` | `true` | Runs the idempotent demo seed on API startup; set `false` in production |
+| `RATE_LIMIT_ENABLED` | `false` | Enables simple in-memory rate limiting (auto-on in production) |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Require OTP email verification for sensitive flows (auto-on in production) |
+| `UPLOAD_ROOT` | `uploads` | Local filesystem root for public/private uploads |
+| `LOG_LEVEL` | `info` | API structured log level (`debug` \| `info` \| `warn` \| `error`) |
 | `VITE_API_URL` | empty | Optional API origin at web build time; empty uses same-origin `/api` |
+
+## Production checklist
+
+- Set `NODE_ENV=production`, a non-default `JWT_SECRET`, `COOKIE_SECURE=true`, and `RUN_SEED=false`.
+- Rate limiting and email-verification gates turn on automatically in production (`RATE_LIMIT_ENABLED` / `REQUIRE_EMAIL_VERIFICATION` can also be forced in any environment).
+- Mutating authenticated requests require the double-submit `X-CSRF-Token` header matching the readable `concierge_csrf` cookie.
+- Uploads land under `UPLOAD_ROOT` (`/app/uploads` in Compose). Public files are served at `/uploads/public/*`; private KYC files only via `/api/uploads/private/:fileName` for owners/admins.
+- CI runs lint, typecheck, and Vitest (with Postgres) on pull requests — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Architecture
 
@@ -110,24 +122,29 @@ Repository layout:
 
 ```text
 apps/web/       React 19, Vite, TanStack Query, Leaflet, nginx
-apps/api/       Express, Prisma, PostgreSQL migrations and seed
+apps/api/       Modular Express monolith (domain modules + shared kernel)
 design/         Original HTML visual references
 docker-compose.yml
 ```
 
-Authentication uses a seven-day, HttpOnly, SameSite=Lax JWT cookie named `concierge_session`. Roles are `user`, `business`, and `admin`.
+The API is a **modular monolith**: active domains live under `apps/api/src/modules/{auth,categories,search,businesses,reviews,services,admin,verification,uploads,health}` with routes → service → repository layers. Shared kernel code is in `apps/api/src/shared/`. Future domains (`bookings`, `payments`, `messaging`, `ads`, `analytics`, `notifications`) are scaffolded but unmounted. See [`apps/api/README.md`](apps/api/README.md) for dependency rules and how to extract a microservice later.
+
+Authentication uses a seven-day, HttpOnly, SameSite=Lax JWT cookie named `concierge_session`, plus a readable CSRF cookie for mutating requests. Roles are `user`, `business`, and `admin`.
 
 ## Frontend routes
 
 | Route | Purpose |
 |---|---|
 | `/` | Home, search, and top-level categories |
-| `/listings` | Search results and filters (`q`, `city`, `rating`, `open`, `page`) |
+| `/listings` | Search results and filters (`q`, `city`, `rating`, `open`, `lat`/`lng`, `page`) |
 | `/listings/:categorySlug` | Category-filtered results |
-| `/business/:slug` | Business profile, reviews, gallery, and map |
+| `/business/:slug` | Business profile, services, reviews, gallery, and map |
+| `/business/:slug/edit` | Owner/admin edit + services management |
 | `/login`, `/register` | Cookie-based authentication |
-| `/account` | Current account summary |
-| `/list-business` | Guarded business-owner submission form |
+| `/account` | Profile, OTP verification, avatar, owned businesses |
+| `/list-business` | Guarded business-owner onboarding form |
+| `/verification` | Owner KYC photo/document submission |
+| `/admin` | Admin business moderation + verification queue |
 
 Unknown frontend routes use the SPA fallback and render the in-app not-found state.
 
@@ -136,27 +153,38 @@ Unknown frontend routes use the SPA fallback and render the in-app not-found sta
 | Method | Route | Access |
 |---|---|---|
 | `GET` | `/api/health` | Public |
+| `GET` | `/api/ready` | Public readiness (DB ping) |
 | `POST` | `/api/auth/register` | Public; creates `user` or `business` |
 | `POST` | `/api/auth/login` | Public; sets session cookie |
 | `POST` | `/api/auth/logout` | Public; clears session cookie |
 | `GET` | `/api/auth/me` | Authenticated |
+| `PATCH` | `/api/auth/me` | Authenticated |
+| `POST` | `/api/auth/otp/request` | Authenticated; rate-limited |
+| `POST` | `/api/auth/otp/verify` | Authenticated; rate-limited |
+| `POST` | `/api/uploads` | Authenticated; public/private base64 upload |
 | `GET` | `/api/categories` | Public; returns category tree |
-| `GET` | `/api/search` | Public; supports `q`, `city`, `category`, `rating`, `open`, `page`, `pageSize` |
-| `GET` | `/api/businesses/:slugOrId` | Public |
+| `GET` | `/api/search` | Public; `q`, city, category, rating, open, lat/lng/radiusKm, pagination |
+| `GET` | `/api/businesses/mine` | Owner/admin |
+| `GET` | `/api/businesses/:slugOrId` | Public (active; owner/admin may see pending/suspended) |
 | `POST` | `/api/businesses` | `business` or `admin` |
 | `PATCH` | `/api/businesses/:id` | Owner or `admin` |
+| `GET` | `/api/services/business/:businessId` | Public (active only unless owner/admin) |
+| `POST/PATCH/DELETE` | `/api/services` | Owner or `admin` (DELETE soft-deactivates) |
+| `GET/PUT/POST` | `/api/verification/*` | Owner draft/submit; admin queue/review |
+| `GET/PATCH/POST/DELETE` | `/api/admin/businesses*` | Admin only |
 | `GET` | `/api/reviews?businessId=...` | Public |
 | `POST` | `/api/reviews` | Authenticated; one review per user/business |
 | `DELETE` | `/api/reviews/:id` | Review author or `admin` |
 
 ## Checks and smoke tests
 
-Run static checks:
+Run static checks and API tests:
 
 ```bash
 cd apps/api
 npm run lint
 npm run typecheck
+npm test
 npm run build
 
 cd ../web
