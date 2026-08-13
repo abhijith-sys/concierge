@@ -54,7 +54,7 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8083:80"
     depends_on:
       api:
         condition: service_healthy
