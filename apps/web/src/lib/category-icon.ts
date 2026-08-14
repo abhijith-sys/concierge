@@ -61,7 +61,6 @@ import {
   Users,
   UtensilsCrossed,
   Video,
-  Wind,
   Wrench,
   Zap,
   type LucideIcon,
