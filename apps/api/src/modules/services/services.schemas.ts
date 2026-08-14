@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fieldValueInputSchema } from "../categories/categories.repository.js";
 
 const mediaUrl = z.string().min(1).max(500).refine((value) => {
   if (value.startsWith("/uploads/")) return true;
@@ -20,6 +21,10 @@ export const createServiceSchema = z.object({
   durationMinutes: z.coerce.number().int().min(5).max(24 * 60).optional(),
   images: z.array(mediaUrl).max(10).default([]),
   isActive: z.boolean().default(true),
+  pricingType: z
+    .enum(["fixed", "starting_from", "hourly", "daily", "monthly", "contact", "custom"])
+    .optional(),
+  fieldValues: z.array(fieldValueInputSchema).max(100).optional(),
 });
 
 export const updateServiceSchema = createServiceSchema

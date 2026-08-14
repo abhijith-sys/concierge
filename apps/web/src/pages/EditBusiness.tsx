@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { ApprovalBanner } from "../components/ApprovalBanner";
 import {
-  CategoryFieldsEditor,
+  DynamicForm,
   toFieldValuePayload,
   valuesFromFieldValues,
   type FieldValueMap,
@@ -32,51 +33,28 @@ export function EditBusiness() {
     queryFn: () => api.services(business.data!.id),
     enabled: Boolean(business.data?.id),
   });
-  const categoryId = business.data?.listing?.category?.id;
-  const categoryFields = useQuery({
-    queryKey: ["category-fields", categoryId],
-    queryFn: () => api.categoryFields(categoryId!, "listing"),
-    enabled: Boolean(categoryId),
-  });
-
-  const [serviceForm, setServiceForm] = useState({ name: "", description: "", price: "100" });
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const canEdit = useMemo(() => {
     if (!user || !business.data) return false;
     return user.role === "admin" || user.id === business.data.ownerId;
   }, [user, business.data]);
 
+  const categoryId = business.data?.listing?.category?.id;
+  const providerForm = useQuery({
+    queryKey: ["category-form", categoryId, "provider"],
+    queryFn: () => api.categoryForm(categoryId!, "provider"),
+    enabled: Boolean(categoryId),
+  });
+
   useEffect(() => {
-    if (!categoryFields.data?.fields) return;
-    setFieldValues(
-      valuesFromFieldValues(categoryFields.data.fields, business.data?.fieldValues),
-    );
-  }, [categoryFields.data, business.data?.fieldValues]);
+    if (!providerForm.data?.fields) return;
+    setFieldValues(valuesFromFieldValues(providerForm.data.fields, business.data?.fieldValues));
+  }, [providerForm.data, business.data?.fieldValues]);
 
   const save = useMutation({
     mutationFn: (input: Record<string, unknown>) => api.updateBusiness(business.data!.id, input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["business", slug] });
-    },
-  });
-  const createService = useMutation({
-    mutationFn: () =>
-      api.createService({
-        businessId: business.data!.id,
-        name: serviceForm.name,
-        description: serviceForm.description,
-        price: Number(serviceForm.price),
-        currency: "USD",
-      }),
-    onSuccess: async () => {
-      setServiceForm({ name: "", description: "", price: "100" });
-      await queryClient.invalidateQueries({ queryKey: ["services", business.data?.id] });
-    },
-  });
-  const removeService = useMutation({
-    mutationFn: api.deleteService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["services", business.data?.id] });
     },
   });
   const uploadCover = useMutation({
@@ -119,7 +97,7 @@ export function EditBusiness() {
   function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const fields = categoryFields.data?.fields ?? [];
+    const fields = providerForm.data?.fields ?? [];
     save.mutate({
       name: String(form.get("name") || ""),
       phone: String(form.get("phone") || "") || null,
@@ -145,6 +123,16 @@ export function EditBusiness() {
           Status: <span className="capitalize">{profile.status}</span>
           {profile.verified ? " · Verified" : ""}
         </p>
+        {profile.status === "pending" ? (
+          <ApprovalBanner tone="pending" title="This profile is waiting for review">
+            Visitors cannot see it until Concierge activates the listing.
+          </ApprovalBanner>
+        ) : null}
+        {profile.status === "rejected" ? (
+          <ApprovalBanner tone="rejected" title="This profile was not approved">
+            {profile.rejectionReason || "Update your details and wait for another review."}
+          </ApprovalBanner>
+        ) : null}
       </div>
 
       <form onSubmit={onSave} className="grid gap-5 rounded-3xl border border-line bg-white p-6 md:grid-cols-2 md:p-9">
@@ -161,9 +149,9 @@ export function EditBusiness() {
         <Field label="Instagram"><Input name="instagram" defaultValue={profile.socialLinks?.instagram ?? ""} /></Field>
         <Field label="Facebook"><Input name="facebook" defaultValue={profile.socialLinks?.facebook ?? ""} /></Field>
 
-        {categoryFields.data?.fields?.length ? (
-          <CategoryFieldsEditor
-            fields={categoryFields.data.fields}
+        {providerForm.data?.fields?.length ? (
+          <DynamicForm
+            fields={providerForm.data.fields}
             values={fieldValues}
             onChange={setFieldValues}
           />
@@ -203,32 +191,31 @@ export function EditBusiness() {
       </form>
 
       <div className="rounded-3xl border border-line p-6 md:p-9">
-        <h2 className="text-2xl font-semibold">Services</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold">Listings</h2>
+          <Link to={`/provider/listings/create?business=${profile.id}`}>
+            <Button>Create listing</Button>
+          </Link>
+        </div>
         <ul className="mt-5 grid gap-3">
-          {services.data?.map((service) => (
-            <li key={service.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-low px-4 py-3">
-              <div>
-                <p className="font-semibold">{service.name}</p>
-                <p className="text-sm text-ink-soft">{service.currency} {service.price} · {service.isActive ? "active" : "inactive"}</p>
-              </div>
-              {service.isActive ? (
-                <Button variant="outline" onClick={() => removeService.mutate(service.id)}>Deactivate</Button>
-              ) : null}
-            </li>
-          ))}
+          {services.data?.length ? (
+            services.data.map((service) => (
+              <li key={service.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-low px-4 py-3">
+                <div>
+                  <p className="font-semibold">{service.name}</p>
+                  <p className="text-sm capitalize text-ink-soft">
+                    {service.currency} {service.price} · {service.approvalStatus ?? (service.isActive ? "active" : "inactive")}
+                  </p>
+                </div>
+                <Link to={`/provider/listings/${service.id}/edit?business=${profile.id}`}>
+                  <Button variant="outline">Edit</Button>
+                </Link>
+              </li>
+            ))
+          ) : (
+            <li className="text-sm text-ink-soft">No listings yet. Create one from My listings.</li>
+          )}
         </ul>
-        <form
-          className="mt-6 grid gap-3 md:grid-cols-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            createService.mutate();
-          }}
-        >
-          <Input placeholder="Service name" value={serviceForm.name} onChange={(e) => setServiceForm((s) => ({ ...s, name: e.target.value }))} required />
-          <Input placeholder="Price" type="number" value={serviceForm.price} onChange={(e) => setServiceForm((s) => ({ ...s, price: e.target.value }))} required />
-          <Input placeholder="Description" value={serviceForm.description} onChange={(e) => setServiceForm((s) => ({ ...s, description: e.target.value }))} required />
-          <Button type="submit" className="md:col-span-3" disabled={createService.isPending}>Add service</Button>
-        </form>
       </div>
     </section>
   );

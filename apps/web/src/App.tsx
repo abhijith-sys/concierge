@@ -29,6 +29,19 @@ const Verification = lazyWithReload(
   () => import("./pages/Verification"),
   (module) => module.Verification,
 );
+const Wishlist = lazyWithReload(
+  () => import("./pages/Wishlist"),
+  (module) => module.Wishlist,
+);
+const ProviderDashboard = lazyWithReload(
+  () => import("./pages/ProviderDashboard"),
+  (module) => module.ProviderDashboard,
+);
+const ProviderListings = lazyWithReload(
+  () => import("./pages/ProviderListings"),
+  (module) => module.ProviderListings,
+);
+const Content = lazyWithReload(() => import("./pages/Content"), (module) => module.Content);
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -52,9 +65,19 @@ function AppRoutes() {
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="account" element={<Account />} />
+          <Route path="wishlist" element={<Wishlist />} />
           <Route path="list-business" element={<ListBusiness />} />
+          <Route path="provider" element={<ProviderDashboard />} />
+          <Route path="provider/listings" element={<ProviderListings />} />
+          <Route path="provider/listings/create" element={<ProviderListings mode="create" />} />
+          <Route path="provider/listings/:serviceId/edit" element={<ProviderListings mode="edit" />} />
           <Route path="admin" element={<AdminRedirect />} />
           <Route path="verification" element={<Verification />} />
+          <Route path="about" element={<Content />} />
+          <Route path="careers" element={<Content />} />
+          <Route path="terms" element={<Content />} />
+          <Route path="privacy" element={<Content />} />
+          <Route path="contact" element={<Content />} />
           <Route
             path="*"
             element={

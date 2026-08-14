@@ -146,6 +146,32 @@ th {
   padding: 1rem;
 }
 
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.textarea {
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  background: #fff;
+  min-height: 5rem;
+  width: 100%;
+  resize: vertical;
+}
+
+.composed-preview {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.composed-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .stat strong { display: block; font-size: 1.5rem; }
 
 @media (max-width: 860px) {

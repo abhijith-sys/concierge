@@ -1,10 +1,12 @@
 import type { AssetStatus, AssetVisibility, BusinessStatus, Prisma, Role } from "@prisma/client";
 import { prisma } from "../../shared/db/prisma.js";
+import { excludeInternalCategoryWhere } from "../categories/categories.repository.js";
 
 export const adminRepository = {
   list(input: {
     q?: string;
     status?: BusinessStatus;
+    categoryId?: string;
     verified?: boolean;
     page: number;
     pageSize: number;
@@ -12,6 +14,15 @@ export const adminRepository = {
     const where: Prisma.BusinessWhereInput = {
       ...(input.status ? { status: input.status } : { status: { not: "deleted" } }),
       ...(input.verified === undefined ? {} : { verified: input.verified }),
+      ...(input.categoryId
+        ? {
+            listing: {
+              category: {
+                OR: [{ id: input.categoryId }, { parentId: input.categoryId }],
+              },
+            },
+          }
+        : {}),
       ...(input.q
         ? {
             OR: [
@@ -233,23 +244,117 @@ export const adminRepository = {
   },
 
   async stats() {
-    const [businesses, users, kycQueue, assets] = await Promise.all([
+    const [businesses, services, users, kycQueue, assets, categories, subcategories] = await Promise.all([
       prisma.business.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.service.groupBy({ by: ["approvalStatus"], _count: { _all: true } }),
       prisma.user.count(),
       prisma.verificationSubmission.count({ where: { status: "submitted" } }),
       prisma.asset.count({ where: { status: { not: "deleted" } } }),
+      prisma.category.count({ where: { parentId: null, ...excludeInternalCategoryWhere } }),
+      prisma.category.count({ where: { parentId: { not: null } } }),
     ]);
     const byStatus = Object.fromEntries(businesses.map((row) => [row.status, row._count._all]));
+    const byApproval = Object.fromEntries(services.map((row) => [row.approvalStatus, row._count._all]));
+    const listingTotal = services.reduce((sum, row) => sum + row._count._all, 0);
+    const providerTotal = businesses.reduce((sum, row) => sum + row._count._all, 0);
     return {
       businesses: {
         pending: byStatus.pending ?? 0,
         active: byStatus.active ?? 0,
+        rejected: byStatus.rejected ?? 0,
         suspended: byStatus.suspended ?? 0,
         deleted: byStatus.deleted ?? 0,
       },
+      listings: {
+        total: listingTotal,
+        pending: byApproval.pending ?? 0,
+        approved: byApproval.approved ?? 0,
+        rejected: byApproval.rejected ?? 0,
+        draft: byApproval.draft ?? 0,
+      },
       users,
+      providers: providerTotal,
+      pendingProviders: byStatus.pending ?? 0,
+      pendingListings: byApproval.pending ?? 0,
+      categories,
+      subcategories,
       kycQueue,
       assets,
     };
+  },
+
+  listListings(input: {
+    q?: string;
+    status?: import("@prisma/client").ServiceApprovalStatus;
+    businessId?: string;
+    categoryId?: string;
+    page: number;
+    pageSize: number;
+  }) {
+    const where: Prisma.ServiceWhereInput = {
+      ...(input.status ? { approvalStatus: input.status } : {}),
+      ...(input.businessId ? { businessId: input.businessId } : {}),
+      ...(input.categoryId
+        ? {
+            OR: [
+              { categoryId: input.categoryId },
+              { category: { parentId: input.categoryId } },
+            ],
+          }
+        : {}),
+      ...(input.q
+        ? {
+            OR: [
+              { name: { contains: input.q, mode: "insensitive" } },
+              { description: { contains: input.q, mode: "insensitive" } },
+              { business: { name: { contains: input.q, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    };
+    return prisma.$transaction([
+      prisma.service.findMany({
+        where,
+        include: {
+          category: true,
+          business: { select: { id: true, name: true, slug: true, status: true, ownerId: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize,
+      }),
+      prisma.service.count({ where }),
+    ]);
+  },
+
+  getListing(id: string) {
+    return prisma.service.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        fieldValues: { include: { field: true } },
+        business: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            ownerId: true,
+            owner: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+  },
+
+  updateListing(id: string, data: Prisma.ServiceUpdateInput) {
+    return prisma.service.update({
+      where: { id },
+      data,
+      include: {
+        category: true,
+        business: { select: { id: true, name: true, slug: true, status: true } },
+      },
+    });
   },
 };

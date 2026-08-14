@@ -5,7 +5,7 @@ import type { SearchQuery } from "./search.schemas.js";
 
 const listingInclude = {
   listing: { include: { category: true } },
-  services: { where: { isActive: true }, take: 5 },
+  services: { where: { isActive: true, approvalStatus: "approved" }, take: 5 },
 } as const;
 
 function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
@@ -33,6 +33,7 @@ function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
               services: {
                 some: {
                   isActive: true,
+                  approvalStatus: "approved",
                   name: { contains: query.q, mode: "insensitive" },
                 },
               },

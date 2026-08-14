@@ -8,6 +8,44 @@ function fieldOptions(field: CategoryField): string[] {
   return field.options.map(String);
 }
 
+function widgetOf(field: CategoryField): string | undefined {
+  const widget = field.validation?.widget;
+  return typeof widget === "string" ? widget : undefined;
+}
+
+function valuesEqual(left: unknown, right: unknown) {
+  if (Object.is(left, right)) return true;
+  if (typeof left === "number" && typeof right === "string" && Number(right) === left) return true;
+  if (typeof right === "number" && typeof left === "string" && Number(left) === right) return true;
+  return false;
+}
+
+function isBlank(value: unknown) {
+  return value === null || value === undefined || value === "";
+}
+
+export function isFieldVisible(field: CategoryField, values: FieldValueMap) {
+  const rule = field.conditionalRules;
+  if (!rule?.fieldKey) return true;
+  const parentValue = values[rule.fieldKey];
+  if (rule.equals === undefined) return !isBlank(parentValue);
+  return valuesEqual(parentValue, rule.equals);
+}
+
+function emptyValue(field: CategoryField): unknown {
+  if (field.fieldType === "boolean") return false;
+  if (field.fieldType === "multiselect") return [];
+  if (field.fieldType === "json" && widgetOf(field) === "location") return { lat: "", lng: "" };
+  return "";
+}
+
+function defaultForField(field: CategoryField): unknown {
+  if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== "") {
+    return field.defaultValue;
+  }
+  return emptyValue(field);
+}
+
 export function valuesFromFieldValues(
   fields: CategoryField[],
   existing?: Array<{ fieldId?: string; key?: string; value: unknown }> | null,
@@ -16,15 +54,13 @@ export function valuesFromFieldValues(
   for (const field of fields) {
     const row = existing?.find((item) => item.fieldId === field.id || item.key === field.key);
     if (row) map[field.key] = row.value;
-    else if (field.fieldType === "boolean") map[field.key] = false;
-    else if (field.fieldType === "multiselect") map[field.key] = [];
-    else map[field.key] = "";
+    else map[field.key] = defaultForField(field);
   }
   return map;
 }
 
 export function toFieldValuePayload(fields: CategoryField[], values: FieldValueMap) {
-  return fields.map((field) => {
+  return fields.filter((field) => isFieldVisible(field, values)).map((field) => {
     let value = values[field.key];
     if (field.fieldType === "number" && value !== "" && value != null) {
       value = Number(value);
@@ -35,11 +71,26 @@ export function toFieldValuePayload(fields: CategoryField[], values: FieldValueM
     if (field.fieldType === "boolean") {
       value = Boolean(value);
     }
+    if (field.fieldType === "json" && widgetOf(field) === "location") {
+      const raw = value && typeof value === "object" ? (value as { lat?: unknown; lng?: unknown }) : {};
+      const lat = raw.lat === "" || raw.lat == null ? null : Number(raw.lat);
+      const lng = raw.lng === "" || raw.lng == null ? null : Number(raw.lng);
+      value = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null };
+    }
     return { key: field.key, value };
   });
 }
 
-export function CategoryFieldsEditor({
+function locationValue(value: unknown): { lat: string; lng: string } {
+  if (!value || typeof value !== "object") return { lat: "", lng: "" };
+  const raw = value as { lat?: unknown; lng?: unknown };
+  return {
+    lat: raw.lat == null ? "" : String(raw.lat),
+    lng: raw.lng == null ? "" : String(raw.lng),
+  };
+}
+
+export function DynamicForm({
   fields,
   values,
   onChange,
@@ -48,10 +99,11 @@ export function CategoryFieldsEditor({
   values: FieldValueMap;
   onChange: (next: FieldValueMap) => void;
 }) {
-  if (!fields.length) return null;
+  const visible = fields.filter((field) => isFieldVisible(field, values));
+  if (!visible.length) return null;
 
   const sections = new Map<string, CategoryField[]>();
-  for (const field of fields) {
+  for (const field of visible) {
     const section = field.section?.trim() || "Details";
     const list = sections.get(section) ?? [];
     list.push(field);
@@ -68,10 +120,13 @@ export function CategoryFieldsEditor({
         <div key={section} className="contents">
           <p className="label-caps text-gold-dark md:col-span-2">{section}</p>
           {sectionFields.map((field) => {
-            const label = `${field.label}${field.required ? "" : " (optional)"}`;
+            const widget = widgetOf(field);
+            const required = Boolean(field.required);
+            const label = `${field.label}${required ? "" : " (optional)"}`;
             const help = field.helpText ? (
               <p className="mt-1 text-xs font-normal text-ink-soft">{field.helpText}</p>
             ) : null;
+            const placeholder = field.placeholder ?? undefined;
 
             if (field.fieldType === "boolean") {
               return (
@@ -98,11 +153,35 @@ export function CategoryFieldsEditor({
                       value={String(values[field.key] ?? "")}
                       onChange={(event) => setValue(field.key, event.target.value)}
                       rows={4}
-                      required={field.required}
+                      required={required}
+                      placeholder={placeholder}
                     />
                     {help}
                   </Field>
                 </div>
+              );
+            }
+
+            if (field.fieldType === "select" && widget === "radio") {
+              return (
+                <Field key={field.id} label={label}>
+                  <div className="grid gap-2">
+                    {fieldOptions(field).map((option) => (
+                      <label key={option} className="flex items-center gap-2 text-sm font-normal">
+                        <input
+                          type="radio"
+                          name={field.key}
+                          value={option}
+                          checked={String(values[field.key] ?? "") === option}
+                          onChange={() => setValue(field.key, option)}
+                          required={required}
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+                  {help}
+                </Field>
               );
             }
 
@@ -112,7 +191,7 @@ export function CategoryFieldsEditor({
                   <Select
                     value={String(values[field.key] ?? "")}
                     onChange={(event) => setValue(field.key, event.target.value)}
-                    required={field.required}
+                    required={required}
                   >
                     <option value="">Select…</option>
                     {fieldOptions(field).map((option) => (
@@ -159,13 +238,46 @@ export function CategoryFieldsEditor({
               );
             }
 
+            if (field.fieldType === "json" && widget === "location") {
+              const coords = locationValue(values[field.key]);
+              return (
+                <div key={field.id} className="grid gap-3 md:col-span-2 md:grid-cols-2">
+                  <Field label={`${field.label} latitude${required ? "" : " (optional)"}`}>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={coords.lat}
+                      onChange={(event) =>
+                        setValue(field.key, { ...coords, lat: event.target.value })
+                      }
+                      placeholder={placeholder ?? "Latitude"}
+                      required={required}
+                    />
+                  </Field>
+                  <Field label={`${field.label} longitude${required ? "" : " (optional)"}`}>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={coords.lng}
+                      onChange={(event) =>
+                        setValue(field.key, { ...coords, lng: event.target.value })
+                      }
+                      placeholder="Longitude"
+                      required={required}
+                    />
+                    {help}
+                  </Field>
+                </div>
+              );
+            }
+
             if (field.fieldType === "asset_ref" || field.fieldType === "asset_gallery" || field.fieldType === "json") {
               return (
                 <Field key={field.id} label={label}>
                   <Input
                     value={typeof values[field.key] === "string" ? String(values[field.key]) : ""}
                     onChange={(event) => setValue(field.key, event.target.value)}
-                    placeholder="Managed after save via media uploads"
+                    placeholder={placeholder ?? "Managed after save via media uploads"}
                     disabled
                   />
                   {help}
@@ -192,7 +304,8 @@ export function CategoryFieldsEditor({
                   type={inputType}
                   value={values[field.key] == null ? "" : String(values[field.key])}
                   onChange={(event) => setValue(field.key, event.target.value)}
-                  required={field.required}
+                  required={required}
+                  placeholder={placeholder}
                 />
                 {help}
               </Field>
@@ -203,3 +316,5 @@ export function CategoryFieldsEditor({
     </div>
   );
 }
+
+export const CategoryFieldsEditor = DynamicForm;

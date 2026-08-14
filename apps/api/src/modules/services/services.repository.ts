@@ -1,9 +1,15 @@
 import { prisma } from "../../shared/db/prisma.js";
+import type { ServiceApprovalStatus } from "@prisma/client";
 
 export const servicesRepository = {
-  listByBusiness(businessId: string, activeOnly: boolean) {
+  listByBusiness(businessId: string, options: { publicOnly: boolean }) {
     return prisma.service.findMany({
-      where: { businessId, ...(activeOnly ? { isActive: true } : {}) },
+      where: {
+        businessId,
+        ...(options.publicOnly
+          ? { isActive: true, approvalStatus: "approved" }
+          : {}),
+      },
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       include: { category: true },
     });
@@ -23,9 +29,12 @@ export const servicesRepository = {
     description: string;
     price: number;
     currency: string;
+    pricingType?: string;
     durationMinutes?: number;
     images: string[];
     isActive: boolean;
+    approvalStatus: ServiceApprovalStatus;
+    formSchemaVersion: number;
   }) {
     return prisma.service.create({
       data: {
@@ -53,5 +62,13 @@ export const servicesRepository = {
       where: { id: businessId },
       select: { id: true, ownerId: true, status: true },
     });
+  },
+
+  async findBusinessCategoryId(businessId: string) {
+    const row = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { listing: { select: { categoryId: true } } },
+    });
+    return row?.listing?.categoryId ?? null;
   },
 };

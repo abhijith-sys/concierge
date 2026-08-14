@@ -39,11 +39,12 @@ export const authRepository = {
   },
 
   async withAccess(user: { id: string; role: "user" | "business" | "admin" } & Record<string, unknown>) {
-    const [permissions, roles] = await Promise.all([
+    const [permissions, roles, businessCount] = await Promise.all([
       getPermissionKeysForUser(user.id, user.role),
       getRoleKeysForUser(user.id),
+      prisma.business.count({ where: { ownerId: user.id, status: { not: "deleted" } } }),
     ]);
-    return { ...user, permissions, roles };
+    return { ...user, permissions, roles, businessCount };
   },
 
   createOtp(data: {

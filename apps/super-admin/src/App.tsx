@@ -5,7 +5,10 @@ import { AssetsPage } from "./pages/AssetsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { BusinessesPage } from "./pages/BusinessesPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
+import { CategoryDetailPage } from "./pages/CategoryDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { FormBuilderPage } from "./pages/FormBuilderPage";
+import { ListingsPage } from "./pages/ListingsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -27,8 +30,11 @@ export default function App() {
         <Route element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="businesses" element={<BusinessesPage />} />
+          <Route path="listings" element={<ListingsPage />} />
           <Route path="verification" element={<VerificationPage />} />
           <Route path="categories" element={<CategoriesPage />} />
+          <Route path="categories/:id" element={<CategoryDetailPage />} />
+          <Route path="categories/:id/forms" element={<FormBuilderPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="roles" element={<RolesPage />} />
           <Route path="assets" element={<AssetsPage />} />

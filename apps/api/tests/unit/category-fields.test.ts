@@ -11,9 +11,12 @@ function field(partial: Partial<CategoryField> & Pick<CategoryField, "id" | "key
     categoryId: "cat",
     label: partial.key,
     helpText: null,
+    placeholder: null,
     required: false,
+    defaultValue: null,
     options: null,
     validation: null,
+    conditionalRules: null,
     scope: "listing",
     sortOrder: 0,
     section: null,
@@ -64,5 +67,25 @@ describe("category field validation", () => {
       [{ key: "specialties", value: ["Masonry"] }],
     );
     expect(values[0].valueJson).toEqual(["Masonry"]);
+  });
+
+  it("skips required fields hidden by conditionalRules", () => {
+    const fields = [
+      field({ id: "1", key: "emergency_service", fieldType: "boolean", required: true }),
+      field({
+        id: "2",
+        key: "emergency_timing",
+        fieldType: "text",
+        required: true,
+        label: "Emergency timing",
+        conditionalRules: { fieldKey: "emergency_service", equals: true },
+      }),
+    ];
+    expect(() =>
+      normalizeAndValidateFieldValues(fields, [{ key: "emergency_service", value: false }]),
+    ).not.toThrow();
+    expect(() =>
+      normalizeAndValidateFieldValues(fields, [{ key: "emergency_service", value: true }]),
+    ).toThrow(/required/i);
   });
 });

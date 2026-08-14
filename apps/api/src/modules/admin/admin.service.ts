@@ -1,4 +1,4 @@
-import { BusinessStatus, Role } from "@prisma/client";
+import { BusinessStatus, Role, ServiceApprovalStatus } from "@prisma/client";
 import { assignRoleByKey } from "../../shared/auth/rbac.service.js";
 import { ROLE_KEYS, type RoleKey } from "../../shared/auth/permissions.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
@@ -17,6 +17,8 @@ import type {
   adminUpdateSchema,
   adminUserListSchema,
   adminUserPatchSchema,
+  adminListingListSchema,
+  adminListingPatchSchema,
 } from "./admin.schemas.js";
 
 type ListInput = z.infer<typeof adminListSchema>;
@@ -26,6 +28,8 @@ type UserPatchInput = z.infer<typeof adminUserPatchSchema>;
 type AssignRoleInput = z.infer<typeof adminAssignRoleSchema>;
 type AuditListInput = z.infer<typeof adminAuditListSchema>;
 type AssetListInput = z.infer<typeof adminAssetListSchema>;
+type ListingListInput = z.infer<typeof adminListingListSchema>;
+type ListingPatchInput = z.infer<typeof adminListingPatchSchema>;
 
 const STAFF_ROLE_KEYS = new Set<string>([
   ROLE_KEYS.SUPER_ADMIN,
@@ -75,6 +79,7 @@ export const adminService = {
       phone: input.phone,
       verified: input.verified,
       status: input.status,
+      rejectionReason: input.rejectionReason,
       ...(Object.keys(listingPatch).length ? { listing: { update: listingPatch } } : {}),
     });
 
@@ -94,13 +99,18 @@ export const adminService = {
     id: string,
     status: BusinessStatus,
     ctx: { actorId: string; ip?: string; requestId?: string },
+    reason?: string,
   ) {
-    const business = await adminRepository.update(id, { status });
+    const business = await adminRepository.update(id, {
+      status,
+      rejectionReason: status === BusinessStatus.rejected ? reason ?? null : status === BusinessStatus.active ? null : undefined,
+    });
     await writeAuditLog({
       actorId: ctx.actorId,
       action: `admin.business.${status}`,
       entityType: "business",
       entityId: id,
+      meta: reason ? { reason } : undefined,
       ip: ctx.ip,
       requestId: ctx.requestId,
     });
@@ -268,6 +278,66 @@ export const adminService = {
       })),
       pagination: paginate(total, query.page, query.pageSize),
     };
+  },
+
+  async listListings(query: ListingListInput) {
+    const [items, total] = await adminRepository.listListings(query);
+    return { items, pagination: paginate(total, query.page, query.pageSize) };
+  },
+
+  async getListing(id: string) {
+    const listing = await adminRepository.getListing(id);
+    if (!listing) throw new ApiError(404, "LISTING_NOT_FOUND", "Listing not found");
+    return listing;
+  },
+
+  async setListingApproval(
+    id: string,
+    approvalStatus: ServiceApprovalStatus,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+    reason?: string,
+  ) {
+    const existing = await adminRepository.getListing(id);
+    if (!existing) throw new ApiError(404, "LISTING_NOT_FOUND", "Listing not found");
+    const listing = await adminRepository.updateListing(id, {
+      approvalStatus,
+      rejectionReason:
+        approvalStatus === ServiceApprovalStatus.rejected
+          ? reason ?? null
+          : approvalStatus === ServiceApprovalStatus.approved
+            ? null
+            : undefined,
+    });
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: `admin.listing.${approvalStatus}`,
+      entityType: "service",
+      entityId: id,
+      meta: reason ? { reason } : undefined,
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return listing;
+  },
+
+  async patchListing(
+    id: string,
+    input: ListingPatchInput,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    const existing = await adminRepository.getListing(id);
+    if (!existing) throw new ApiError(404, "LISTING_NOT_FOUND", "Listing not found");
+    const listing = await adminRepository.updateListing(id, input);
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: "admin.listing.update",
+      entityType: "service",
+      entityId: id,
+      meta: input,
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return listing;
   },
 
   stats() {

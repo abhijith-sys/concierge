@@ -26,7 +26,7 @@ export const authService = {
       email,
       phone: input.phone,
       passwordHash: await bcrypt.hash(input.password, 12),
-      role: input.role,
+      role: "user",
     });
     void EmailService.send({
       to: user.email,

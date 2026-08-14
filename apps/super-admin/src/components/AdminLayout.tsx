@@ -13,6 +13,7 @@ export function AdminLayout() {
           Dashboard
         </NavLink>
         {hasPermission(user, "businesses.read") ? <NavLink to="/businesses">Businesses</NavLink> : null}
+        {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Listings</NavLink> : null}
         {hasPermission(user, "verification.review") ? <NavLink to="/verification">KYC</NavLink> : null}
         {hasPermission(user, "categories.write") || hasPermission(user, "category_fields.write") ? (
           <NavLink to="/categories">Categories</NavLink>

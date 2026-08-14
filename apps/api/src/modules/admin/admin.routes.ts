@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { BusinessStatus } from "@prisma/client";
+import { BusinessStatus, ServiceApprovalStatus } from "@prisma/client";
 import { PERMISSIONS, requireAnyPermission, requirePermission } from "../../shared/auth/index.js";
 import {
   categoryFieldUpsertSchema,
   categoryUpsertSchema,
+  fieldReorderSchema,
 } from "../categories/categories.repository.js";
 import { categoriesService } from "../categories/categories.service.js";
 import {
@@ -12,6 +13,9 @@ import {
   adminAssignRoleSchema,
   adminAuditListSchema,
   adminListSchema,
+  adminListingListSchema,
+  adminListingPatchSchema,
+  adminRejectSchema,
   adminUpdateSchema,
   adminUserListSchema,
   adminUserPatchSchema,
@@ -83,6 +87,21 @@ adminRouter.post(
   },
 );
 
+adminRouter.post(
+  "/businesses/:id/reject",
+  requirePermission(PERMISSIONS.BUSINESSES_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const data = adminRejectSchema.parse(req.body);
+    const business = await adminService.setStatus(id, BusinessStatus.rejected, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    }, data.reason);
+    res.json({ business });
+  },
+);
+
 adminRouter.delete(
   "/businesses/:id",
   requirePermission(PERMISSIONS.BUSINESSES_DELETE),
@@ -100,9 +119,13 @@ adminRouter.delete(
 
 adminRouter.get(
   "/categories",
-  requireAnyPermission(PERMISSIONS.CATEGORIES_WRITE, PERMISSIONS.CATEGORY_FIELDS_WRITE),
+  requireAnyPermission(
+    PERMISSIONS.CATEGORIES_WRITE,
+    PERMISSIONS.CATEGORY_FIELDS_WRITE,
+    PERMISSIONS.BUSINESSES_READ,
+  ),
   async (_req, res) => {
-  const categories = await categoriesService.listTree(false);
+  const categories = await categoriesService.listTree(false, true);
   res.json({ categories });
 });
 
@@ -131,12 +154,38 @@ adminRouter.patch(
   },
 );
 
+adminRouter.delete(
+  "/categories/:id",
+  requirePermission(PERMISSIONS.CATEGORIES_WRITE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const hard = req.query.hard === "true";
+    const category = await categoriesService.removeCategory(id, hard, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ category });
+  },
+);
+
+adminRouter.get(
+  "/forms/:categoryId",
+  requirePermission(PERMISSIONS.CATEGORY_FIELDS_WRITE),
+  async (req, res) => {
+    const categoryId = z.string().uuid().parse(req.params.categoryId);
+    const kind = typeof req.query.kind === "string" ? req.query.kind : "provider";
+    const result = await categoriesService.getAdminForm(categoryId, kind);
+    res.json(result);
+  },
+);
+
 adminRouter.get(
   "/categories/:id/fields",
   requirePermission(PERMISSIONS.CATEGORY_FIELDS_WRITE),
   async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
-    const result = await categoriesService.listFields(id, { activeOnly: false });
+    const result = await categoriesService.listFields(id, { activeOnly: false, compose: false });
     res.json(result);
   },
 );
@@ -182,6 +231,89 @@ adminRouter.delete(
       requestId: req.requestId,
     });
     res.status(204).send();
+  },
+);
+
+adminRouter.put(
+  "/category-fields/reorder",
+  requirePermission(PERMISSIONS.CATEGORY_FIELDS_WRITE),
+  async (req, res) => {
+    const data = fieldReorderSchema.parse(req.body);
+    const fields = await categoriesService.reorderFields(data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ fields });
+  },
+);
+
+adminRouter.get(
+  "/listings",
+  requirePermission(PERMISSIONS.BUSINESSES_READ),
+  async (req, res) => {
+    const query = adminListingListSchema.parse(req.query);
+    const result = await adminService.listListings(query);
+    res.json(result);
+  },
+);
+
+adminRouter.get(
+  "/listings/:id",
+  requirePermission(PERMISSIONS.BUSINESSES_READ),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const listing = await adminService.getListing(id);
+    res.json({ listing });
+  },
+);
+
+adminRouter.patch(
+  "/listings/:id",
+  requirePermission(PERMISSIONS.BUSINESSES_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const data = adminListingPatchSchema.parse(req.body);
+    const listing = await adminService.patchListing(id, data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ listing });
+  },
+);
+
+adminRouter.post(
+  "/listings/:id/approve",
+  requirePermission(PERMISSIONS.BUSINESSES_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const listing = await adminService.setListingApproval(id, ServiceApprovalStatus.approved, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ listing });
+  },
+);
+
+adminRouter.post(
+  "/listings/:id/reject",
+  requirePermission(PERMISSIONS.BUSINESSES_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const data = adminRejectSchema.parse(req.body);
+    const listing = await adminService.setListingApproval(
+      id,
+      ServiceApprovalStatus.rejected,
+      {
+        actorId: req.user!.id,
+        ip: req.ip,
+        requestId: req.requestId,
+      },
+      data.reason,
+    );
+    res.json({ listing });
   },
 );
 

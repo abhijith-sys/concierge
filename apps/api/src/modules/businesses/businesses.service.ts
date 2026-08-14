@@ -1,5 +1,7 @@
-import { BusinessStatus, CategoryFieldScope, Role } from "@prisma/client";
+import { BusinessStatus, Role } from "@prisma/client";
 import { z } from "zod";
+import { assignDefaultRoleForLegacy } from "../../shared/auth/index.js";
+import { prisma } from "../../shared/db/prisma.js";
 import {
   assertCanViewBusiness,
   availableBusinessSlug,
@@ -10,8 +12,10 @@ import {
   serializeFieldValue,
 } from "../../shared/domain/category-fields.js";
 import { ApiError } from "../../shared/errors/index.js";
+import { formSchemaVersion } from "../../shared/domain/composed-forms.js";
 import { slugify } from "../../shared/utils/index.js";
 import { assetsService } from "../assets/assets.service.js";
+import { authRepository } from "../auth/auth.repository.js";
 import { categoriesRepository } from "../categories/categories.repository.js";
 import { businessesRepository } from "./businesses.repository.js";
 import type { CreateBusinessInput, UpdateBusinessInput } from "./businesses.schemas.js";
@@ -54,17 +58,18 @@ export const businessesService = {
       throw new ApiError(400, "HOURS_REQUIRED", "Business hours are required to submit a listing");
     }
 
-    if (!(await businessesRepository.categoryExists(categoryId))) {
-      throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist");
+    if (!(await categoriesRepository.categoryIsAssignable(categoryId))) {
+      throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist or is not available");
     }
 
-    const listingFields = await categoriesRepository.listFields(categoryId, {
+    const listingFields = await categoriesRepository.listComposedFields(categoryId, {
+      kind: "provider",
       activeOnly: true,
-      scope: CategoryFieldScope.listing,
     });
     const normalized = normalizeAndValidateFieldValues(listingFields, fieldValues ?? [], {
       requireRequired: true,
     });
+    const schemaVersion = formSchemaVersion(listingFields);
 
     const slug = await availableBusinessSlug(input.slug ?? slugify(input.name));
     const business = await businessesRepository.create({
@@ -72,6 +77,7 @@ export const businessesService = {
       slug,
       ownerId: user.id,
       status: user.role === Role.admin ? BusinessStatus.active : BusinessStatus.pending,
+      formSchemaVersion: schemaVersion,
       listing: {
         create: {
           categoryId,
@@ -94,7 +100,20 @@ export const businessesService = {
     }
 
     await dualWriteBusinessMedia(business, user.id);
-    return business;
+
+    if (user.role === Role.user) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: Role.business },
+      });
+      await assignDefaultRoleForLegacy(user.id, Role.business);
+    }
+
+    const publicUser = await authRepository.findPublicById(user.id);
+    if (!publicUser) {
+      throw new ApiError(401, "UNAUTHENTICATED", "Session user no longer exists");
+    }
+    return { business, user: await authRepository.withAccess(publicUser) };
   },
 
   async update(id: string, input: UpdateBusinessInput, user: AuthUser) {
@@ -156,14 +175,15 @@ export const businessesService = {
 
     if (input.fieldValues && business.listing) {
       const categoryId = input.categoryId ?? business.listing.categoryId;
-      const listingFields = await categoriesRepository.listFields(categoryId, {
+      const listingFields = await categoriesRepository.listComposedFields(categoryId, {
+        kind: "provider",
         activeOnly: true,
-        scope: CategoryFieldScope.listing,
       });
       const normalized = normalizeAndValidateFieldValues(listingFields, input.fieldValues, {
         requireRequired: false,
       });
       await categoriesRepository.upsertListingValues(business.listing.id, normalized);
+      await businessesRepository.update(id, { formSchemaVersion: formSchemaVersion(listingFields) });
     }
 
     await dualWriteBusinessMedia(business, user.id);

@@ -1,9 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import {
-  CategoryFieldsEditor,
+  DynamicForm,
   toFieldValuePayload,
   valuesFromFieldValues,
   type FieldValueMap,
@@ -11,12 +11,14 @@ import {
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { assignedCategoryId, childrenOf } from "../lib/category-tree";
 
 interface BusinessForm {
   name: string;
   email: string;
   phone: string;
   title: string;
+  mainCategoryId: string;
   categoryId: string;
   description: string;
   address: string;
@@ -35,6 +37,7 @@ const initialForm: BusinessForm = {
   email: "",
   phone: "",
   title: "",
+  mainCategoryId: "",
   categoryId: "",
   description: "",
   address: "",
@@ -51,17 +54,24 @@ const initialForm: BusinessForm = {
 export function ListBusiness() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
-  const categoryFields = useQuery({
-    queryKey: ["category-fields", form.categoryId],
-    queryFn: () => api.categoryFields(form.categoryId, "listing"),
+  const providerForm = useQuery({
+    queryKey: ["category-form", form.categoryId, "provider"],
+    queryFn: () => api.categoryForm(form.categoryId, "provider"),
     enabled: Boolean(form.categoryId),
   });
-  const create = useMutation({ mutationFn: api.createBusiness });
+  const subcategories = childrenOf(categories.data ?? [], form.mainCategoryId);
+  const create = useMutation({
+    mutationFn: api.createBusiness,
+    onSuccess: (result) => {
+      if (result.user) queryClient.setQueryData(["auth", "me"], result.user);
+    },
+  });
   const upload = useMutation({
     mutationFn: async ({ file, kind }: { file: File; kind: "cover" | "logo" }) => {
       const stored = await api.upload(file, { visibility: "public" });
@@ -71,28 +81,24 @@ export function ListBusiness() {
   });
 
   useEffect(() => {
-    if (!categoryFields.data?.fields) {
+    if (!user) return;
+    setForm((current) => ({
+      ...current,
+      email: current.email || user.email,
+      phone: current.phone || user.phone || "",
+    }));
+  }, [user]);
+
+  useEffect(() => {
+    if (!providerForm.data?.fields) {
       setFieldValues({});
       return;
     }
-    setFieldValues(valuesFromFieldValues(categoryFields.data.fields));
-  }, [categoryFields.data]);
+    setFieldValues(valuesFromFieldValues(providerForm.data.fields));
+  }, [providerForm.data]);
 
   if (isLoading) return <PageState title="Loading" loading />;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  if (user.role === "user") {
-    return (
-      <PageState
-        title="Business account required"
-        description="Create a business account to publish a listing."
-        action={
-          <Link to="/register">
-            <Button>Create business account</Button>
-          </Link>
-        }
-      />
-    );
-  }
   if (categories.isError) {
     return (
       <PageState
@@ -118,7 +124,7 @@ export function ListBusiness() {
       saturday: [form.openTime, form.closeTime] as [string, string],
       sunday: null,
     };
-    const fields = categoryFields.data?.fields ?? [];
+    const fields = providerForm.data?.fields ?? [];
     create.mutate({
       name: form.name,
       email: form.email,
@@ -150,7 +156,7 @@ export function ListBusiness() {
         description="Your profile is now in the Concierge review queue. Add services and complete identity verification from your account."
         action={
           <div className="flex flex-wrap justify-center gap-3">
-            <Link to={`/business/${create.data.slug ?? create.data.id}/edit`}>
+            <Link to={`/business/${create.data.business.slug ?? create.data.business.id}/edit`}>
               <Button>
                 Manage profile <ArrowRight className="size-4" />
               </Button>
@@ -168,12 +174,12 @@ export function ListBusiness() {
     <section className="page-shell py-14 md:py-20">
       <div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
         <div>
-          <p className="label-caps text-gold-dark">For exceptional businesses</p>
+          <p className="label-caps text-gold-dark">Become a provider</p>
           <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-            Be discovered by the right clients.
+            Add your business when you are ready.
           </h1>
           <p className="mt-5 leading-7 text-ink-soft">
-            Build a focused profile with hours, media, and socials — then submit for Concierge review.
+            Use the same account. Choose a category, complete the profile form, and submit for review.
           </p>
           <div className="mt-8 grid gap-4 text-sm">
             {["Curated directory presence", "Verified reviews from members", "Services catalog & nearby discovery"].map(
@@ -205,17 +211,39 @@ export function ListBusiness() {
             <Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} />
           </Field>
           <Field label="Category">
-            <Select value={form.categoryId} onChange={(event) => update("categoryId", event.target.value)} required>
+            <Select
+              value={form.mainCategoryId}
+              onChange={(event) => {
+                const mainCategoryId = event.target.value;
+                const nextId = assignedCategoryId(mainCategoryId, "", categories.data ?? []);
+                setForm((current) => ({ ...current, mainCategoryId, categoryId: nextId }));
+              }}
+              required
+            >
               <option value="">Select category</option>
-              {categories.data
-                ?.flatMap((category) => [category, ...(category.children ?? [])])
-                .map((category) => (
+              {categories.data?.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {subcategories.length ? (
+            <Field label="Subcategory">
+              <Select
+                value={form.categoryId}
+                onChange={(event) => update("categoryId", event.target.value)}
+                required
+              >
+                <option value="">Select subcategory</option>
+                {subcategories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
-            </Select>
-          </Field>
+              </Select>
+            </Field>
+          ) : null}
           <Field label="Website">
             <Input
               type="url"
@@ -271,15 +299,15 @@ export function ListBusiness() {
             <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} />
           </Field>
 
-          {form.categoryId && categoryFields.isLoading ? (
+          {form.categoryId && providerForm.isLoading ? (
             <p className="text-sm text-ink-soft md:col-span-2">Loading category fields…</p>
           ) : null}
-          {categoryFields.isError ? (
+          {providerForm.isError ? (
             <p className="text-sm text-red-700 md:col-span-2">Could not load category fields.</p>
           ) : null}
-          {categoryFields.data?.fields?.length ? (
-            <CategoryFieldsEditor
-              fields={categoryFields.data.fields}
+          {providerForm.data?.fields?.length ? (
+            <DynamicForm
+              fields={providerForm.data.fields}
               values={fieldValues}
               onChange={setFieldValues}
             />
@@ -313,7 +341,7 @@ export function ListBusiness() {
           <Button
             type="submit"
             className="mt-2 md:col-span-2"
-            disabled={create.isPending || categories.isLoading || (Boolean(form.categoryId) && categoryFields.isLoading)}
+            disabled={create.isPending || categories.isLoading || (Boolean(form.categoryId) && providerForm.isLoading)}
           >
             {create.isPending ? "Submitting…" : "Submit business"}
           </Button>

@@ -4,17 +4,18 @@
 @theme {
   --font-sans: "Manrope", sans-serif;
   --font-label: "Hanken Grotesk", sans-serif;
-  --color-surface: #fcf8fa;
-  --color-surface-low: #f6f3f5;
-  --color-surface-high: #eae7e9;
+  --color-surface: #ffffff;
+  --color-surface-low: #f6f4f1;
+  --color-surface-high: #eceae7;
   --color-card: #ffffff;
-  --color-ink: #1b1b1d;
-  --color-ink-soft: #54555d;
-  --color-line: #d5d1d4;
-  --color-navy: #131b2e;
+  --color-ink: #16181d;
+  --color-ink-soft: #5c5f66;
+  --color-line: #e4e1dc;
+  --color-navy: #151b2c;
   --color-gold: #c79b54;
   --color-gold-dark: #6c4d18;
   --color-gold-light: #fed08c;
+  --color-cream: #f3ead8;
 }
 
 @layer base {
@@ -39,9 +40,7 @@
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    background:
-      radial-gradient(circle at 8% -10%, rgb(254 208 140 / 10%), transparent 30rem),
-      var(--color-surface);
+    background: var(--color-surface);
   }
 
   button,
@@ -103,14 +102,14 @@
     left: 0;
     height: 2px;
     content: "";
-    background: black;
+    background: var(--color-navy);
     transform: scaleX(0);
     transition: transform 180ms ease;
   }
 
   .nav-link:hover,
   .nav-link-active {
-    color: black;
+    color: var(--color-navy);
   }
 
   .nav-link-active::after {
@@ -141,8 +140,21 @@
   }
 
   .search-panel:focus-within {
-    border-color: black;
-    box-shadow: 0 18px 50px rgb(0 0 0 / 14%), 0 0 0 3px rgb(0 0 0 / 7%);
+    border-color: var(--color-navy);
+    box-shadow: 0 18px 50px rgb(21 27 44 / 12%), 0 0 0 3px rgb(240 164 41 / 28%);
+  }
+
+  @media (min-width: 768px) {
+    .how-step + .how-step::before {
+      position: absolute;
+      top: 1.75rem;
+      right: calc(100% - 0.5rem);
+      width: calc(100% - 7rem);
+      height: 0;
+      border-top: 2px dashed var(--color-line);
+      content: "";
+      pointer-events: none;
+    }
   }
 
   .auth-glow {
