@@ -7,7 +7,9 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(8),
-  CORS_ORIGIN: z.string().default("http://localhost:5173,http://localhost:8080"),
+  CORS_ORIGIN: z.string().default(
+    "http://localhost:5173,http://localhost:5174,http://localhost:8080,http://localhost:8081",
+  ),
   COOKIE_SECURE: z
     .enum(["true", "false"])
     .default("false")

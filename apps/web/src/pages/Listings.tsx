@@ -1,25 +1,40 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Search, SlidersHorizontal, Star } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ListingCard } from "../components/ListingCard";
 import { SafeImage } from "../components/SafeImage";
 import { Button, Input, PageState, Select } from "../components/ui";
-import { api, type Listing } from "../lib/api";
+import { api } from "../lib/api";
+import { AllCategoriesIcon, iconForCategory } from "../lib/category-icon";
+import { recordExploredCategory, setSavedCity } from "../lib/discovery";
 
-const fallbackImage = "/assets/brett-villa.jpg";
 const heroImage = "/assets/builders-hero.jpg";
-
-function resultSlug(listing: Listing) {
-  return listing.business?.slug ?? listing.businessId ?? listing.id;
-}
 
 export function Listings() {
   const { categorySlug } = useParams();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [city, setCity] = useState(params.get("city") ?? "");
   const requestParams = new URLSearchParams(params);
-  if (categorySlug) requestParams.set("category", categorySlug);
+
+  const category = useQuery({
+    queryKey: ["category", categorySlug],
+    queryFn: () => api.category(categorySlug!),
+    enabled: Boolean(categorySlug),
+  });
+  const parentCategory = useQuery({
+    queryKey: ["category", category.data?.parent?.slug],
+    queryFn: () => api.category(category.data!.parent!.slug),
+    enabled: Boolean(category.data?.parent?.slug),
+  });
+  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
+
+  if (categorySlug) {
+    if (category.data?.parent) requestParams.set("subcategory", categorySlug);
+    else requestParams.set("category", categorySlug);
+  }
 
   useEffect(() => setQuery(params.get("q") ?? ""), [params]);
   useEffect(() => setCity(params.get("city") ?? ""), [params]);
@@ -37,10 +52,30 @@ export function Listings() {
     return () => window.clearTimeout(timeout);
   }, [city, setParams]);
 
+  useEffect(() => {
+    if (category.data?.slug && category.data.name) {
+      recordExploredCategory({ slug: category.data.slug, name: category.data.name });
+    }
+  }, [category.data?.slug, category.data?.name]);
+
+  useEffect(() => {
+    if (city.trim()) setSavedCity(city);
+  }, [city]);
+
   const results = useQuery({
     queryKey: ["search", requestParams.toString()],
     queryFn: () => api.search(requestParams),
   });
+  const subcategoryChips = category.data?.children?.length
+    ? category.data.children
+    : (parentCategory.data?.children ?? []);
+  const heroSrc = category.data?.imageUrl?.trim() || heroImage;
+
+  function goToCategory(slug: string) {
+    const next = new URLSearchParams(params);
+    next.delete("page");
+    navigate(slug ? `/listings/${slug}?${next.toString()}` : `/listings?${next.toString()}`);
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -61,14 +96,56 @@ export function Listings() {
 
   return (
     <div className="page-shell py-10">
+      {subcategoryChips.length ? (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {category.data?.parent ? (
+            <Link
+              to={`/listings/${category.data.parent.slug}`}
+              className="inline-flex items-center gap-2.5 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-4 text-sm font-semibold transition hover:border-black hover:shadow-sm"
+            >
+              <span className="grid size-9 place-items-center rounded-full bg-surface-high text-ink">
+                <AllCategoriesIcon className="size-4" />
+              </span>
+              All {category.data.parent.name}
+            </Link>
+          ) : null}
+          {subcategoryChips.map((child) => {
+            const Icon = iconForCategory(child.icon, child.slug);
+            const active = child.slug === categorySlug;
+            return (
+              <Link
+                key={child.id}
+                to={`/listings/${child.slug}`}
+                className={`inline-flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-semibold transition ${
+                  active
+                    ? "bg-navy text-white shadow-sm"
+                    : "border border-line bg-white hover:border-black hover:shadow-sm"
+                }`}
+              >
+                <span
+                  className={`grid size-9 place-items-center rounded-full ${
+                    active ? "bg-white/15 text-gold-light" : "bg-gold-light/50 text-gold-dark"
+                  }`}
+                >
+                  <Icon className="size-4" strokeWidth={2.25} aria-hidden="true" />
+                </span>
+                {child.name}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
       <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] bg-navy">
-        <SafeImage src={heroImage} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
+        <SafeImage src={heroSrc} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="relative z-10 flex min-h-[340px] max-w-2xl flex-col justify-center p-8 text-white md:p-12">
           <p className="label-caps text-gold-light">Curated partners</p>
           <h1 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
-            {categorySlug ? categorySlug.replaceAll("-", " ") : "Find your next expert"}
+            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : "Find your next expert")}
           </h1>
-          <p className="mt-4 leading-7 text-white/75">Verified professionals, remarkable places, and services selected for quality.</p>
+          <p className="mt-4 leading-7 text-white/75">
+            {category.data?.description?.trim() ||
+              "Verified professionals, remarkable places, and services selected for quality."}
+          </p>
           <form onSubmit={submit} className="mt-7 flex rounded-xl bg-white p-1.5">
             <label className="flex flex-1 items-center gap-2 px-3 text-black">
               <Search className="size-5" /><span className="sr-only">Search listings</span>
@@ -84,6 +161,25 @@ export function Listings() {
           <div className="sticky top-28 rounded-2xl border border-line bg-surface-low p-5">
             <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="size-5" /> Filters</h2>
             <div className="mt-6 grid gap-5">
+              <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">Category
+                <Select
+                  value={categorySlug ?? ""}
+                  onChange={(event) => goToCategory(event.target.value)}
+                  className="normal-case tracking-normal"
+                >
+                  <option value="">All categories</option>
+                  {categories.data?.map((main) => (
+                    <optgroup key={main.id} label={main.name}>
+                      <option value={main.slug}>{main.name}</option>
+                      {(main.children ?? []).map((child) => (
+                        <option key={child.id} value={child.slug}>
+                          {child.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </Select>
+              </label>
               <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">City
                 <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Any city" className="bg-white normal-case tracking-normal" />
               </label>
@@ -150,25 +246,7 @@ export function Listings() {
             <>
               <div className="grid gap-6 md:grid-cols-2">
                 {results.data?.items.map((listing) => (
-                  <article key={listing.id} className="group overflow-hidden rounded-2xl border border-line bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-                    <Link to={`/business/${resultSlug(listing)}`} className="relative block h-60 overflow-hidden">
-                      <SafeImage src={listing.images?.[0] ?? fallbackImage} alt={`${listing.business?.name ?? listing.title} featured work`} width={720} height={480} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                      {listing.business?.verified ? <span className="absolute left-4 top-4 flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white"><BadgeCheck className="size-4" /> Verified</span> : null}
-                    </Link>
-                    <div className="p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <h3 className="text-lg font-semibold">{listing.business?.name ?? listing.title}</h3>
-                        <span className="flex items-center gap-1 font-bold"><Star className="size-4 fill-black" />{Number(listing.avgRating ?? 0).toFixed(1)}</span>
-                      </div>
-                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-ink-soft">{listing.description}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {listing.category ? <span className="rounded-full bg-surface-high px-3 py-1 text-xs font-semibold">{listing.category.name}</span> : null}
-                        {listing.city ? <span className="rounded-full bg-surface-high px-3 py-1 text-xs font-semibold">{listing.city}</span> : null}
-                        <span className="rounded-full bg-surface-high px-3 py-1 text-xs font-semibold">{listing.reviewCount ?? 0} reviews</span>
-                      </div>
-                      <Link to={`/business/${resultSlug(listing)}`} className="mt-6 flex items-center gap-2 text-sm font-bold">View profile <ArrowRight className="size-4 transition group-hover:translate-x-1" /></Link>
-                    </div>
-                  </article>
+                  <ListingCard key={listing.id} listing={listing} />
                 ))}
               </div>
               {results.data && results.data.pages > 1 ? (

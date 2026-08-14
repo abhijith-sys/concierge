@@ -12,14 +12,20 @@ export interface User {
   mfaEnabled?: boolean;
   permissions?: string[];
   roles?: string[];
+  businessCount?: number;
 }
 
 export interface Category {
   id: string;
   name: string;
   slug: string;
-  icon?: string;
+  icon?: string | null;
+  imageUrl?: string | null;
+  description?: string | null;
+  parentId?: string | null;
+  parent?: { id: string; name: string; slug: string } | null;
   children?: Category[];
+  _count?: { children?: number; listings?: number; services?: number };
 }
 
 export type CategoryFieldType =
@@ -42,13 +48,24 @@ export interface CategoryField {
   key: string;
   label: string;
   helpText?: string | null;
+  placeholder?: string | null;
   fieldType: CategoryFieldType;
   required: boolean;
+  defaultValue?: unknown;
   options?: string[] | null;
   validation?: Record<string, unknown> | null;
+  conditionalRules?: { fieldKey?: string; equals?: unknown } | null;
   scope: "listing" | "service" | "business";
   sortOrder: number;
   section?: string | null;
+  source?: "platform" | "main" | "sub";
+}
+
+export interface CategoryForm {
+  kind: "provider" | "listing";
+  formSchemaVersion: number;
+  category: Pick<Category, "id" | "name" | "slug">;
+  fields: CategoryField[];
 }
 
 export interface FieldValue {
@@ -122,6 +139,11 @@ export interface Service {
   durationMinutes?: number | null;
   images: string[];
   isActive: boolean;
+  approvalStatus?: "draft" | "pending" | "approved" | "rejected";
+  rejectionReason?: string | null;
+  pricingType?: string | null;
+  categoryId?: string | null;
+  fieldValues?: FieldValue[];
 }
 
 export interface SocialLinks {
@@ -141,7 +163,8 @@ export interface Business {
   coverUrl?: string | null;
   socialLinks?: SocialLinks | null;
   verified: boolean;
-  status?: "pending" | "active" | "suspended" | "deleted";
+  status?: "pending" | "active" | "rejected" | "suspended" | "deleted";
+  rejectionReason?: string | null;
   ownerId?: string;
   listing?: Listing;
   reviews?: Review[];
@@ -166,6 +189,7 @@ export interface Listing {
   featured?: boolean;
   category?: Category;
   business?: Business;
+  distanceKm?: number | null;
 }
 
 export interface SearchResult {
@@ -173,6 +197,13 @@ export interface SearchResult {
   total: number;
   page: number;
   pages: number;
+}
+
+export interface WishlistItem {
+  id: string;
+  listingId: string;
+  createdAt: string;
+  listing?: Listing;
 }
 
 export interface VerificationSubmission {
@@ -316,6 +347,17 @@ export const api = {
     const value = await request<unknown>("/api/categories");
     return unwrapArray<Category>(value, ["categories", "items", "data"]);
   },
+  category: async (idOrSlug: string) => {
+    const value = await request<{ category: Category }>(
+      `/api/categories/${encodeURIComponent(idOrSlug)}`,
+    );
+    return value.category;
+  },
+  categoryForm: async (idOrSlug: string, kind: "provider" | "listing") => {
+    return request<CategoryForm>(
+      `/api/categories/${encodeURIComponent(idOrSlug)}/forms/${kind}`,
+    );
+  },
   categoryFields: async (idOrSlug: string, scope?: "listing" | "service" | "business") => {
     const params = scope ? `?scope=${encodeURIComponent(scope)}` : "";
     const value = await request<{
@@ -346,7 +388,12 @@ export const api = {
       return { items: value as Listing[], total: value.length, page: 1, pages: 1 };
     }
     const record = value as Record<string, unknown>;
-    const rawItems = unwrapArray<Business>(value, ["items", "results", "businesses", "data"]);
+    const rawItems = unwrapArray<Business & { distanceKm?: number }>(value, [
+      "items",
+      "results",
+      "businesses",
+      "data",
+    ]);
     const items = rawItems.map((business) => ({
       ...(business.listing ?? {
         id: business.id,
@@ -358,6 +405,7 @@ export const api = {
       }),
       business,
       businessId: business.id,
+      distanceKm: typeof business.distanceKm === "number" ? business.distanceKm : undefined,
     }));
     const pagination = (record.pagination ?? {}) as Record<string, unknown>;
     return {
@@ -487,10 +535,25 @@ export const api = {
   deleteReview: (id: string) =>
     request<void>(`/api/reviews/${encodeURIComponent(id)}`, { method: "DELETE" }),
   createBusiness: async (input: Record<string, unknown>) => {
-    const value = await request<{ business: Business }>("/api/businesses", {
+    const value = await request<{ business: Business; user?: User }>("/api/businesses", {
       method: "POST",
       body: JSON.stringify(input),
     });
-    return value.business;
+    return value;
   },
+  wishlist: async () => {
+    const value = await request<{ items: WishlistItem[] }>("/api/wishlist");
+    return value.items;
+  },
+  addWishlist: async (listingId: string) => {
+    const value = await request<{ item: WishlistItem }>("/api/wishlist", {
+      method: "POST",
+      body: JSON.stringify({ listingId }),
+    });
+    return value.item;
+  },
+  removeWishlist: (listingId: string) =>
+    request<void>(`/api/wishlist/${encodeURIComponent(listingId)}`, { method: "DELETE" }),
+  recommendations: (params?: URLSearchParams) =>
+    api.search(params ?? new URLSearchParams({ pageSize: "8" })),
 };

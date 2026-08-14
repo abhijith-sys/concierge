@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { Button, Field, Input, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { isProvider } from "../lib/provider";
 
 export function Account() {
   const { user, isLoading } = useAuth();
@@ -17,7 +18,7 @@ export function Account() {
   const mine = useQuery({
     queryKey: ["businesses", "mine"],
     queryFn: api.myBusinesses,
-    enabled: Boolean(user && (user.role === "business" || user.role === "admin")),
+    enabled: Boolean(user),
   });
 
   const updateMe = useMutation({
@@ -132,24 +133,36 @@ export function Account() {
 
           <div className="rounded-3xl border border-line p-8">
             <h2 className="text-2xl font-semibold">
-              {user.role === "business" || user.role === "admin" ? "Your businesses" : "Your activity"}
+              {isProvider(user) ? "Your businesses" : "Your activity"}
             </h2>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/listings">
                 <Button variant="outline">Explore listings</Button>
               </Link>
-              {user.role === "business" || user.role === "admin" ? (
+              <Link to="/wishlist">
+                <Button variant="outline">Wishlist</Button>
+              </Link>
+              {isProvider(user) ? (
                 <>
-                  <Link to="/list-business">
+                  <Link to="/provider">
                     <Button>
-                      <Building2 className="size-4" /> Create business
+                      <Building2 className="size-4" /> My business
                     </Button>
+                  </Link>
+                  <Link to="/provider/listings">
+                    <Button variant="outline">My listings</Button>
                   </Link>
                   <Link to="/verification">
                     <Button variant="outline">Identity verification</Button>
                   </Link>
                 </>
-              ) : null}
+              ) : (
+                <Link to="/list-business">
+                  <Button>
+                    <Building2 className="size-4" /> Become a provider
+                  </Button>
+                </Link>
+              )}
               {user.role === "admin" ? (
                 <a href={import.meta.env.VITE_ADMIN_URL || "http://localhost:8081"}>
                   <Button variant="outline">Admin console</Button>

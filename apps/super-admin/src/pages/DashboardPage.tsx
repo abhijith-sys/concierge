@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api, hasPermission } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -25,28 +26,36 @@ export function DashboardPage() {
       </div>
       <div className="stat-grid">
         <div className="stat">
-          <span className="muted">Active businesses</span>
-          <strong>{s?.businesses.active ?? "—"}</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">Pending</span>
-          <strong>{s?.businesses.pending ?? "—"}</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">Suspended</span>
-          <strong>{s?.businesses.suspended ?? "—"}</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">KYC queue</span>
-          <strong>{s?.kycQueue ?? "—"}</strong>
-        </div>
-        <div className="stat">
           <span className="muted">Users</span>
           <strong>{s?.users ?? "—"}</strong>
         </div>
         <div className="stat">
-          <span className="muted">Assets</span>
-          <strong>{s?.assets ?? "—"}</strong>
+          <span className="muted">Providers</span>
+          <strong>{s?.providers ?? s?.businesses.active ?? "—"}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Listings</span>
+          <strong>{s?.listings?.total ?? "—"}</strong>
+        </div>
+        <Link to="/businesses?status=pending" className="stat">
+          <span className="muted">Pending providers</span>
+          <strong>{s?.pendingProviders ?? s?.businesses.pending ?? "—"}</strong>
+        </Link>
+        <Link to="/listings?status=pending" className="stat">
+          <span className="muted">Pending listings</span>
+          <strong>{s?.pendingListings ?? s?.listings?.pending ?? "—"}</strong>
+        </Link>
+        <div className="stat">
+          <span className="muted">Categories</span>
+          <strong>{s?.categories ?? "—"}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Subcategories</span>
+          <strong>{s?.subcategories ?? "—"}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">KYC queue</span>
+          <strong>{s?.kycQueue ?? "—"}</strong>
         </div>
       </div>
       <div className="panel stack">

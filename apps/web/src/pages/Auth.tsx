@@ -3,7 +3,7 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { Button, Field, Input, Select } from "../components/ui";
+import { Button, Field, Input } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 
 const loginSchema = z.object({
@@ -15,7 +15,6 @@ const registerSchema = z.object({
   email: z.email("Enter a valid email."),
   phone: z.string().optional(),
   password: z.string().min(8, "Use at least 8 characters."),
-  role: z.enum(["user", "business"]),
 });
 type LoginInput = z.infer<typeof loginSchema>;
 type RegisterInput = z.infer<typeof registerSchema>;
@@ -78,7 +77,7 @@ export function Login() {
         {form.formState.errors.root ? <p className="text-sm text-red-700">{form.formState.errors.root.message}</p> : null}
         <Button type="submit" className="mt-1 w-full" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4" /></>}</Button>
       </form>
-      <p className="mt-7 text-center text-sm text-ink-soft">New to Concierge? <Link to="/register" className="font-bold text-black underline">Create an account</Link></p>
+      <p className="mt-7 text-center text-sm text-ink-soft">New to Concierge? <Link to="/register" state={{ from: destination }} className="font-bold text-black underline">Create an account</Link></p>
     </AuthShell>
   );
 }
@@ -86,20 +85,21 @@ export function Login() {
 export function Register() {
   const { user, register: registerUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role: "user" },
   });
-  if (user) return <Navigate to="/account" replace />;
+  const destination = (location.state as { from?: string } | null)?.from ?? "/account";
+  if (user) return <Navigate to={destination} replace />;
 
   return (
-    <AuthShell eyebrow="Join the network" title="Create your account" copy="Become a member, or join as a business ready to be discovered.">
+    <AuthShell eyebrow="Join the network" title="Create your account" copy="Browse freely, then save, message, or become a provider when you are ready.">
       <form
         className="grid gap-5"
         onSubmit={form.handleSubmit(async (values) => {
           try {
-            const created = await registerUser(values);
-            navigate(created.role === "business" ? "/list-business" : "/account", { replace: true });
+            await registerUser(values);
+            navigate(destination, { replace: true });
           } catch (error) {
             form.setError("root", { message: error instanceof Error ? error.message : "Unable to register." });
           }
@@ -108,12 +108,11 @@ export function Register() {
         <Field label="Full name" error={form.formState.errors.name?.message}><Input autoComplete="name" {...form.register("name")} /></Field>
         <Field label="Email address" error={form.formState.errors.email?.message}><Input type="email" autoComplete="email" {...form.register("email")} /></Field>
         <Field label="Phone (optional)" error={form.formState.errors.phone?.message}><Input type="tel" autoComplete="tel" {...form.register("phone", { setValueAs: (value: string) => value || undefined })} /></Field>
-        <Field label="Account type" error={form.formState.errors.role?.message}><Select {...form.register("role")}><option value="user">Concierge member</option><option value="business">Business owner</option></Select></Field>
         <Field label="Password" error={form.formState.errors.password?.message}><Input type="password" autoComplete="new-password" {...form.register("password")} /></Field>
         {form.formState.errors.root ? <p className="text-sm text-red-700">{form.formState.errors.root.message}</p> : null}
         <Button type="submit" className="mt-1 w-full" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Creating account…" : <>Create account <ArrowRight className="size-4" /></>}</Button>
       </form>
-      <p className="mt-7 text-center text-sm text-ink-soft">Already a member? <Link to="/login" className="font-bold text-black underline">Sign in</Link></p>
+      <p className="mt-7 text-center text-sm text-ink-soft">Already a member? <Link to="/login" state={{ from: destination }} className="font-bold text-black underline">Sign in</Link></p>
     </AuthShell>
   );
 }

@@ -1,13 +1,12 @@
-import { Role } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../../shared/auth/index.js";
+import { requireAuth, setAuthCookie } from "../../shared/auth/index.js";
 import { createBusinessSchema, updateBusinessSchema } from "./businesses.schemas.js";
 import { businessesService } from "./businesses.service.js";
 
 export const businessesRouter = Router();
 
-businessesRouter.get("/mine", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+businessesRouter.get("/mine", requireAuth, async (req, res) => {
   const businesses = await businessesService.listMine(req.user!);
   res.json({ businesses });
 });
@@ -17,13 +16,16 @@ businessesRouter.get("/:slugOrId", async (req, res) => {
   res.json({ business });
 });
 
-businessesRouter.post("/", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+businessesRouter.post("/", requireAuth, async (req, res) => {
   const data = createBusinessSchema.parse(req.body);
-  const business = await businessesService.create(data, req.user!);
-  res.status(201).json({ business });
+  const { business, user } = await businessesService.create(data, req.user!);
+  if (user.role !== req.user!.role) {
+    setAuthCookie(res, user);
+  }
+  res.status(201).json({ business, user });
 });
 
-businessesRouter.patch("/:id", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+businessesRouter.patch("/:id", requireAuth, async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const data = updateBusinessSchema.parse(req.body);
   const business = await businessesService.update(id, data, req.user!);

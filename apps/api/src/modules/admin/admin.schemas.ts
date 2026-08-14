@@ -1,9 +1,10 @@
-import { BusinessStatus } from "@prisma/client";
+import { BusinessStatus, ServiceApprovalStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const adminListSchema = z.object({
   q: z.string().trim().max(200).optional(),
   status: z.nativeEnum(BusinessStatus).optional(),
+  categoryId: z.string().uuid().optional(),
   verified: z
     .enum(["true", "false"])
     .transform((value) => value === "true")
@@ -20,6 +21,7 @@ export const adminUpdateSchema = z
     verified: z.boolean().optional(),
     status: z.nativeEnum(BusinessStatus).optional(),
     featured: z.boolean().optional(),
+    rejectionReason: z.string().trim().min(2).max(2000).nullable().optional(),
     description: z.string().trim().min(20).max(10_000).optional(),
     address: z.string().trim().min(3).max(300).optional(),
     city: z.string().trim().min(2).max(100).optional(),
@@ -62,3 +64,25 @@ export const adminAssetListSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
+
+export const adminRejectSchema = z.object({
+  reason: z.string().trim().min(2).max(2000),
+});
+
+export const adminListingListSchema = z.object({
+  q: z.string().trim().max(200).optional(),
+  status: z.nativeEnum(ServiceApprovalStatus).optional(),
+  businessId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export const adminListingPatchSchema = z
+  .object({
+    approvalStatus: z.nativeEnum(ServiceApprovalStatus).optional(),
+    isActive: z.boolean().optional(),
+    rejectionReason: z.string().trim().min(2).max(2000).nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field is required");
+

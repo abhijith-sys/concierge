@@ -1,38 +1,20 @@
-import { BusinessStatus, PrismaClient, Role } from "@prisma/client";
+import { BusinessStatus, Prisma, PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { assignDefaultRoleForLegacy, ensureRbacCatalog } from "../src/shared/auth/rbac.service.js";
+import {
+  PLATFORM_CATEGORY_SLUG,
+  demoBusinessCategoryMap,
+  exampleSubcategoryFields,
+  healthWellnessFields,
+  phase1Mains,
+  phase1Subs,
+  platformListingFields,
+  platformProviderFields,
+  type FieldSeed,
+} from "./taxonomy.js";
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "Concierge123!";
-
-const categories = [
-  { name: "B2B Services", slug: "b2b", icon: "business_center", sortOrder: 1 },
-  { name: "Home & Repairs", slug: "home-repairs", icon: "home_repair_service", sortOrder: 2 },
-  { name: "Real Estate", slug: "real-estate", icon: "apartment", sortOrder: 3 },
-  { name: "Medical", slug: "medical", icon: "medical_services", sortOrder: 4 },
-  { name: "Restaurants", slug: "restaurants", icon: "restaurant", sortOrder: 5 },
-  { name: "Hotels", slug: "hotels", icon: "hotel", sortOrder: 6 },
-  { name: "Beauty & Spa", slug: "beauty-spa", icon: "spa", sortOrder: 7 },
-  { name: "Contractors", slug: "contractors", icon: "construction", sortOrder: 8 },
-  { name: "Events", slug: "events", icon: "celebration", sortOrder: 9 },
-  { name: "Lifestyle", slug: "lifestyle", icon: "local_activity", sortOrder: 10 },
-];
-
-const childCategories = [
-  // Keep nav pillars populated: /listings/b2b, /listings/real-estate, /listings/home-repairs
-  { name: "Material Suppliers", slug: "material-suppliers", parentSlug: "b2b", icon: "inventory_2", sortOrder: 1 },
-  { name: "Architects & Builders", slug: "architects-builders", parentSlug: "real-estate", icon: "architecture", sortOrder: 1 },
-  { name: "Home Decor", slug: "home-decor", parentSlug: "home-repairs", icon: "chair", sortOrder: 1 },
-  { name: "Tech Repair", slug: "tech-repair", parentSlug: "home-repairs", icon: "devices", sortOrder: 2 },
-  { name: "Banquet Halls", slug: "banquet-halls", parentSlug: "events", icon: "festival", sortOrder: 1 },
-  { name: "Bridal Wear", slug: "bridal-wear", parentSlug: "events", icon: "checkroom", sortOrder: 2 },
-  { name: "Caterers", slug: "caterers", parentSlug: "events", icon: "room_service", sortOrder: 3 },
-  { name: "Luxury Spas", slug: "luxury-spas", parentSlug: "beauty-spa", icon: "spa", sortOrder: 1 },
-  { name: "Top Salons", slug: "top-salons", parentSlug: "beauty-spa", icon: "content_cut", sortOrder: 2 },
-  { name: "Elite Gyms", slug: "elite-gyms", parentSlug: "beauty-spa", icon: "fitness_center", sortOrder: 3 },
-  { name: "Grocery", slug: "grocery", parentSlug: "lifestyle", icon: "local_grocery_store", sortOrder: 1 },
-  { name: "Movies", slug: "movies", parentSlug: "lifestyle", icon: "movie", sortOrder: 2 },
-]
 
 const listingImages = [
   "/assets/brett-villa.jpg",
@@ -41,22 +23,95 @@ const listingImages = [
   "/assets/heritage-estate.jpg",
 ];
 
-const businesses = [
+type DemoCatalogItem = {
+  name: string;
+  description: string;
+  price: number;
+  pricingType?: string;
+  images: string[];
+  fields?: Record<string, string>;
+};
+
+type DemoBusiness = {
+  name: string;
+  slug: string;
+  category: string;
+  city: string;
+  address: string;
+  headline?: string;
+  description: string;
+  lat: number;
+  lng: number;
+  images: string[];
+  years?: number;
+  supportTurnaround?: string;
+  catalog?: DemoCatalogItem[];
+};
+
+const businesses: DemoBusiness[] = [
   {
     name: "Elite Build & Masonry",
     slug: "elite-build-masonry",
-    category: "material-suppliers",
+    category: "fabricators",
     city: "New York",
     address: "150 Madison Avenue, New York, NY",
-    description: "Curating exquisite architectural materials and engineering luxury custom homes for more than three decades.",
+    headline: "Artistry in Every Atom.",
+    description:
+      "Curating the world's most exquisite architectural materials for luxury custom homes and high-end commercial developments.\n\nFor over three decades, Elite Build & Masonry has been the silent partner behind the world's most exclusive architectural envelopes. We source rare stones from Italy, Greece, and Brazil to ensure every project is a masterpiece of geological artistry.",
     lat: 40.7458,
     lng: -73.9847,
-    images: ["/assets/concierge-architectural-hero.jpg", "/assets/elite-slab.jpg", "/assets/elite-plans.jpg"],
+    images: [
+      "/assets/concierge-architectural-hero.jpg",
+      "/assets/elite-plans.jpg",
+      "/assets/brett-villa.jpg",
+      "/assets/terra-stone.jpg",
+      "/assets/arcadian-desert.jpg",
+    ],
+    years: 30,
+    supportTurnaround: "24h",
+    catalog: [
+      {
+        name: "Calacatta Borghini Selection",
+        description: "Imported from Carrara, Italy",
+        price: 0,
+        pricingType: "contact",
+        images: ["/assets/elite-slab.jpg"],
+        fields: {
+          availability_qty: "42 Slabs",
+          thickness: "20mm / 30mm",
+          finish: "Polished",
+        },
+      },
+      {
+        name: "Engineered Timber",
+        description: "Sustainable European Oak & Walnut",
+        price: 0,
+        pricingType: "contact",
+        images: ["/assets/heritage-estate.jpg"],
+        fields: { selection_note: "12 Variants" },
+      },
+      {
+        name: "Architectural Steel",
+        description: "Custom Beams & Facade Panels",
+        price: 0,
+        pricingType: "contact",
+        images: ["/assets/builders-hero.jpg"],
+        fields: { selection_note: "4 Finishes" },
+      },
+      {
+        name: "Structural Glass",
+        description: "High-Performance Thermal Glazing",
+        price: 0,
+        pricingType: "contact",
+        images: ["/assets/aura-showroom.jpg"],
+        fields: { selection_note: "Ultra-Clear" },
+      },
+    ],
   },
   {
     name: "Aura Interior & Furniture",
     slug: "aura-interior-furniture",
-    category: "home-decor",
+    category: "interior-designers",
     city: "New York",
     address: "88 Wooster Street, New York, NY",
     description: "A curated sanctuary of artisanal craftsmanship, contemporary furniture, and bespoke living.",
@@ -67,7 +122,7 @@ const businesses = [
   {
     name: "Brett Architects & Builders",
     slug: "brett-architects-builders",
-    category: "architects-builders",
+    category: "interior-designers",
     city: "Brooklyn",
     address: "45 Main Street, Brooklyn, NY",
     description: "Award-winning architects and builders creating refined, sustainable homes with natural materials.",
@@ -78,7 +133,7 @@ const businesses = [
   {
     name: "Terra & Stone Collective",
     slug: "terra-stone-collective",
-    category: "material-suppliers",
+    category: "fabricators",
     city: "New York",
     address: "210 West 18th Street, New York, NY",
     description: "Premium stone sourcing and architectural material consultancy for exceptional residential projects.",
@@ -89,7 +144,7 @@ const businesses = [
   {
     name: "Arcadian Structures",
     slug: "arcadian-structures",
-    category: "architects-builders",
+    category: "interior-designers",
     city: "Scottsdale",
     address: "7200 East Camelback Road, Scottsdale, AZ",
     description: "Modern desert architecture combining rammed earth, glass, and integrated landscape design.",
@@ -100,7 +155,7 @@ const businesses = [
   {
     name: "Heritage Artisan Group",
     slug: "heritage-artisan-group",
-    category: "architects-builders",
+    category: "interior-designers",
     city: "New York",
     address: "12 East 74th Street, New York, NY",
     description: "Expert restoration of landmark estates through traditional craft and modern precision.",
@@ -109,6 +164,44 @@ const businesses = [
     images: [listingImages[3]],
   },
 ];
+
+async function upsertFields(categoryId: string, fields: FieldSeed[]) {
+  for (const field of fields) {
+    await prisma.categoryField.upsert({
+      where: { categoryId_key: { categoryId, key: field.key } },
+      update: {
+        label: field.label,
+        helpText: field.helpText ?? null,
+        placeholder: field.placeholder ?? null,
+        fieldType: field.fieldType,
+        required: field.required ?? false,
+        section: field.section ?? null,
+        sortOrder: field.sortOrder,
+        options: field.options ?? Prisma.DbNull,
+        validation: field.validation ?? Prisma.DbNull,
+        conditionalRules: field.conditionalRules ?? Prisma.DbNull,
+        isActive: true,
+        scope: field.scope,
+      },
+      create: {
+        categoryId,
+        key: field.key,
+        label: field.label,
+        helpText: field.helpText ?? null,
+        placeholder: field.placeholder ?? null,
+        fieldType: field.fieldType,
+        required: field.required ?? false,
+        section: field.section ?? null,
+        sortOrder: field.sortOrder,
+        options: field.options,
+        validation: field.validation,
+        conditionalRules: field.conditionalRules,
+        scope: field.scope,
+        isActive: true,
+      },
+    });
+  }
+}
 
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
@@ -139,96 +232,71 @@ async function main() {
   }
 
   const categoryIds = new Map<string, string>();
-  for (const category of categories) {
+
+  const platform = await prisma.category.upsert({
+    where: { slug: PLATFORM_CATEGORY_SLUG },
+    update: { name: "Platform common fields", isActive: true, sortOrder: 0 },
+    create: { name: "Platform common fields", slug: PLATFORM_CATEGORY_SLUG, isActive: true, sortOrder: 0 },
+  });
+  categoryIds.set(PLATFORM_CATEGORY_SLUG, platform.id);
+
+  for (const category of phase1Mains) {
     const saved = await prisma.category.upsert({
       where: { slug: category.slug },
-      update: category,
-      create: category,
+      update: { ...category, parentId: null, isActive: true },
+      create: { ...category, isActive: true },
     });
     categoryIds.set(category.slug, saved.id);
   }
-  for (const category of childCategories) {
+
+  for (const category of phase1Subs) {
     const { parentSlug, ...data } = category;
+    const parentId = categoryIds.get(parentSlug);
+    if (!parentId) throw new Error(`Missing parent category ${parentSlug}`);
     const saved = await prisma.category.upsert({
       where: { slug: data.slug },
-      update: { ...data, parentId: categoryIds.get(parentSlug)! },
-      create: { ...data, parentId: categoryIds.get(parentSlug)! },
+      update: { ...data, parentId, isActive: true },
+      create: { ...data, parentId, isActive: true },
     });
     categoryIds.set(data.slug, saved.id);
   }
 
-  const contractorsId = categoryIds.get("contractors");
-  if (contractorsId) {
-    const contractorFields = [
-      {
-        key: "license_number",
-        label: "License number",
-        helpText: "State contractor license or registration ID",
-        fieldType: "text" as const,
-        required: false,
-        section: "Credentials",
-        sortOrder: 1,
-        validation: { minLength: 3, maxLength: 64 },
-      },
-      {
-        key: "years_in_business",
-        label: "Years in business",
-        fieldType: "number" as const,
-        required: false,
-        section: "Credentials",
-        sortOrder: 2,
-        validation: { min: 0, max: 200 },
-      },
-      {
-        key: "specialties",
-        label: "Specialties",
-        fieldType: "multiselect" as const,
-        required: false,
-        section: "Services",
-        sortOrder: 3,
-        options: ["Masonry", "Framing", "Roofing", "Remodeling", "New construction"],
-      },
-      {
-        key: "insured",
-        label: "Fully insured",
-        fieldType: "boolean" as const,
-        required: false,
-        section: "Credentials",
-        sortOrder: 4,
-      },
-    ];
-    for (const field of contractorFields) {
-      await prisma.categoryField.upsert({
-        where: { categoryId_key: { categoryId: contractorsId, key: field.key } },
-        update: {
-          label: field.label,
-          helpText: field.helpText ?? null,
-          fieldType: field.fieldType,
-          required: field.required,
-          section: field.section,
-          sortOrder: field.sortOrder,
-          options: field.options,
-          validation: field.validation,
-          isActive: true,
-          scope: "listing",
-        },
-        create: {
-          categoryId: contractorsId,
-          key: field.key,
-          label: field.label,
-          helpText: field.helpText ?? null,
-          fieldType: field.fieldType,
-          required: field.required,
-          section: field.section,
-          sortOrder: field.sortOrder,
-          options: field.options,
-          validation: field.validation,
-          scope: "listing",
-          isActive: true,
-        },
-      });
+  const keepRootSlugs = [...phase1Mains.map((item) => item.slug), PLATFORM_CATEGORY_SLUG];
+  await prisma.category.updateMany({
+    where: { parentId: null, slug: { notIn: keepRootSlugs } },
+    data: { isActive: false },
+  });
+  const keepChildSlugs = phase1Subs.map((item) => item.slug);
+  await prisma.category.updateMany({
+    where: { parentId: { not: null }, slug: { notIn: keepChildSlugs } },
+    data: { isActive: false },
+  });
+
+  await upsertFields(platform.id, [...platformProviderFields, ...platformListingFields]);
+  const healthId = categoryIds.get("health-wellness");
+  if (healthId) await upsertFields(healthId, healthWellnessFields);
+  for (const [slug, fields] of Object.entries(exampleSubcategoryFields)) {
+    const id = categoryIds.get(slug);
+    if (id) await upsertFields(id, fields);
+  }
+
+  for (const [fromSlug, toSlug] of Object.entries(demoBusinessCategoryMap)) {
+    const fromId = (await prisma.category.findUnique({ where: { slug: fromSlug } }))?.id;
+    const toId = categoryIds.get(toSlug);
+    if (fromId && toId) {
+      await prisma.listing.updateMany({ where: { categoryId: fromId }, data: { categoryId: toId } });
+      await prisma.service.updateMany({ where: { categoryId: fromId }, data: { categoryId: toId } });
     }
   }
+
+  const platformFields = new Map(
+    (
+      await prisma.categoryField.findMany({
+        where: { categoryId: platform.id },
+        select: { id: true, key: true },
+      })
+    ).map((field) => [field.key, field.id]),
+  );
 
   const businessIds: string[] = [];
   for (const [index, item] of businesses.entries()) {
@@ -259,11 +327,13 @@ async function main() {
       },
     });
     businessIds.push(business.id);
-    await prisma.listing.upsert({
+    const categoryId = categoryIds.get(demoBusinessCategoryMap[item.category] ?? item.category);
+    if (!categoryId) throw new Error(`Missing seeded category ${item.category}`);
+    const listing = await prisma.listing.upsert({
       where: { businessId: business.id },
       update: {
-        categoryId: categoryIds.get(item.category)!,
-        title: item.name,
+        categoryId,
+        title: item.headline ?? item.name,
         description: item.description,
         address: item.address,
         city: item.city,
@@ -274,8 +344,8 @@ async function main() {
       },
       create: {
         businessId: business.id,
-        categoryId: categoryIds.get(item.category)!,
-        title: item.name,
+        categoryId,
+        title: item.headline ?? item.name,
         description: item.description,
         address: item.address,
         city: item.city,
@@ -295,19 +365,76 @@ async function main() {
         featured: index < 2,
       },
     });
-    await prisma.service.deleteMany({ where: { businessId: business.id, name: "Design consultation" } });
-    await prisma.service.create({
-      data: {
-        businessId: business.id,
+
+    const yearsFieldId = platformFields.get("years_of_experience");
+    const emergencyFieldId = platformFields.get("emergency_timing");
+    const emergencyFlagId = platformFields.get("emergency_service");
+    if (item.years != null && yearsFieldId) {
+      await prisma.listingFieldValue.upsert({
+        where: { listingId_fieldId: { listingId: listing.id, fieldId: yearsFieldId } },
+        update: { valueNumber: item.years },
+        create: { listingId: listing.id, fieldId: yearsFieldId, valueNumber: item.years },
+      });
+    }
+    if (item.supportTurnaround && emergencyFieldId) {
+      if (emergencyFlagId) {
+        await prisma.listingFieldValue.upsert({
+          where: { listingId_fieldId: { listingId: listing.id, fieldId: emergencyFlagId } },
+          update: { valueBool: true },
+          create: { listingId: listing.id, fieldId: emergencyFlagId, valueBool: true },
+        });
+      }
+      await prisma.listingFieldValue.upsert({
+        where: { listingId_fieldId: { listingId: listing.id, fieldId: emergencyFieldId } },
+        update: { valueText: item.supportTurnaround },
+        create: { listingId: listing.id, fieldId: emergencyFieldId, valueText: item.supportTurnaround },
+      });
+    }
+
+    const catalog = item.catalog ?? [
+      {
         name: "Design consultation",
         description: "A one-hour consultation to scope your project and recommend next steps.",
         price: 150,
-        currency: "USD",
-        durationMinutes: 60,
-        isActive: true,
-        images: [],
+        images: [] as string[],
       },
+    ];
+    const catalogNames = catalog.map((entry) => entry.name);
+    await prisma.service.deleteMany({
+      where: { businessId: business.id, name: { in: ["Design consultation", ...catalogNames] } },
     });
+    for (const entry of catalog) {
+      const service = await prisma.service.create({
+        data: {
+          businessId: business.id,
+          categoryId,
+          name: entry.name,
+          description: entry.description,
+          price: entry.price,
+          currency: "USD",
+          pricingType: entry.pricingType ?? null,
+          durationMinutes: entry.pricingType ? null : 60,
+          isActive: true,
+          approvalStatus: "approved",
+          images: entry.images,
+        },
+      });
+      if (entry.fields) {
+        const categoryFields = await prisma.categoryField.findMany({
+          where: { categoryId, key: { in: Object.keys(entry.fields) } },
+          select: { id: true, key: true },
+        });
+        for (const field of categoryFields) {
+          const value = entry.fields[field.key];
+          if (!value) continue;
+          await prisma.serviceFieldValue.upsert({
+            where: { serviceId_fieldId: { serviceId: service.id, fieldId: field.id } },
+            update: { valueText: value },
+            create: { serviceId: service.id, fieldId: field.id, valueText: value },
+          });
+        }
+      }
+    }
   }
 
   const reviewerEmails = ["user@demo.com", ...Array.from({ length: 9 }, (_, index) => `reviewer${index + 1}@demo.com`)];
@@ -350,7 +477,7 @@ async function main() {
   }
 
   console.log(
-    `[seed] upserted RBAC catalog, ${categories.length + childCategories.length} categories, ${businesses.length} businesses, and demo reviews`,
+    `[seed] upserted RBAC catalog, ${phase1Mains.length} mains, ${phase1Subs.length} subcategories, ${businesses.length} businesses, and demo reviews`,
   );
 }
 

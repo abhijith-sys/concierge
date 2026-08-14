@@ -14,20 +14,53 @@ export type Business = {
   slug: string;
   status: string;
   verified: boolean;
-  listing?: { city?: string; title?: string };
+  rejectionReason?: string | null;
+  listing?: {
+    city?: string;
+    title?: string;
+    category?: { id: string; name: string; slug: string } | null;
+  };
+};
+
+export type AdminListing = {
+  id: string;
+  name: string;
+  description: string;
+  price: number | string;
+  currency: string;
+  isActive: boolean;
+  approvalStatus: string;
+  rejectionReason?: string | null;
+  category?: { id: string; name: string; slug: string } | null;
+  business?: { id: string; name: string; slug: string; status: string };
+};
+
+export type CategoryCounts = {
+  children?: number;
+  listings?: number;
+  services?: number;
+  fields?: number;
 };
 
 export type Category = {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
+  description?: string | null;
   icon?: string | null;
+  imageUrl?: string | null;
+  sortOrder?: number;
   isActive?: boolean;
+  createdAt?: string;
+  parent?: { id: string; name: string; slug: string } | null;
   children?: Category[];
+  _count?: CategoryCounts;
 };
 
 export type CategoryField = {
   id: string;
+  categoryId: string;
   key: string;
   label: string;
   fieldType: string;
@@ -37,6 +70,37 @@ export type CategoryField = {
   sortOrder: number;
   section?: string | null;
   helpText?: string | null;
+  placeholder?: string | null;
+  defaultValue?: unknown;
+  options?: unknown;
+  validation?: { min?: number; max?: number; minLength?: number; maxLength?: number; pattern?: string; widget?: string } | null;
+  conditionalRules?: { fieldKey?: string; equals?: unknown } | null;
+  source?: "platform" | "main" | "sub";
+};
+
+export type AdminForm = {
+  kind: "provider" | "listing";
+  formSchemaVersion: number;
+  category: { id: string; name: string; slug: string; parent?: { id: string; name: string; slug: string } | null };
+  layers: {
+    platform: CategoryField[];
+    main: CategoryField[];
+    sub: CategoryField[];
+  };
+  fields: CategoryField[];
+};
+
+export type AdminStats = {
+  businesses: { pending: number; active: number; rejected?: number; suspended: number; deleted: number };
+  listings?: { total: number; pending: number; approved: number; rejected: number; draft: number };
+  users: number;
+  providers?: number;
+  pendingProviders?: number;
+  pendingListings?: number;
+  categories?: number;
+  subcategories?: number;
+  kycQueue: number;
+  assets: number;
 };
 
 export type VerificationItem = {
@@ -96,14 +160,23 @@ class ApiError extends Error {
   }
 }
 
+function csrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)concierge_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const mutating = method !== "GET" && method !== "HEAD";
+  const token = csrfToken();
   const response = await fetch(path, {
+    ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(mutating && token ? { "X-CSRF-Token": token } : {}),
       ...(init?.headers ?? {}),
     },
-    ...init,
   });
   if (!response.ok) {
     let message = response.statusText;
@@ -152,14 +225,7 @@ export const api = {
   },
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   stats: async () => {
-    const value = await request<{
-      stats: {
-        businesses: { pending: number; active: number; suspended: number; deleted: number };
-        users: number;
-        kycQueue: number;
-        assets: number;
-      };
-    }>("/api/admin/stats");
+    const value = await request<{ stats: AdminStats }>("/api/admin/stats");
     return value.stats;
   },
   settings: async () => {
@@ -184,8 +250,24 @@ export const api = {
     request(`/api/admin/businesses/${id}/activate`, { method: "POST", body: "{}" }),
   suspend: (id: string) =>
     request(`/api/admin/businesses/${id}/suspend`, { method: "POST", body: "{}" }),
+  rejectBusiness: (id: string, reason: string) =>
+    request(`/api/admin/businesses/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
   softDelete: (id: string) =>
     request(`/api/admin/businesses/${id}?hard=false`, { method: "DELETE" }),
+  listings: (params: URLSearchParams) =>
+    request<{ items: AdminListing[]; pagination: { total: number } }>(
+      `/api/admin/listings?${params.toString()}`,
+    ),
+  approveListing: (id: string) =>
+    request(`/api/admin/listings/${id}/approve`, { method: "POST", body: "{}" }),
+  rejectListing: (id: string, reason: string) =>
+    request(`/api/admin/listings/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
   verificationQueue: async () => {
     const value = await request<{ items: VerificationItem[] }>("/api/verification/queue");
     return value.items;
@@ -199,7 +281,7 @@ export const api = {
     const value = await request<{ categories: Category[] }>("/api/admin/categories");
     return value.categories;
   },
-  createCategory: (input: { name: string; slug?: string; parentId?: string | null }) =>
+  createCategory: (input: Record<string, unknown>) =>
     request<{ category: Category }>("/api/admin/categories", {
       method: "POST",
       body: JSON.stringify(input),
@@ -209,12 +291,18 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+  deleteCategory: (id: string, hard = false) =>
+    request<{ category: Category }>(`/api/admin/categories/${id}${hard ? "?hard=true" : ""}`, {
+      method: "DELETE",
+    }),
   categoryFields: async (categoryId: string) => {
     const value = await request<{ fields: CategoryField[] }>(
       `/api/admin/categories/${categoryId}/fields`,
     );
     return value.fields;
   },
+  adminForm: (categoryId: string, kind: "provider" | "listing") =>
+    request<AdminForm>(`/api/admin/forms/${categoryId}?kind=${kind}`),
   createField: (categoryId: string, input: Record<string, unknown>) =>
     request<{ field: CategoryField }>(`/api/admin/categories/${categoryId}/fields`, {
       method: "POST",
@@ -227,6 +315,11 @@ export const api = {
     }),
   deleteField: (fieldId: string) =>
     request<void>(`/api/admin/category-fields/${fieldId}`, { method: "DELETE" }),
+  reorderFields: (ids: string[]) =>
+    request<{ fields: CategoryField[] }>("/api/admin/category-fields/reorder", {
+      method: "PUT",
+      body: JSON.stringify({ ids }),
+    }),
   users: (params: URLSearchParams) =>
     request<{ items: ManagedUser[]; pagination: { total: number } }>(
       `/api/admin/users?${params.toString()}`,

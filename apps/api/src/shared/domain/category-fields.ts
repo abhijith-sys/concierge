@@ -1,4 +1,5 @@
 import { Prisma, type CategoryField, type CategoryFieldType } from "@prisma/client";
+import { isFieldVisible } from "./composed-forms.js";
 import { ApiError } from "../errors/index.js";
 
 export type FieldValueInput = {
@@ -57,6 +58,7 @@ export function normalizeAndValidateFieldValues(
   const byKey = new Map(fields.map((f) => [f.key, f]));
 
   const provided = new Map<string, unknown>();
+  const valueByKey = new Map<string, unknown>();
   for (const input of inputs) {
     const field = (input.fieldId && byId.get(input.fieldId)) || (input.key && byKey.get(input.key));
     if (!field) {
@@ -66,11 +68,13 @@ export function normalizeAndValidateFieldValues(
       throw new ApiError(400, "INACTIVE_FIELD", `Field "${field.key}" is not active`);
     }
     provided.set(field.id, input.value);
+    valueByKey.set(field.key, input.value);
   }
 
   if (requireRequired) {
     for (const field of fields) {
       if (!field.isActive || !field.required) continue;
+      if (!isFieldVisible(field, valueByKey)) continue;
       if (!provided.has(field.id) || isBlank(provided.get(field.id))) {
         throw new ApiError(400, "FIELD_REQUIRED", `Field "${field.label}" is required`);
       }
@@ -80,6 +84,7 @@ export function normalizeAndValidateFieldValues(
   const normalized: NormalizedFieldValue[] = [];
   for (const [fieldId, value] of provided) {
     const field = byId.get(fieldId)!;
+    if (!isFieldVisible(field, valueByKey)) continue;
     if (isBlank(value) && !field.required) {
       normalized.push(emptyNormalized(fieldId));
       continue;

@@ -10,6 +10,7 @@ import { adminRouter } from "../modules/admin/index.js";
 import { verificationRouter } from "../modules/verification/index.js";
 import { uploadsRouter } from "../modules/uploads/index.js";
 import { assetsRouter } from "../modules/assets/index.js";
+import { wishlistRouter } from "../modules/wishlist/index.js";
 
 /**
  * Mounts active domain routers under /api.
@@ -25,6 +26,7 @@ export function composeApiRouter() {
   apiRouter.use("/businesses", businessesRouter);
   apiRouter.use("/reviews", reviewsRouter);
   apiRouter.use("/services", servicesRouter);
+  apiRouter.use("/wishlist", wishlistRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/verification", verificationRouter);
   apiRouter.use("/uploads", uploadsRouter);

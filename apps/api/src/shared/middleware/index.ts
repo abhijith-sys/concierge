@@ -91,7 +91,13 @@ export const requireCsrf: RequestHandler = (req, _res, next) => {
     return;
   }
   // Only enforce when authenticated via cookie session.
-  if (!req.user) {
+  // Login/register replace the session and must work even if a leftover
+  // public-web cookie is present (localhost cookies are not port-scoped).
+  if (
+    !req.user ||
+    req.path === "/api/auth/login" ||
+    req.path === "/api/auth/register"
+  ) {
     next();
     return;
   }

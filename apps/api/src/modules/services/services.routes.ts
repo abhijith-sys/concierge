@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../../shared/auth/index.js";
-import { Role } from "@prisma/client";
+import { requireAuth } from "../../shared/auth/index.js";
 import { createServiceSchema, updateServiceSchema } from "./services.schemas.js";
 import { servicesService } from "./services.service.js";
 
@@ -13,20 +12,20 @@ servicesRouter.get("/business/:businessId", async (req, res) => {
   res.json({ services });
 });
 
-servicesRouter.post("/", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+servicesRouter.post("/", requireAuth, async (req, res) => {
   const data = createServiceSchema.parse(req.body);
   const service = await servicesService.create(data, req.user!);
   res.status(201).json({ service });
 });
 
-servicesRouter.patch("/:id", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+servicesRouter.patch("/:id", requireAuth, async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const data = updateServiceSchema.parse(req.body);
   const service = await servicesService.update(id, data, req.user!);
   res.json({ service });
 });
 
-servicesRouter.delete("/:id", requireAuth, requireRole(Role.business, Role.admin), async (req, res) => {
+servicesRouter.delete("/:id", requireAuth, async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   await servicesService.remove(id, req.user!);
   res.status(204).send();

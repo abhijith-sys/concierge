@@ -6,7 +6,8 @@ export const registerSchema = z.object({
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(7).max(30).optional(),
   password: z.string().min(8).max(128),
-  role: z.enum([Role.user, Role.business]).default(Role.user),
+  /** Ignored. Signup is always a consumer; provider capability is added later. */
+  role: z.enum([Role.user, Role.business]).optional(),
 });
 
 export const loginSchema = z.object({

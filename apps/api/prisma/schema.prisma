@@ -16,6 +16,7 @@ enum Role {
 enum BusinessStatus {
   pending
   active
+  rejected
   suspended
   deleted
 }
@@ -99,6 +100,13 @@ enum CategoryFieldScope {
   business
 }
 
+enum ServiceApprovalStatus {
+  draft
+  pending
+  approved
+  rejected
+}
+
 model User {
   id              String                  @id @default(uuid()) @db.Uuid
   name            String
@@ -120,6 +128,7 @@ model User {
   userRoles       UserRole[]
   assignedRoles   UserRole[]              @relation("RoleAssigner")
   uploadedAssets  Asset[]                 @relation("AssetUploader")
+  wishlistItems   WishlistItem[]
 
   @@index([role])
 }
@@ -188,18 +197,22 @@ model VerificationChallenge {
 }
 
 model Category {
-  id        String          @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String          @unique
-  parentId  String?         @db.Uuid
-  icon      String?
-  sortOrder Int             @default(0)
-  isActive  Boolean         @default(true)
-  parent    Category?       @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children  Category[]      @relation("CategoryTree")
-  listings  Listing[]
-  services  Service[]
-  fields    CategoryField[]
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String          @unique
+  parentId    String?         @db.Uuid
+  description String?
+  icon        String?
+  imageUrl    String?
+  sortOrder   Int             @default(0)
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  parent      Category?       @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[]      @relation("CategoryTree")
+  listings    Listing[]
+  services    Service[]
+  fields      CategoryField[]
 
   @@index([parentId, sortOrder])
   @@index([isActive])
@@ -215,9 +228,11 @@ model Business {
   logoUrl        String?
   coverUrl       String?
   socialLinks    Json?
-  verified       Boolean                  @default(false)
-  status         BusinessStatus           @default(pending)
-  createdAt      DateTime                 @default(now())
+  verified           Boolean                  @default(false)
+  status             BusinessStatus           @default(pending)
+  rejectionReason    String?
+  formSchemaVersion  Int                      @default(1)
+  createdAt          DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
   owner          User                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   listing        Listing?
@@ -247,9 +262,10 @@ model Listing {
   featured    Boolean             @default(false)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-  business    Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category    Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  fieldValues ListingFieldValue[]
+  business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  fieldValues   ListingFieldValue[]
+  wishlistItems WishlistItem[]
 
   @@index([categoryId])
   @@index([city])
@@ -259,48 +275,57 @@ model Listing {
 }
 
 model Service {
-  id              String              @id @default(uuid()) @db.Uuid
-  businessId      String              @db.Uuid
-  categoryId      String?             @db.Uuid
-  name            String
-  description     String
-  price           Decimal             @db.Decimal(10, 2)
-  currency        String              @default("USD") @db.VarChar(3)
-  durationMinutes Int?
-  images          String[]
-  isActive        Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  business        Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category        Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  fieldValues     ServiceFieldValue[]
+  id                String                @id @default(uuid()) @db.Uuid
+  businessId        String                @db.Uuid
+  categoryId        String?               @db.Uuid
+  name              String
+  description       String
+  price             Decimal               @db.Decimal(10, 2)
+  currency          String                @default("USD") @db.VarChar(3)
+  pricingType       String?
+  durationMinutes   Int?
+  images            String[]
+  isActive          Boolean               @default(true)
+  approvalStatus    ServiceApprovalStatus @default(approved)
+  rejectionReason   String?
+  formSchemaVersion Int                   @default(1)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  business          Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category          Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  fieldValues       ServiceFieldValue[]
 
   @@index([businessId, isActive])
+  @@index([businessId, approvalStatus])
+  @@index([approvalStatus])
   @@index([name])
 }
 
 model CategoryField {
-  id             String                 @id @default(uuid()) @db.Uuid
-  categoryId     String                 @db.Uuid
-  key            String
-  label          String
-  helpText       String?
-  fieldType      CategoryFieldType
-  required       Boolean                @default(false)
-  options        Json?
-  validation     Json?
-  scope          CategoryFieldScope     @default(listing)
-  sortOrder      Int                    @default(0)
-  section        String?
-  isFilterable   Boolean                @default(false)
-  isSearchable   Boolean                @default(false)
-  isActive       Boolean                @default(true)
-  schemaVersion  Int                    @default(1)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  category       Category               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  listingValues  ListingFieldValue[]
-  serviceValues  ServiceFieldValue[]
+  id                String                 @id @default(uuid()) @db.Uuid
+  categoryId        String                 @db.Uuid
+  key               String
+  label             String
+  helpText          String?
+  placeholder       String?
+  fieldType         CategoryFieldType
+  required          Boolean                @default(false)
+  defaultValue      Json?
+  options           Json?
+  validation        Json?
+  conditionalRules  Json?
+  scope             CategoryFieldScope     @default(listing)
+  sortOrder         Int                    @default(0)
+  section           String?
+  isFilterable      Boolean                @default(false)
+  isSearchable      Boolean                @default(false)
+  isActive          Boolean                @default(true)
+  schemaVersion     Int                    @default(1)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  category          Category               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listingValues     ListingFieldValue[]
+  serviceValues     ServiceFieldValue[]
 
   @@unique([categoryId, key])
   @@index([categoryId, scope, sortOrder])
@@ -361,6 +386,19 @@ model VerificationSubmission {
 
   @@index([businessId, status])
   @@index([status, submittedAt])
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  listingId String   @db.Uuid
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId, createdAt])
+  @@index([listingId])
 }
 
 model Review {
