@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError } from "../../shared/errors/index.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { FORM_KINDS, formSchemaVersion, type FormKind } from "../../shared/domain/composed-forms.js";
+import { assetsService } from "../assets/assets.service.js";
 import {
   categoriesRepository,
   categoryFieldUpsertSchema,
@@ -14,6 +15,39 @@ function parseFormKind(value: string): FormKind {
   const kind = z.enum(FORM_KINDS).safeParse(value);
   if (!kind.success) throw new ApiError(400, "INVALID_FORM_KIND", "Form kind must be provider or listing");
   return kind.data;
+}
+
+async function syncCategoryMedia(
+  category: { id: string; imageUrl?: string | null; bannerUrl?: string | null },
+  actorId: string,
+  patch: { imageUrl?: string | null; bannerUrl?: string | null },
+) {
+  if (patch.imageUrl !== undefined) {
+    if (patch.imageUrl) {
+      await assetsService.dualWriteUrl({
+        url: patch.imageUrl,
+        uploadedById: actorId,
+        entityType: "category",
+        entityId: category.id,
+        purpose: "background",
+      });
+    } else {
+      await assetsService.detach("category", category.id, "background");
+    }
+  }
+  if (patch.bannerUrl !== undefined) {
+    if (patch.bannerUrl) {
+      await assetsService.dualWriteUrl({
+        url: patch.bannerUrl,
+        uploadedById: actorId,
+        entityType: "category",
+        entityId: category.id,
+        purpose: "banner",
+      });
+    } else {
+      await assetsService.detach("category", category.id, "banner");
+    }
+  }
 }
 
 export const categoriesService = {
@@ -97,6 +131,10 @@ export const categoriesService = {
       if (!parent) throw new ApiError(400, "INVALID_PARENT", "Parent category not found");
     }
     const category = await categoriesRepository.createCategory(input);
+    await syncCategoryMedia(category, ctx.actorId, {
+      imageUrl: category.imageUrl,
+      bannerUrl: category.bannerUrl,
+    });
     await writeAuditLog({
       actorId: ctx.actorId,
       action: "admin.category.create",
@@ -115,6 +153,10 @@ export const categoriesService = {
     ctx: { actorId: string; ip?: string; requestId?: string },
   ) {
     const category = await categoriesRepository.updateCategory(id, input);
+    await syncCategoryMedia(category, ctx.actorId, {
+      imageUrl: input.imageUrl,
+      bannerUrl: input.bannerUrl,
+    });
     await writeAuditLog({
       actorId: ctx.actorId,
       action: "admin.category.update",

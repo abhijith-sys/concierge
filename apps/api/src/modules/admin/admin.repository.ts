@@ -18,7 +18,11 @@ export const adminRepository = {
         ? {
             listing: {
               category: {
-                OR: [{ id: input.categoryId }, { parentId: input.categoryId }],
+                OR: [
+                  { id: input.categoryId },
+                  { parentId: input.categoryId },
+                  { parent: { parentId: input.categoryId } },
+                ],
               },
             },
           }
@@ -299,6 +303,7 @@ export const adminRepository = {
             OR: [
               { categoryId: input.categoryId },
               { category: { parentId: input.categoryId } },
+              { category: { parent: { parentId: input.categoryId } } },
             ],
           }
         : {}),

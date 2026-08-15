@@ -2,12 +2,32 @@ import { PLATFORM_CATEGORY_SLUG } from "../src/config/constants.js";
 
 export { PLATFORM_CATEGORY_SLUG };
 
+const catalogPhotos = [
+  "/assets/heritage-estate.jpg",
+  "/assets/builders-hero.jpg",
+  "/assets/concierge-architectural-hero.jpg",
+  "/assets/aura-showroom.jpg",
+  "/assets/brett-villa.jpg",
+  "/assets/terra-stone.jpg",
+  "/assets/arcadian-desert.jpg",
+  "/assets/elite-plans.jpg",
+  "/assets/aura-chair.jpg",
+  "/assets/aura-craft.jpg",
+  "/assets/elite-slab.jpg",
+] as const;
+
+function catalogImage(index: number, offset = 0) {
+  return catalogPhotos[(index + offset + catalogPhotos.length) % catalogPhotos.length];
+}
+
 export type MainCategorySeed = {
   name: string;
   slug: string;
   icon: string;
   sortOrder: number;
   description: string;
+  imageUrl: string;
+  bannerUrl: string;
 };
 
 export type SubCategorySeed = {
@@ -16,6 +36,9 @@ export type SubCategorySeed = {
   parentSlug: string;
   icon: string;
   sortOrder: number;
+  description: string;
+  imageUrl: string;
+  bannerUrl: string;
 };
 
 export type FieldSeed = {
@@ -38,7 +61,7 @@ export type FieldSeed = {
   sortOrder: number;
   options?: string[];
   validation?: { min?: number; max?: number; minLength?: number; maxLength?: number };
-  conditionalRules?: { fieldKey: string; equals: unknown };
+  conditionalRules?: { fieldKey: string; equals?: string | number | boolean | null };
 };
 
 export const phase1Mains: MainCategorySeed[] = [
@@ -48,6 +71,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "home_repair_service",
     sortOrder: 1,
     description: "Electricians, plumbers, interiors, real estate, and home services.",
+    imageUrl: catalogImage(0),
+    bannerUrl: catalogImage(0, 4),
   },
   {
     name: "Automotive",
@@ -55,6 +80,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "directions_car",
     sortOrder: 2,
     description: "Vehicle repair, hire, wash, towing, and related services.",
+    imageUrl: catalogImage(1),
+    bannerUrl: catalogImage(1, 4),
   },
   {
     name: "Electronics & Technology",
@@ -62,6 +89,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "devices",
     sortOrder: 3,
     description: "Device repair, IT, CCTV, and digital specialists.",
+    imageUrl: catalogImage(2),
+    bannerUrl: catalogImage(2, 4),
   },
   {
     name: "Professional & Business",
@@ -69,6 +98,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "business_center",
     sortOrder: 4,
     description: "Legal, tax, accounting, marketing, and consulting.",
+    imageUrl: catalogImage(3),
+    bannerUrl: catalogImage(3, 4),
   },
   {
     name: "Health & Wellness",
@@ -76,6 +107,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "medical_services",
     sortOrder: 5,
     description: "Clinics, home care, spa, and wellness professionals.",
+    imageUrl: catalogImage(4),
+    bannerUrl: catalogImage(4, 4),
   },
   {
     name: "Education & Training",
@@ -83,6 +116,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "school",
     sortOrder: 6,
     description: "Coaching, tuition, vocational and hobby classes.",
+    imageUrl: catalogImage(5),
+    bannerUrl: catalogImage(5, 4),
   },
   {
     name: "Events & Lifestyle",
@@ -90,6 +125,8 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "celebration",
     sortOrder: 7,
     description: "Weddings, photography, catering, and lifestyle services.",
+    imageUrl: catalogImage(6),
+    bannerUrl: catalogImage(6, 4),
   },
   {
     name: "Logistics & Other Services",
@@ -97,6 +134,35 @@ export const phase1Mains: MainCategorySeed[] = [
     icon: "local_shipping",
     sortOrder: 8,
     description: "Courier, movers, transport, security, and local trades.",
+    imageUrl: catalogImage(7),
+    bannerUrl: catalogImage(7, 4),
+  },
+  {
+    name: "Hotels, Resorts & Stays",
+    slug: "hotels-resorts-stays",
+    icon: "hotel",
+    sortOrder: 9,
+    description: "Hotels, resorts, homestays, villas, and other places to stay.",
+    imageUrl: catalogImage(8),
+    bannerUrl: catalogImage(8, 4),
+  },
+  {
+    name: "Rental & Hire",
+    slug: "rental-hire",
+    icon: "key",
+    sortOrder: 10,
+    description: "Generic rental for vehicles, electronics, events, outdoor gear, tools, and furniture.",
+    imageUrl: catalogImage(9),
+    bannerUrl: catalogImage(9, 4),
+  },
+  {
+    name: "Travel, Taxi & Transport",
+    slug: "travel-taxi-transport",
+    icon: "local_taxi",
+    sortOrder: 11,
+    description: "Taxi, cab, airport transfers, tours, and passenger transport.",
+    imageUrl: catalogImage(10),
+    bannerUrl: catalogImage(10, 4),
   },
 ];
 
@@ -192,6 +258,78 @@ export const phase1Subs: SubCategorySeed[] = [
     ["Fabricators", "fabricators", "precision_manufacturing"],
     ["Security Services", "security-services", "security"],
     ["Other Local Services", "other-local-services", "handyman"],
+  ]),
+  ...namedSubs("hotels-resorts-stays", [
+    ["Hotels", "hotels", "hotel"],
+    ["Resorts", "resorts", "beach_access"],
+    ["Homestays", "homestays", "cottage"],
+    ["Villas", "villas", "villa"],
+    ["Serviced Apartments", "serviced-apartments", "apartment"],
+    ["Guest Houses", "guest-houses", "house"],
+    ["Hostels", "hostels", "bunk_bed"],
+    ["Boutique Hotels", "boutique-hotels", "nightlife"],
+    ["Farm Stays", "farm-stays", "agriculture"],
+    ["Cottages", "cottages", "cottage"],
+    ["Camping / Glamping", "camping-glamping", "camping"],
+  ]),
+  ...namedSubs("rental-hire", [
+    ["Vehicle Rental", "vehicle-rental", "directions_car"],
+    ["Electronics Rental", "electronics-rental", "devices"],
+    ["Event Equipment", "event-equipment", "event"],
+    ["Outdoor & Travel", "outdoor-travel", "hiking"],
+    ["Tools & Equipment", "tools-equipment", "handyman"],
+    ["Furniture Rental", "furniture-rental", "chair"],
+  ]),
+  ...namedSubs("vehicle-rental", [
+    ["Car Rental", "car-rental", "directions_car"],
+    ["Bike Rental", "bike-rental", "two_wheeler"],
+    ["Scooter Rental", "scooter-rental", "electric_moped"],
+    ["Van Rental", "van-rental", "airport_shuttle"],
+    ["Commercial Vehicle Rental", "commercial-vehicle-rental", "local_shipping"],
+  ]),
+  ...namedSubs("electronics-rental", [
+    ["Camera", "camera-rental", "photo_camera"],
+    ["Lens", "lens-rental", "camera_roll"],
+    ["Drone", "drone-rental", "flight"],
+    ["Projector", "projector-rental", "videocam"],
+    ["Laptop", "laptop-rental", "laptop"],
+    ["Speaker", "speaker-rental", "speaker"],
+  ]),
+  ...namedSubs("event-equipment", [
+    ["Chairs", "event-chairs", "event_seat"],
+    ["Tables", "event-tables", "table_restaurant"],
+    ["Sound Systems", "sound-systems", "speaker"],
+    ["Lighting", "event-lighting", "lightbulb"],
+    ["Party Equipment", "party-equipment", "celebration"],
+  ]),
+  ...namedSubs("outdoor-travel", [
+    ["Camping Equipment", "camping-equipment", "camping"],
+    ["Trekking Equipment", "trekking-equipment", "hiking"],
+    ["Adventure Equipment", "adventure-equipment", "downhill_skiing"],
+  ]),
+  ...namedSubs("tools-equipment", [
+    ["Power Tools", "power-tools", "handyman"],
+    ["Construction Equipment", "construction-equipment", "precision_manufacturing"],
+    ["Generators", "generators", "bolt"],
+    ["Agricultural Equipment", "agricultural-equipment", "agriculture"],
+  ]),
+  ...namedSubs("furniture-rental", [
+    ["Home Furniture", "home-furniture", "chair"],
+    ["Office Furniture", "office-furniture", "desk"],
+    ["Event Furniture", "event-furniture", "event_seat"],
+  ]),
+  ...namedSubs("travel-taxi-transport", [
+    ["Taxi Services", "taxi-services", "local_taxi"],
+    ["Cab Services", "cab-services", "local_taxi"],
+    ["Airport Transfers", "airport-transfers", "flight"],
+    ["Outstation Taxi", "outstation-taxi", "directions_car"],
+    ["Local Taxi", "local-taxi", "local_taxi"],
+    ["Bike Taxi", "bike-taxi", "two_wheeler"],
+    ["Auto Services", "auto-services", "electric_rickshaw"],
+    ["Bus Services", "bus-services", "directions_bus"],
+    ["Tour Operators", "tour-operators", "tour"],
+    ["Travel Agencies", "travel-agencies", "map"],
+    ["Chauffeur Services", "chauffeur-services", "airline_seat_recline_extra"],
   ]),
 ];
 
@@ -540,6 +678,120 @@ export const exampleSubcategoryFields: Record<string, FieldSeed[]> = {
   ],
 };
 
+/** Independent rental item fields on every Rental & Hire listing (Service). */
+export const rentalHireListingFields: FieldSeed[] = [
+  {
+    key: "item_images",
+    label: "Item images",
+    fieldType: "asset_gallery",
+    scope: "service",
+    section: "Item",
+    sortOrder: 1,
+    helpText: "Each rental item is listed separately, with its own photos.",
+  },
+  {
+    key: "rental_availability",
+    label: "Availability",
+    fieldType: "select",
+    scope: "service",
+    section: "Item",
+    sortOrder: 2,
+    options: ["Available", "Limited", "Booked", "Unavailable"],
+  },
+  {
+    key: "quantity",
+    label: "Quantity",
+    fieldType: "number",
+    scope: "service",
+    section: "Item",
+    sortOrder: 3,
+    validation: { min: 0, max: 10000 },
+    placeholder: "e.g. 4",
+  },
+  {
+    key: "price_hourly",
+    label: "Hourly rate",
+    fieldType: "number",
+    scope: "service",
+    section: "Pricing",
+    sortOrder: 4,
+    validation: { min: 0 },
+    placeholder: "Leave blank if not offered",
+  },
+  {
+    key: "price_daily",
+    label: "Daily rate",
+    fieldType: "number",
+    scope: "service",
+    section: "Pricing",
+    sortOrder: 5,
+    validation: { min: 0 },
+  },
+  {
+    key: "price_weekly",
+    label: "Weekly rate",
+    fieldType: "number",
+    scope: "service",
+    section: "Pricing",
+    sortOrder: 6,
+    validation: { min: 0 },
+  },
+  {
+    key: "price_monthly",
+    label: "Monthly rate",
+    fieldType: "number",
+    scope: "service",
+    section: "Pricing",
+    sortOrder: 7,
+    validation: { min: 0 },
+  },
+  {
+    key: "security_deposit",
+    label: "Security deposit",
+    fieldType: "number",
+    scope: "service",
+    section: "Pricing",
+    sortOrder: 8,
+    validation: { min: 0 },
+  },
+  {
+    key: "min_rental_duration",
+    label: "Minimum rental duration",
+    fieldType: "text",
+    scope: "service",
+    section: "Rental terms",
+    sortOrder: 9,
+    placeholder: "e.g. 4 hours or 1 day",
+  },
+  {
+    key: "max_rental_duration",
+    label: "Maximum rental duration",
+    fieldType: "text",
+    scope: "service",
+    section: "Rental terms",
+    sortOrder: 10,
+    placeholder: "e.g. 30 days",
+  },
+  {
+    key: "rental_location",
+    label: "Pickup / location",
+    fieldType: "text",
+    scope: "service",
+    section: "Rental terms",
+    sortOrder: 11,
+    placeholder: "Where this item can be collected or delivered",
+  },
+  {
+    key: "item_status",
+    label: "Status",
+    fieldType: "select",
+    scope: "service",
+    section: "Item",
+    sortOrder: 12,
+    options: ["Active", "Inactive", "Maintenance"],
+  },
+];
+
 export const healthWellnessFields: FieldSeed[] = [
   {
     key: "professional_registration",
@@ -572,5 +824,8 @@ function namedSubs(
     parentSlug,
     icon,
     sortOrder: index + 1,
+    description: `Verified ${name.toLowerCase()} selected for quality and reliability.`,
+    imageUrl: catalogImage(index, 2),
+    bannerUrl: catalogImage(index, 6),
   }));
 }

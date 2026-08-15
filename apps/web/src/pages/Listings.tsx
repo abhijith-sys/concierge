@@ -69,7 +69,16 @@ export function Listings() {
   const subcategoryChips = category.data?.children?.length
     ? category.data.children
     : (parentCategory.data?.children ?? []);
-  const heroSrc = category.data?.imageUrl?.trim() || heroImage;
+  const heroSrc =
+    category.data?.bannerUrl?.trim() ||
+    category.data?.imageUrl?.trim() ||
+    parentCategory.data?.bannerUrl?.trim() ||
+    parentCategory.data?.imageUrl?.trim() ||
+    heroImage;
+  const heroCopy =
+    category.data?.description?.trim() ||
+    parentCategory.data?.description?.trim() ||
+    "Verified professionals, remarkable places, and services selected for quality.";
 
   function goToCategory(slug: string) {
     const next = new URLSearchParams(params);
@@ -123,11 +132,17 @@ export function Listings() {
                 }`}
               >
                 <span
-                  className={`grid size-9 place-items-center rounded-full ${
+                  className={`size-9 overflow-hidden rounded-full ${
                     active ? "bg-white/15 text-gold-light" : "bg-gold-light/50 text-gold-dark"
                   }`}
                 >
-                  <Icon className="size-4" strokeWidth={2.25} aria-hidden="true" />
+                  {child.imageUrl ? (
+                    <SafeImage src={child.imageUrl} alt="" width={72} height={72} className="size-full object-cover" />
+                  ) : (
+                    <span className="grid size-full place-items-center">
+                      <Icon className="size-4" strokeWidth={2.25} aria-hidden="true" />
+                    </span>
+                  )}
                 </span>
                 {child.name}
               </Link>
@@ -142,10 +157,7 @@ export function Listings() {
           <h1 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
             {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : "Find your next expert")}
           </h1>
-          <p className="mt-4 leading-7 text-white/75">
-            {category.data?.description?.trim() ||
-              "Verified professionals, remarkable places, and services selected for quality."}
-          </p>
+          <p className="mt-4 leading-7 text-white/75">{heroCopy}</p>
           <form onSubmit={submit} className="mt-7 flex rounded-xl bg-white p-1.5">
             <label className="flex flex-1 items-center gap-2 px-3 text-black">
               <Search className="size-5" /><span className="sr-only">Search listings</span>
@@ -171,11 +183,16 @@ export function Listings() {
                   {categories.data?.map((main) => (
                     <optgroup key={main.id} label={main.name}>
                       <option value={main.slug}>{main.name}</option>
-                      {(main.children ?? []).map((child) => (
+                      {(main.children ?? []).flatMap((child) => [
                         <option key={child.id} value={child.slug}>
                           {child.name}
-                        </option>
-                      ))}
+                        </option>,
+                        ...(child.children ?? []).map((nested) => (
+                          <option key={nested.id} value={nested.slug}>
+                            {child.name} / {nested.name}
+                          </option>
+                        )),
+                      ])}
                     </optgroup>
                   ))}
                 </Select>

@@ -28,12 +28,24 @@ export function isPlatform(category: { slug: string }) {
 
 export function flattenCategories(tree: Category[]) {
   const rows: Array<{ id: string; name: string }> = [];
-  for (const main of tree) {
-    if (main.slug.startsWith("_")) continue;
-    rows.push({ id: main.id, name: main.name });
-    for (const child of main.children ?? []) {
-      rows.push({ id: child.id, name: `${main.name} / ${child.name}` });
+  function walk(nodes: Category[], prefix: string) {
+    for (const node of nodes) {
+      if (!prefix && node.slug.startsWith("_")) continue;
+      const name = prefix ? `${prefix} / ${node.name}` : node.name;
+      rows.push({ id: node.id, name });
+      if (node.children?.length) walk(node.children, name);
     }
   }
+  walk(tree, "");
   return rows;
+}
+
+export function findCategory(roots: Category[], id?: string): Category | undefined {
+  if (!id) return undefined;
+  for (const node of roots) {
+    if (node.id === id) return node;
+    const nested = findCategory(node.children ?? [], id);
+    if (nested) return { ...nested, parentId: nested.parentId ?? node.id };
+  }
+  return undefined;
 }

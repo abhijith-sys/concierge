@@ -72,21 +72,27 @@ export function HeroSection({
               ? Array.from({ length: 4 }, (_, index) => (
                   <div key={index} className="animate-pulse rounded-2xl bg-white/50" />
                 ))
-              : heroTiles.map((category, index) => (
+              : heroTiles.map((category) => (
                   <Link
                     key={category.id}
                     to={`/listings/${category.slug}`}
-                    className={`group flex flex-col justify-between rounded-2xl p-3 shadow-lg backdrop-blur-md transition hover:-translate-y-0.5 ${
-                      index === 0 ? "bg-navy/92 text-white" : "bg-white/88 text-navy"
-                    }`}
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl p-3 shadow-lg"
                   >
-                    <div>
-                      <h2 className="text-sm font-bold">{category.name}</h2>
-                      <p className={`mt-1 line-clamp-2 text-[11px] leading-4 ${index === 0 ? "text-white/70" : "text-ink-soft"}`}>
+                    <SafeImage
+                      src={category.imageUrl || heroImage}
+                      alt=""
+                      width={480}
+                      height={280}
+                      className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 bg-navy/55 transition group-hover:bg-navy/45" />
+                    <div className="relative z-10">
+                      <h2 className="text-sm font-bold text-white">{category.name}</h2>
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-white/75">
                         {categoryCopy(category)}
                       </p>
                     </div>
-                    <ArrowRight className="mt-2 size-4 self-end transition group-hover:translate-x-1" />
+                    <ArrowRight className="relative z-10 mt-2 size-4 self-end text-white transition group-hover:translate-x-1" />
                   </Link>
                 ))}
           </div>

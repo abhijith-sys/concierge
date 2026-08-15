@@ -45,14 +45,14 @@ export function DashboardPage() {
           <span className="muted">Pending listings</span>
           <strong>{s?.pendingListings ?? s?.listings?.pending ?? "—"}</strong>
         </Link>
-        <div className="stat">
+        <Link to="/categories" className="stat">
           <span className="muted">Categories</span>
           <strong>{s?.categories ?? "—"}</strong>
-        </div>
-        <div className="stat">
+        </Link>
+        <Link to="/categories" className="stat">
           <span className="muted">Subcategories</span>
           <strong>{s?.subcategories ?? "—"}</strong>
-        </div>
+        </Link>
         <div className="stat">
           <span className="muted">KYC queue</span>
           <strong>{s?.kycQueue ?? "—"}</strong>

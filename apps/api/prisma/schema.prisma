@@ -60,6 +60,7 @@ enum AttachmentEntityType {
   review
   message
   field_value
+  category
 }
 
 enum AttachmentPurpose {
@@ -67,6 +68,8 @@ enum AttachmentPurpose {
   logo
   cover
   gallery
+  background
+  banner
   kyc_owner
   kyc_location
   kyc_storefront
@@ -203,7 +206,10 @@ model Category {
   parentId    String?         @db.Uuid
   description String?
   icon        String?
+  /// Home / industry card background.
   imageUrl    String?
+  /// Listings page hero banner.
+  bannerUrl   String?
   sortOrder   Int             @default(0)
   isActive    Boolean         @default(true)
   createdAt   DateTime        @default(now())

@@ -11,7 +11,7 @@ import {
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Business, type Service } from "../lib/api";
-import { assignedCategoryId, childrenOf, locateInTree } from "../lib/category-tree";
+import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/category-tree";
 import { isProvider } from "../lib/provider";
 
 const PRICING_TYPES = [
@@ -19,6 +19,7 @@ const PRICING_TYPES = [
   { value: "starting_from", label: "Starting from" },
   { value: "hourly", label: "Hourly" },
   { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
   { value: "contact", label: "Contact for price" },
   { value: "custom", label: "Custom" },
@@ -79,7 +80,8 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   const seededFor = useRef("");
 
   const listingCategoryId = assignedCategoryId(mainId, subId, categories.data ?? []);
-  const subcategories = childrenOf(categories.data ?? [], mainId);
+  const selectedMain = (categories.data ?? []).find((category) => category.id === mainId);
+  const subcategoryOptions = selectedMain ? flattenDescendants(selectedMain) : [];
   const listingForm = useQuery({
     queryKey: ["category-form", listingCategoryId, "listing"],
     queryFn: () => api.categoryForm(listingCategoryId, "listing"),
@@ -291,13 +293,13 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                   ))}
                 </Select>
               </Field>
-              {subcategories.length ? (
+              {subcategoryOptions.length ? (
                 <Field label="Subcategory">
                   <Select value={subId} onChange={(event) => setSubId(event.target.value)} required>
                     <option value="">Select subcategory</option>
-                    {subcategories.map((category) => (
+                    {subcategoryOptions.map(({ category, label }) => (
                       <option key={category.id} value={category.id}>
-                        {category.name}
+                        {label}
                       </option>
                     ))}
                   </Select>

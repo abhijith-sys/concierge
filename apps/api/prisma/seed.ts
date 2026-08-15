@@ -10,6 +10,7 @@ import {
   phase1Subs,
   platformListingFields,
   platformProviderFields,
+  rentalHireListingFields,
   type FieldSeed,
 } from "./taxonomy.js";
 
@@ -165,8 +166,15 @@ const businesses: DemoBusiness[] = [
   },
 ];
 
+function jsonField(value: Prisma.InputJsonValue | object | undefined) {
+  return value === undefined ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
 async function upsertFields(categoryId: string, fields: FieldSeed[]) {
   for (const field of fields) {
+    const options = jsonField(field.options);
+    const validation = jsonField(field.validation);
+    const conditionalRules = jsonField(field.conditionalRules);
     await prisma.categoryField.upsert({
       where: { categoryId_key: { categoryId, key: field.key } },
       update: {
@@ -177,9 +185,9 @@ async function upsertFields(categoryId: string, fields: FieldSeed[]) {
         required: field.required ?? false,
         section: field.section ?? null,
         sortOrder: field.sortOrder,
-        options: field.options ?? Prisma.DbNull,
-        validation: field.validation ?? Prisma.DbNull,
-        conditionalRules: field.conditionalRules ?? Prisma.DbNull,
+        options,
+        validation,
+        conditionalRules,
         isActive: true,
         scope: field.scope,
       },
@@ -193,9 +201,9 @@ async function upsertFields(categoryId: string, fields: FieldSeed[]) {
         required: field.required ?? false,
         section: field.section ?? null,
         sortOrder: field.sortOrder,
-        options: field.options,
-        validation: field.validation,
-        conditionalRules: field.conditionalRules,
+        options,
+        validation,
+        conditionalRules,
         scope: field.scope,
         isActive: true,
       },
@@ -275,6 +283,8 @@ async function main() {
   await upsertFields(platform.id, [...platformProviderFields, ...platformListingFields]);
   const healthId = categoryIds.get("health-wellness");
   if (healthId) await upsertFields(healthId, healthWellnessFields);
+  const rentalHireId = categoryIds.get("rental-hire");
+  if (rentalHireId) await upsertFields(rentalHireId, rentalHireListingFields);
   for (const [slug, fields] of Object.entries(exampleSubcategoryFields)) {
     const id = categoryIds.get(slug);
     if (id) await upsertFields(id, fields);
