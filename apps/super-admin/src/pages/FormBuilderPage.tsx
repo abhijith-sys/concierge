@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ApiError, api, hasPermission, type Category, type CategoryField } from "../lib/api";
-import { isPlatform, keyFromLabel } from "../lib/taxonomy";
+import { findCategory, isPlatform, keyFromLabel } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
 
 const FIELD_TYPES = [
@@ -565,12 +565,3 @@ function FieldEditor({
   );
 }
 
-function findCategory(roots: Category[], id?: string): Category | undefined {
-  if (!id) return undefined;
-  for (const root of roots) {
-    if (root.id === id) return root;
-    const child = root.children?.find((item) => item.id === id);
-    if (child) return { ...child, parentId: child.parentId ?? root.id };
-  }
-  return undefined;
-}

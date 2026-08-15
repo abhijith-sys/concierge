@@ -14,6 +14,26 @@ import {
   type FormKind,
 } from "../../shared/domain/composed-forms.js";
 
+const categoryMediaUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((value) => {
+    if (value.startsWith("/uploads/") || value.startsWith("/assets/")) return true;
+    try {
+      const protocol = new URL(value).protocol;
+      return protocol === "http:" || protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Only HTTP(S), /uploads, or /assets paths are allowed");
+
+const optionalMediaUrl = z
+  .union([categoryMediaUrl, z.literal("")])
+  .nullable()
+  .optional()
+  .transform((value) => (value ? value : value === "" ? null : value));
+
 export const categoryUpsertSchema = z.object({
   name: z.string().trim().min(2).max(120),
   slug: z
@@ -25,7 +45,8 @@ export const categoryUpsertSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
   icon: z.string().trim().max(80).nullable().optional(),
-  imageUrl: z.string().trim().max(500).nullable().optional(),
+  imageUrl: optionalMediaUrl,
+  bannerUrl: optionalMediaUrl,
   sortOrder: z.number().int().min(0).max(10_000).optional(),
   isActive: z.boolean().optional(),
 });
@@ -103,27 +124,61 @@ export const excludeInternalCategoryWhere: Prisma.CategoryWhereInput = {
   slug: { not: PLATFORM_CATEGORY_SLUG },
 };
 
+function categoryListWhere(activeOnly: boolean, includeInternal: boolean): Prisma.CategoryWhereInput {
+  return {
+    ...(activeOnly ? { isActive: true } : {}),
+    ...(includeInternal ? {} : excludeInternalCategoryWhere),
+  };
+}
+
+function nestedChildrenInclude(activeOnly: boolean, includeInternal: boolean): Prisma.CategoryInclude {
+  const where = categoryListWhere(activeOnly, includeInternal);
+  const orderBy = [{ sortOrder: "asc" as const }, { name: "asc" as const }];
+  return {
+    _count: { select: categoryCountSelect },
+    children: {
+      where,
+      orderBy,
+      include: {
+        _count: { select: categoryCountSelect },
+        children: {
+          where,
+          orderBy,
+          include: { _count: { select: categoryCountSelect } },
+        },
+      },
+    },
+  };
+}
+
+async function ancestorChain(categoryId: string) {
+  const chain: Array<{ id: string; parentId: string | null; slug: string; isActive: boolean }> = [];
+  const seen = new Set<string>();
+  let id: string | null = categoryId;
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const node: { id: string; parentId: string | null; slug: string; isActive: boolean } | null =
+      await prisma.category.findUnique({
+        where: { id },
+        select: { id: true, parentId: true, slug: true, isActive: true },
+      });
+    if (!node) break;
+    chain.push(node);
+    id = node.parentId;
+  }
+  return chain.reverse();
+}
+
 export const categoriesRepository = {
   findRootTree(activeOnly = true, options?: { includeInternal?: boolean }) {
     const includeInternal = options?.includeInternal ?? false;
     return prisma.category.findMany({
       where: {
         parentId: null,
-        ...(activeOnly ? { isActive: true } : {}),
-        ...(includeInternal ? {} : excludeInternalCategoryWhere),
+        ...categoryListWhere(activeOnly, includeInternal),
       },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      include: {
-        _count: { select: categoryCountSelect },
-        children: {
-          where: {
-            ...(activeOnly ? { isActive: true } : {}),
-            ...(includeInternal ? {} : excludeInternalCategoryWhere),
-          },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          include: { _count: { select: categoryCountSelect } },
-        },
-      },
+      include: nestedChildrenInclude(activeOnly, includeInternal),
     });
   },
 
@@ -147,27 +202,26 @@ export const categoriesRepository = {
     return prisma.category.findUnique({
       where: { id: category.id },
       include: {
-        parent: { select: { id: true, name: true, slug: true, isActive: true } },
-        _count: { select: categoryCountSelect },
-        children: {
-          where: { isActive: true, ...excludeInternalCategoryWhere },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          include: { _count: { select: categoryCountSelect } },
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+            imageUrl: true,
+            bannerUrl: true,
+            description: true,
+          },
         },
+        ...nestedChildrenInclude(true, false),
       },
     });
   },
 
   async categoryIsAssignable(id: string) {
-    const category = await prisma.category.findUnique({
-      where: { id },
-      include: { parent: { select: { isActive: true, slug: true } } },
-    });
-    if (!category || !category.isActive || isInternalSlug(category.slug)) return false;
-    if (category.parent && (!category.parent.isActive || isInternalSlug(category.parent.slug))) {
-      return false;
-    }
-    return true;
+    const chain = await ancestorChain(id);
+    if (!chain.length || chain[chain.length - 1]?.id !== id) return false;
+    return chain.every((node) => node.isActive && !isInternalSlug(node.slug));
   },
 
   async ensurePlatformCategory() {
@@ -194,6 +248,7 @@ export const categoriesRepository = {
           description: input.description ?? null,
           icon: input.icon ?? null,
           imageUrl: input.imageUrl ?? null,
+          bannerUrl: input.bannerUrl ?? null,
           sortOrder: input.sortOrder ?? 0,
           isActive: input.isActive ?? true,
         },
@@ -217,6 +272,7 @@ export const categoriesRepository = {
           description: input.description,
           icon: input.icon,
           imageUrl: input.imageUrl,
+          bannerUrl: input.bannerUrl,
           sortOrder: input.sortOrder,
           isActive: input.isActive,
         },
@@ -269,9 +325,9 @@ export const categoriesRepository = {
       return mergeFieldLayers([{ source: "platform", fields }]);
     }
 
-    const layerIds = [platform.id, category.parentId, category.id].filter(
-      (id): id is string => Boolean(id),
-    );
+    const ancestors = await ancestorChain(category.id);
+    const root = ancestors[0];
+    const layerIds = [platform.id, ...ancestors.map((node) => node.id)];
     const rows = await prisma.categoryField.findMany({
       where: {
         categoryId: { in: layerIds },
@@ -290,12 +346,11 @@ export const categoriesRepository = {
     const composed: ComposedField[] = [];
     for (const scope of scopes) {
       const inScope = (id: string) => (byCategory.get(id) ?? []).filter((field) => field.scope === scope);
-      const selfLayer: FieldLayer = category.parentId ? "sub" : "main";
       composed.push(
         ...mergeFieldLayers([
           { source: "platform", fields: inScope(platform.id) },
-          ...(category.parentId ? [{ source: "main" as const, fields: inScope(category.parentId) }] : []),
-          { source: selfLayer, fields: inScope(category.id) },
+          ...(root ? [{ source: "main" as const, fields: inScope(root.id) }] : []),
+          ...ancestors.slice(1).map((node) => ({ source: "sub" as const, fields: inScope(node.id) })),
         ]),
       );
     }

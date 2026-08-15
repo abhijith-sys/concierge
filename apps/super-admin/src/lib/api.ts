@@ -50,6 +50,7 @@ export type Category = {
   description?: string | null;
   icon?: string | null;
   imageUrl?: string | null;
+  bannerUrl?: string | null;
   sortOrder?: number;
   isActive?: boolean;
   createdAt?: string;
@@ -150,6 +151,15 @@ export type AssetItem = {
   url: string;
   uploadedBy?: { id: string; name: string; email: string } | null;
   attachments: Array<{ id: string; entityType: string; entityId: string; purpose: string }>;
+};
+
+export type UploadedFile = {
+  url: string;
+  key: string;
+  mime: string;
+  bytes: number;
+  visibility: "public" | "private";
+  assetId: string;
 };
 
 class ApiError extends Error {
@@ -295,6 +305,24 @@ export const api = {
     request<{ category: Category }>(`/api/admin/categories/${id}${hard ? "?hard=true" : ""}`, {
       method: "DELETE",
     }),
+  upload: async (file: File) => {
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    const value = await request<{ file: UploadedFile }>("/api/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        data,
+        mime: file.type || "application/octet-stream",
+        fileName: file.name,
+        visibility: "public",
+      }),
+    });
+    return value.file;
+  },
   categoryFields: async (categoryId: string) => {
     const value = await request<{ fields: CategoryField[] }>(
       `/api/admin/categories/${categoryId}/fields`,

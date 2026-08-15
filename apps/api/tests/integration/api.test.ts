@@ -456,8 +456,12 @@ describe.skipIf(!hasDb)("API integration", () => {
         slug: `home-contract-${suffix}`,
         description: "Main category for Phase 1 contract tests.",
         icon: "home_repair_service",
+        imageUrl: "/assets/builders-hero.jpg",
+        bannerUrl: "/assets/heritage-estate.jpg",
       })
       .expect(201);
+    expect(main.body.category.imageUrl).toBe("/assets/builders-hero.jpg");
+    expect(main.body.category.bannerUrl).toBe("/assets/heritage-estate.jpg");
 
     const sub = await adminAgent
       .post("/api/admin/categories")
@@ -466,16 +470,23 @@ describe.skipIf(!hasDb)("API integration", () => {
         slug: `electricians-contract-${suffix}`,
         parentId: main.body.category.id,
         icon: "electrical_services",
+        description: "Verified electricians for residential and commercial work.",
+        imageUrl: "/assets/elite-plans.jpg",
+        bannerUrl: "/assets/aura-showroom.jpg",
       })
       .expect(201);
 
     const tree = await request(app).get("/api/categories").expect(200);
     const publicMain = tree.body.categories.find((row: { id: string }) => row.id === main.body.category.id);
     expect(publicMain?.name).toBe(`Home Contract ${suffix}`);
+    expect(publicMain?.imageUrl).toBe("/assets/builders-hero.jpg");
+    expect(publicMain?.bannerUrl).toBe("/assets/heritage-estate.jpg");
     expect(publicMain?.children?.some((row: { id: string }) => row.id === sub.body.category.id)).toBe(true);
 
     const detail = await request(app).get(`/api/categories/${sub.body.category.slug}`).expect(200);
     expect(detail.body.category.parent.id).toBe(main.body.category.id);
+    expect(detail.body.category.bannerUrl).toBe("/assets/aura-showroom.jpg");
+    expect(detail.body.category.description).toContain("electricians");
     expect(detail.body.category.children ?? []).toEqual([]);
 
     await adminAgent
@@ -520,6 +531,22 @@ describe.skipIf(!hasDb)("API integration", () => {
         field.key.startsWith("callout_fee_") && field.scope === "service",
       ),
     ).toBe(true);
+
+    await adminAgent
+      .patch(`/api/admin/categories/${main.body.category.id}`)
+      .send({ isActive: false })
+      .expect(200);
+    await adminAgent
+      .patch(`/api/admin/categories/${main.body.category.id}`)
+      .send({ isActive: true })
+      .expect(200);
+
+    const unused = await adminAgent
+      .post("/api/admin/categories")
+      .send({ name: `Unused ${suffix}`, slug: `unused-cat-${suffix}` })
+      .expect(201);
+    await adminAgent.delete(`/api/admin/categories/${unused.body.category.id}?hard=true`).expect(200);
+    await request(app).get(`/api/categories/${unused.body.category.slug}`).expect(404);
   });
 
   it("covers consumer onboarding, listing approval, and inactive categories", async () => {

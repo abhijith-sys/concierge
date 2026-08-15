@@ -8,6 +8,12 @@ const listingInclude = {
   services: { where: { isActive: true, approvalStatus: "approved" }, take: 5 },
 } as const;
 
+function categorySlugMatch(slug: string): Prisma.CategoryWhereInput {
+  return {
+    OR: [{ slug }, { parent: { slug } }, { parent: { parent: { slug } } }],
+  };
+}
+
 function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
   const categorySlug = query.subcategory ?? query.category;
   const box =
@@ -15,50 +21,65 @@ function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
       ? boundingBox(query.lat, query.lng, query.radiusKm ?? 10)
       : null;
 
-  return {
-    status: "active",
-    ...(query.q
-      ? {
-          OR: [
-            { name: { contains: query.q, mode: "insensitive" } },
-            {
-              listing: {
-                OR: [
-                  { title: { contains: query.q, mode: "insensitive" } },
-                  { description: { contains: query.q, mode: "insensitive" } },
-                ],
-              },
-            },
-            {
-              services: {
-                some: {
-                  isActive: true,
-                  approvalStatus: "approved",
-                  name: { contains: query.q, mode: "insensitive" },
-                },
-              },
-            },
-          ],
-        }
-      : {}),
-    listing: {
-      ...(query.city ? { city: { equals: query.city, mode: "insensitive" } } : {}),
-      ...(query.rating !== undefined ? { avgRating: { gte: query.rating } } : {}),
-      ...(categorySlug
-        ? {
-            category: {
-              OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }],
-            },
-          }
-        : {}),
-      ...(box
-        ? {
-            lat: { gte: box.minLat, lte: box.maxLat },
-            lng: { gte: box.minLng, lte: box.maxLng },
-          }
-        : {}),
+  const filters: Prisma.BusinessWhereInput[] = [
+    { status: "active" },
+    {
+      listing: {
+        ...(query.city ? { city: { equals: query.city, mode: "insensitive" } } : {}),
+        ...(query.rating !== undefined ? { avgRating: { gte: query.rating } } : {}),
+        ...(box
+          ? {
+              lat: { gte: box.minLat, lte: box.maxLat },
+              lng: { gte: box.minLng, lte: box.maxLng },
+            }
+          : {}),
+      },
     },
-  };
+  ];
+
+  if (query.q) {
+    filters.push({
+      OR: [
+        { name: { contains: query.q, mode: "insensitive" } },
+        {
+          listing: {
+            OR: [
+              { title: { contains: query.q, mode: "insensitive" } },
+              { description: { contains: query.q, mode: "insensitive" } },
+            ],
+          },
+        },
+        {
+          services: {
+            some: {
+              isActive: true,
+              approvalStatus: "approved",
+              name: { contains: query.q, mode: "insensitive" },
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  if (categorySlug) {
+    filters.push({
+      OR: [
+        { listing: { is: { category: categorySlugMatch(categorySlug) } } },
+        {
+          services: {
+            some: {
+              isActive: true,
+              approvalStatus: "approved",
+              category: categorySlugMatch(categorySlug),
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  return { AND: filters };
 }
 
 const orderBy: Prisma.BusinessOrderByWithRelationInput[] = [

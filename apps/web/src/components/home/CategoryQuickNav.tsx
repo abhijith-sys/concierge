@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Category } from "../../lib/api";
 import { iconForCategory } from "../../lib/category-icon";
+import { SafeImage } from "../SafeImage";
 
 export function CategoryQuickNav({
   categories,
@@ -14,7 +15,7 @@ export function CategoryQuickNav({
   return (
     <section className="py-6 md:py-8">
       <div className="page-shell">
-        <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-8 lg:justify-between">
+        <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-[repeat(auto-fit,minmax(5.75rem,1fr))]">
           {loading
             ? Array.from({ length: 8 }, (_, index) => (
                 <div key={index} className="flex min-w-24 flex-col items-center gap-2.5">
@@ -30,9 +31,21 @@ export function CategoryQuickNav({
                     to={`/listings/${category.slug}`}
                     className="group flex min-w-24 flex-col items-center gap-2.5 text-center"
                   >
-                    <span className="grid size-14 place-items-center rounded-full border border-line bg-white shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-navy group-hover:shadow-md">
-                      <Icon className="size-5 text-navy" />
-                    </span>
+                    {category.imageUrl ? (
+                      <span className="size-14 overflow-hidden rounded-full border border-line bg-white shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-navy group-hover:shadow-md">
+                        <SafeImage
+                          src={category.imageUrl}
+                          alt=""
+                          width={112}
+                          height={112}
+                          className="size-full object-cover"
+                        />
+                      </span>
+                    ) : (
+                      <span className="grid size-14 place-items-center rounded-full border border-line bg-white shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-navy group-hover:shadow-md">
+                        <Icon className="size-5 text-navy" />
+                      </span>
+                    )}
                     <span className="max-w-24 text-[11px] font-bold leading-4 text-navy">{category.name}</span>
                   </Link>
                 );

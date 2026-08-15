@@ -22,7 +22,7 @@ export const createServiceSchema = z.object({
   images: z.array(mediaUrl).max(10).default([]),
   isActive: z.boolean().default(true),
   pricingType: z
-    .enum(["fixed", "starting_from", "hourly", "daily", "monthly", "contact", "custom"])
+    .enum(["fixed", "starting_from", "hourly", "daily", "weekly", "monthly", "contact", "custom"])
     .optional(),
   fieldValues: z.array(fieldValueInputSchema).max(100).optional(),
 });

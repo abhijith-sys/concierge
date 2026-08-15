@@ -11,7 +11,7 @@ import {
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
-import { assignedCategoryId, childrenOf } from "../lib/category-tree";
+import { assignedCategoryId, flattenDescendants } from "../lib/category-tree";
 
 interface BusinessForm {
   name: string;
@@ -65,7 +65,8 @@ export function ListBusiness() {
     queryFn: () => api.categoryForm(form.categoryId, "provider"),
     enabled: Boolean(form.categoryId),
   });
-  const subcategories = childrenOf(categories.data ?? [], form.mainCategoryId);
+  const selectedMain = (categories.data ?? []).find((category) => category.id === form.mainCategoryId);
+  const subcategories = selectedMain ? flattenDescendants(selectedMain) : [];
   const create = useMutation({
     mutationFn: api.createBusiness,
     onSuccess: (result) => {
@@ -236,11 +237,11 @@ export function ListBusiness() {
                 required
               >
                 <option value="">Select subcategory</option>
-                {subcategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                    {subcategories.map(({ category, label }) => (
+                      <option key={category.id} value={category.id}>
+                        {label}
+                      </option>
+                    ))}
               </Select>
             </Field>
           ) : null}

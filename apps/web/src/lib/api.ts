@@ -21,9 +21,10 @@ export interface Category {
   slug: string;
   icon?: string | null;
   imageUrl?: string | null;
+  bannerUrl?: string | null;
   description?: string | null;
   parentId?: string | null;
-  parent?: { id: string; name: string; slug: string } | null;
+  parent?: { id: string; name: string; slug: string; imageUrl?: string | null; bannerUrl?: string | null; description?: string | null } | null;
   children?: Category[];
   _count?: { children?: number; listings?: number; services?: number };
 }
@@ -86,13 +87,16 @@ export type AttachmentEntityType =
   | "verification"
   | "review"
   | "message"
-  | "field_value";
+  | "field_value"
+  | "category";
 
 export type AttachmentPurpose =
   | "avatar"
   | "logo"
   | "cover"
   | "gallery"
+  | "background"
+  | "banner"
   | "kyc_owner"
   | "kyc_location"
   | "kyc_storefront"

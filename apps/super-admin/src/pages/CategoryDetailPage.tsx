@@ -1,12 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
-import { ApiError, api, hasPermission, type Category } from "../lib/api";
-import { isPlatform, slugifyName } from "../lib/taxonomy";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import {
+  CategoryEditorForm,
+  draftFromCategory,
+  emptyCategoryDraft,
+  payloadFromDraft,
+  type CategoryDraft,
+} from "../components/CategoryEditorForm";
+import { ApiError, api, hasPermission } from "../lib/api";
+import { findCategory, isPlatform, slugifyName } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
 
 export function CategoryDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canWrite = hasPermission(user, "categories.write");
@@ -23,67 +31,45 @@ export function CategoryDetailPage() {
     return findCategory(categories.data ?? [], category.parentId);
   }, [categories.data, category]);
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [sortOrder, setSortOrder] = useState("0");
+  const [draft, setDraft] = useState<CategoryDraft>(() => emptyCategoryDraft());
+  const [subDraft, setSubDraft] = useState<CategoryDraft>(() => emptyCategoryDraft("1"));
+  const [showAddSub, setShowAddSub] = useState(false);
 
   useEffect(() => {
     if (!category) return;
-    setName(category.name);
-    setSlug(category.slug);
-    setDescription(category.description ?? "");
-    setIcon(category.icon ?? "");
-    setImageUrl(category.imageUrl ?? "");
-    setSortOrder(String(category.sortOrder ?? 0));
+    setDraft(draftFromCategory(category));
   }, [category]);
 
-  const [subName, setSubName] = useState("");
-  const [subSlug, setSubSlug] = useState("");
+  async function refresh() {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
+  }
 
   const save = useMutation({
-    mutationFn: () =>
-      api.updateCategory(category!.id, {
-        name,
-        slug,
-        description: description.trim() || null,
-        icon: icon.trim() || null,
-        imageUrl: imageUrl.trim() || null,
-        sortOrder: Number(sortOrder) || 0,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
-    },
+    mutationFn: () => api.updateCategory(category!.id, payloadFromDraft(draft)),
+    onSuccess: refresh,
   });
 
   const createSub = useMutation({
     mutationFn: () =>
-      api.createCategory({
-        name: subName,
-        slug: subSlug.trim() || slugifyName(subName),
-        parentId: category!.id,
-        isActive: true,
-      }),
+      api.createCategory(payloadFromDraft(subDraft, { parentId: category!.id, isActive: true })),
     onSuccess: async () => {
-      setSubName("");
-      setSubSlug("");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
+      setSubDraft(emptyCategoryDraft("1"));
+      setShowAddSub(false);
+      await refresh();
     },
   });
 
   const setActive = useMutation({
-    mutationFn: (input: { id: string; isActive: boolean }) => api.updateCategory(input.id, { isActive: input.isActive }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
-    },
+    mutationFn: (input: { id: string; isActive: boolean }) =>
+      api.updateCategory(input.id, { isActive: input.isActive }),
+    onSuccess: refresh,
   });
 
-  const deactivate = useMutation({
-    mutationFn: (targetId: string) => api.deleteCategory(targetId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
+  const remove = useMutation({
+    mutationFn: (targetId: string) => api.deleteCategory(targetId, true),
+    onSuccess: async (_, targetId) => {
+      await refresh();
+      if (targetId === category?.id) navigate("/categories", { replace: true });
     },
   });
 
@@ -93,6 +79,8 @@ export function CategoryDetailPage() {
 
   const children = category.children ?? [];
   const isMain = !category.parentId && !isPlatform(category);
+  const isSub = Boolean(category.parentId);
+  const active = category.isActive !== false;
 
   return (
     <div className="stack">
@@ -114,154 +102,179 @@ export function CategoryDetailPage() {
               : isMain
                 ? "Main category"
                 : "Subcategory"}
-            {category.isActive === false ? " · Inactive" : " · Active"}
+            {" · "}
+            {active ? "Enabled" : "Disabled"}
           </p>
         </div>
-        <div className="row">
-          <Link className="btn primary" to={`/categories/${category.id}/forms`}>
+        <div className="actions">
+          <Link className="btn" to={`/categories/${category.id}/forms`}>
             Configure forms
           </Link>
-          {canWrite && category.isActive !== false ? (
-            <button className="btn danger" type="button" onClick={() => deactivate.mutate(category.id)}>
-              Deactivate
-            </button>
+          {canWrite && !isPlatform(category) ? (
+            active ? (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Disable “${category.name}”? It will be hidden from the public site.`)) {
+                    setActive.mutate({ id: category.id, isActive: false });
+                  }
+                }}
+              >
+                Disable
+              </button>
+            ) : (
+              <button className="btn" type="button" onClick={() => setActive.mutate({ id: category.id, isActive: true })}>
+                Enable
+              </button>
+            )
           ) : null}
-          {canWrite && category.isActive === false ? (
-            <button className="btn" type="button" onClick={() => setActive.mutate({ id: category.id, isActive: true })}>
-              Activate
+          {canWrite && !isPlatform(category) ? (
+            <button
+              className="btn danger"
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Permanently delete “${category.name}”? If it is in use, deletion will fail — disable it instead.`,
+                  )
+                ) {
+                  remove.mutate(category.id);
+                }
+              }}
+            >
+              Delete
             </button>
           ) : null}
         </div>
       </div>
-
-      {canWrite ? (
-        <form
-          className="panel stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate();
-          }}
-        >
-          <strong>Edit</strong>
-          <div className="row">
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
-            <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
-            <input className="input" placeholder="Icon" value={icon} onChange={(e) => setIcon(e.target.value)} />
-            <input
-              className="input"
-              type="number"
-              min={0}
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              style={{ minWidth: "7rem" }}
-            />
-          </div>
-          <input
-            className="input"
-            placeholder="Image URL"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            style={{ minWidth: "100%" }}
-          />
-          <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
-          <div className="row">
-            <button className="btn primary" type="submit" disabled={save.isPending}>
-              Save
-            </button>
-            {save.isError ? (
-              <span className="error">{save.error instanceof ApiError ? save.error.message : "Save failed"}</span>
-            ) : null}
-            {save.isSuccess ? <span className="ok">Saved</span> : null}
-          </div>
-        </form>
+      {remove.isError && remove.variables === category.id ? (
+        <p className="error">{remove.error instanceof ApiError ? remove.error.message : "Delete failed"}</p>
       ) : null}
 
-      {isMain ? (
-        <>
-          {canWrite ? (
-            <form
-              className="panel row"
-              onSubmit={(event) => {
-                event.preventDefault();
-                createSub.mutate();
-              }}
-            >
-              <strong style={{ marginRight: "0.5rem" }}>Add subcategory</strong>
-              <input
-                className="input"
-                placeholder="Name"
-                value={subName}
-                onChange={(e) => {
-                  setSubName(e.target.value);
-                  if (!subSlug || subSlug === slugifyName(subName)) setSubSlug(slugifyName(e.target.value));
-                }}
-                required
-              />
-              <input className="input" placeholder="Slug" value={subSlug} onChange={(e) => setSubSlug(e.target.value)} />
-              <button className="btn primary" type="submit" disabled={!subName.trim() || createSub.isPending}>
-                Add
-              </button>
-              {createSub.isError ? (
-                <span className="error">
-                  {createSub.error instanceof ApiError ? createSub.error.message : "Create failed"}
-                </span>
-              ) : null}
-            </form>
-          ) : null}
+      {canWrite && !isPlatform(category) ? (
+        <CategoryEditorForm
+          title="Edit category"
+          submitLabel={save.isPending ? "Saving…" : "Save changes"}
+          draft={draft}
+          isSubcategory={isSub}
+          pending={save.isPending}
+          error={save.error instanceof ApiError ? save.error.message : save.isError ? "Save failed" : undefined}
+          success={save.isSuccess ? "Saved" : undefined}
+          onChange={setDraft}
+          onSubmit={() => save.mutate()}
+        />
+      ) : null}
 
-          <div className="panel" style={{ overflowX: "auto" }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Subcategory</th>
-                  <th>Status</th>
-                  <th>Fields</th>
-                  <th>Providers</th>
-                  <th>Listings</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {children.map((child) => (
-                  <tr key={child.id}>
-                    <td>
+      {!isPlatform(category) ? (
+        <>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }}>{isMain ? "Subcategories" : "Nested subcategories"}</h3>
+            {canWrite ? (
+              <button
+                className="btn primary"
+                type="button"
+                onClick={() => {
+                  setShowAddSub((open) => !open);
+                  setSubDraft(emptyCategoryDraft(String(children.length + 1)));
+                }}
+              >
+                {showAddSub ? "Close" : "Add subcategory"}
+              </button>
+            ) : null}
+          </div>
+          {canWrite && showAddSub ? (
+            <CategoryEditorForm
+              title="Add subcategory"
+              submitLabel={createSub.isPending ? "Adding…" : "Add subcategory"}
+              draft={subDraft}
+              isSubcategory
+              pending={createSub.isPending}
+              error={
+                createSub.error instanceof ApiError
+                  ? createSub.error.message
+                  : createSub.isError
+                    ? "Create failed"
+                    : undefined
+              }
+              onChange={setSubDraft}
+              onSlugFromName={(name) => {
+                setSubDraft((current) =>
+                  !current.slug || current.slug === slugifyName(current.name)
+                    ? { ...current, name, slug: slugifyName(name) }
+                    : { ...current, name },
+                );
+              }}
+              onSubmit={() => createSub.mutate()}
+              onCancel={() => setShowAddSub(false)}
+            />
+          ) : null}
+          <div className="stack">
+            {children.map((child) => (
+              <div key={child.id} className="cat-card">
+                <div className="cat-summary nested">
+                  {child.imageUrl || child.bannerUrl ? (
+                    <img className="thumb" src={child.imageUrl || child.bannerUrl || ""} alt="" />
+                  ) : (
+                    <div className="thumb empty">No image</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div className="row" style={{ gap: "0.5rem" }}>
                       <strong>{child.name}</strong>
-                      <div className="muted">
-                        <code>{child.slug}</code>
-                      </div>
-                    </td>
-                    <td>{child.isActive === false ? "Inactive" : "Active"}</td>
-                    <td>{child._count?.fields ?? "—"}</td>
-                    <td>{child._count?.listings ?? "—"}</td>
-                    <td>{child._count?.services ?? "—"}</td>
-                    <td>
-                      <div className="row">
-                        <Link className="btn" to={`/categories/${child.id}`}>
-                          View
-                        </Link>
-                        <Link className="btn primary" to={`/categories/${child.id}/forms`}>
-                          Configure forms
-                        </Link>
-                        {canWrite && child.isActive !== false ? (
-                          <button className="btn danger" type="button" onClick={() => deactivate.mutate(child.id)}>
-                            Deactivate
-                          </button>
-                        ) : null}
-                        {canWrite && child.isActive === false ? (
-                          <button
-                            className="btn"
-                            type="button"
-                            onClick={() => setActive.mutate({ id: child.id, isActive: true })}
-                          >
-                            Activate
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span className={`badge ${child.isActive === false ? "" : "ok"}`}>
+                        {child.isActive === false ? "Disabled" : "Enabled"}
+                      </span>
+                    </div>
+                    <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+                      {child.description?.trim() || "No description yet"}
+                    </p>
+                  </div>
+                  <div className="actions">
+                    <Link className="btn primary" to={`/categories/${child.id}`}>
+                      Edit
+                    </Link>
+                    <Link className="btn" to={`/categories/${child.id}/forms`}>
+                      Forms
+                    </Link>
+                    {canWrite && child.isActive !== false ? (
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Disable “${child.name}”?`)) {
+                            setActive.mutate({ id: child.id, isActive: false });
+                          }
+                        }}
+                      >
+                        Disable
+                      </button>
+                    ) : null}
+                    {canWrite && child.isActive === false ? (
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => setActive.mutate({ id: child.id, isActive: true })}
+                      >
+                        Enable
+                      </button>
+                    ) : null}
+                    {canWrite ? (
+                      <button
+                        className="btn danger"
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Permanently delete “${child.name}”?`)) {
+                            remove.mutate(child.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ))}
             {children.length === 0 ? <p className="muted">No subcategories yet.</p> : null}
           </div>
         </>
@@ -270,12 +283,3 @@ export function CategoryDetailPage() {
   );
 }
 
-function findCategory(roots: Category[], id?: string): Category | undefined {
-  if (!id) return undefined;
-  for (const root of roots) {
-    if (root.id === id) return root;
-    const child = root.children?.find((item) => item.id === id);
-    if (child) return { ...child, parentId: child.parentId ?? root.id };
-  }
-  return undefined;
-}
