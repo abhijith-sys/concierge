@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   DynamicForm,
   toFieldValuePayload,
   valuesFromFieldValues,
   type FieldValueMap,
 } from "../components/CategoryFieldsEditor";
+import { ImagePreviewUpload } from "../components/ImagePreviewUpload";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { api } from "../lib/api";
-import { assignedCategoryId, flattenDescendants } from "../lib/category-tree";
+import { api, type Business } from "../lib/api";
+import { mainsForKind, type MarketplaceKind } from "../lib/listing-kind";
 
 interface BusinessForm {
   name: string;
@@ -19,7 +20,6 @@ interface BusinessForm {
   phone: string;
   title: string;
   mainCategoryId: string;
-  categoryId: string;
   description: string;
   address: string;
   city: string;
@@ -38,7 +38,6 @@ const initialForm: BusinessForm = {
   phone: "",
   title: "",
   mainCategoryId: "",
-  categoryId: "",
   description: "",
   address: "",
   city: "",
@@ -54,23 +53,30 @@ const initialForm: BusinessForm = {
 export function ListBusiness() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
+  const [intent, setIntent] = useState<MarketplaceKind | "">("");
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const providerForm = useQuery({
-    queryKey: ["category-form", form.categoryId, "provider"],
-    queryFn: () => api.categoryForm(form.categoryId, "provider"),
-    enabled: Boolean(form.categoryId),
+    queryKey: ["category-form", form.mainCategoryId, "provider"],
+    queryFn: () => api.categoryForm(form.mainCategoryId, "provider"),
+    enabled: Boolean(form.mainCategoryId),
   });
-  const selectedMain = (categories.data ?? []).find((category) => category.id === form.mainCategoryId);
-  const subcategories = selectedMain ? flattenDescendants(selectedMain) : [];
+  const visibleMains = intent ? mainsForKind(categories.data ?? [], intent) : (categories.data ?? []);
   const create = useMutation({
     mutationFn: api.createBusiness,
     onSuccess: (result) => {
       if (result.user) queryClient.setQueryData(["auth", "me"], result.user);
+      queryClient.setQueryData(["businesses", "mine"], (current: Business[] | undefined) => {
+        const next = current?.filter((business) => business.id !== result.business.id) ?? [];
+        return [result.business, ...next];
+      });
+      void queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+      navigate(`/provider?business=${result.business.id}`, { replace: true });
     },
   });
   const upload = useMutation({
@@ -131,7 +137,7 @@ export function ListBusiness() {
       email: form.email,
       phone: form.phone || undefined,
       title: form.title || form.name,
-      categoryId: form.categoryId,
+      categoryId: form.mainCategoryId,
       description: form.description,
       address: form.address,
       city: form.city,
@@ -150,40 +156,19 @@ export function ListBusiness() {
     });
   }
 
-  if (create.isSuccess) {
-    return (
-      <PageState
-        title="Your business was submitted"
-        description="Your profile is now in the Concierge review queue. Add services and complete identity verification from your account."
-        action={
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to={`/business/${create.data.business.slug ?? create.data.business.id}/edit`}>
-              <Button>
-                Manage profile <ArrowRight className="size-4" />
-              </Button>
-            </Link>
-            <Link to="/verification">
-              <Button variant="outline">Start verification</Button>
-            </Link>
-          </div>
-        }
-      />
-    );
-  }
-
   return (
     <section className="page-shell py-14 md:py-20">
       <div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
         <div>
           <p className="label-caps text-gold-dark">Become a provider</p>
           <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-            Add your business when you are ready.
+            List your business when you are ready.
           </h1>
           <p className="mt-5 leading-7 text-ink-soft">
-            Use the same account. Choose a category, complete the profile form, and submit for review.
+            Selling goods is the main path. Technicians can still list a trade. Choose a category, complete the form, and submit for review.
           </p>
           <div className="mt-8 grid gap-4 text-sm">
-            {["Curated directory presence", "Verified reviews from members", "Services catalog & nearby discovery"].map(
+            {["Shop catalog with bulk and piece rates", "Direct connect with buyers", "Verified reviews from members"].map(
               (item) => (
                 <p key={item} className="flex items-center gap-3">
                   <CheckCircle2 className="size-5 text-emerald-600" />
@@ -211,40 +196,52 @@ export function ListBusiness() {
           <Field label="Phone">
             <Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} />
           </Field>
-          <Field label="Category">
+          <ImagePreviewUpload
+            label="Profile image"
+            value={logoUrl}
+            uploading={upload.isPending && upload.variables?.kind === "logo"}
+            onSelect={(file) => upload.mutate({ file, kind: "logo" })}
+          />
+          <ImagePreviewUpload
+            label="Banner image"
+            value={coverUrl}
+            aspect="banner"
+            className="md:col-span-1"
+            uploading={upload.isPending && upload.variables?.kind === "cover"}
+            onSelect={(file) => upload.mutate({ file, kind: "cover" })}
+          />
+          <div className="md:col-span-2">
+            <Field label="I am">
             <Select
-              value={form.mainCategoryId}
+              value={intent}
               onChange={(event) => {
-                const mainCategoryId = event.target.value;
-                const nextId = assignedCategoryId(mainCategoryId, "", categories.data ?? []);
-                setForm((current) => ({ ...current, mainCategoryId, categoryId: nextId }));
+                const next = event.target.value as MarketplaceKind | "";
+                setIntent(next);
+                setForm((current) => ({ ...current, mainCategoryId: "" }));
               }}
               required
             >
-              <option value="">Select category</option>
-              {categories.data?.map((category) => (
+              <option value="">Select what you offer</option>
+              <option value="supplier">Selling goods (shop / wholesale)</option>
+              <option value="service">Offering a trade (technician)</option>
+            </Select>
+            </Field>
+          </div>
+          <Field label="Category">
+            <Select
+              value={form.mainCategoryId}
+              onChange={(event) => update("mainCategoryId", event.target.value)}
+              required
+              disabled={!intent}
+            >
+              <option value="">{intent ? "Select main category" : "Choose selling vs trade first"}</option>
+              {visibleMains.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
             </Select>
           </Field>
-          {subcategories.length ? (
-            <Field label="Subcategory">
-              <Select
-                value={form.categoryId}
-                onChange={(event) => update("categoryId", event.target.value)}
-                required
-              >
-                <option value="">Select subcategory</option>
-                    {subcategories.map(({ category, label }) => (
-                      <option key={category.id} value={category.id}>
-                        {label}
-                      </option>
-                    ))}
-              </Select>
-            </Field>
-          ) : null}
           <Field label="Website">
             <Input
               type="url"
@@ -253,6 +250,27 @@ export function ListBusiness() {
               placeholder="https://"
             />
           </Field>
+          {form.mainCategoryId && providerForm.isLoading ? (
+            <p className="text-sm text-ink-soft md:col-span-2">Loading category fields…</p>
+          ) : null}
+          {providerForm.isError ? (
+            <p className="text-sm text-red-700 md:col-span-2">Could not load category fields.</p>
+          ) : null}
+          {providerForm.data?.fields?.length ? (
+            <div className="rounded-2xl border border-line bg-surface-low/60 p-4 md:col-span-2 md:p-5">
+              <p className="text-sm font-semibold">Category details</p>
+              <p className="mt-1 text-xs font-normal text-ink-soft">
+                Extra fields for this category, including license number when it applies.
+              </p>
+              <div className="mt-4">
+                <DynamicForm
+                  fields={providerForm.data.fields}
+                  values={fieldValues}
+                  onChange={setFieldValues}
+                />
+              </div>
+            </div>
+          ) : null}
           <div className="md:col-span-2">
             <Field label="Description">
               <Textarea
@@ -300,49 +318,11 @@ export function ListBusiness() {
             <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} />
           </Field>
 
-          {form.categoryId && providerForm.isLoading ? (
-            <p className="text-sm text-ink-soft md:col-span-2">Loading category fields…</p>
-          ) : null}
-          {providerForm.isError ? (
-            <p className="text-sm text-red-700 md:col-span-2">Could not load category fields.</p>
-          ) : null}
-          {providerForm.data?.fields?.length ? (
-            <DynamicForm
-              fields={providerForm.data.fields}
-              values={fieldValues}
-              onChange={setFieldValues}
-            />
-          ) : null}
-
-          <label className="text-sm md:col-span-1">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Logo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.mutate({ file, kind: "logo" });
-              }}
-            />
-            {logoUrl ? <p className="mt-1 text-xs text-emerald-700">Logo ready</p> : null}
-          </label>
-          <label className="text-sm md:col-span-1">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Cover</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.mutate({ file, kind: "cover" });
-              }}
-            />
-            {coverUrl ? <p className="mt-1 text-xs text-emerald-700">Cover ready</p> : null}
-          </label>
           {create.isError ? <p className="text-sm text-red-700 md:col-span-2">{create.error.message}</p> : null}
           <Button
             type="submit"
             className="mt-2 md:col-span-2"
-            disabled={create.isPending || categories.isLoading || (Boolean(form.categoryId) && providerForm.isLoading)}
+            disabled={create.isPending || categories.isLoading || (Boolean(form.mainCategoryId) && providerForm.isLoading)}
           >
             {create.isPending ? "Submitting…" : "Submit business"}
           </Button>

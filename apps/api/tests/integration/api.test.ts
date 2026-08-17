@@ -168,6 +168,18 @@ describe.skipIf(!hasDb)("API integration", () => {
     businessId = created.body.business.id;
     expect(created.body.business.status).toBe("pending");
 
+    const pendingItem = await businessAgent
+      .post("/api/services")
+      .send({
+        businessId,
+        name: "Pending catalog item",
+        description: "Submitted while the business profile is still pending review.",
+        price: 80,
+        currency: "USD",
+      })
+      .expect(201);
+    expect(pendingItem.body.service.approvalStatus).toBe("pending");
+
     const mine = await businessAgent.get("/api/businesses/mine").expect(200);
     expect(mine.body.businesses.some((b: { id: string }) => b.id === businessId)).toBe(true);
 

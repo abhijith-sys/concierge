@@ -172,7 +172,9 @@ export function CategoriesPage() {
                     type="button"
                     onClick={() => {
                       setAddingUnder(addingHere ? null : category.id);
-                      setSubDraft(emptyCategoryDraft(String(children.length + 1)));
+                      setSubDraft(
+                        emptyCategoryDraft(String(children.length + 1), category.kind === "service" ? "service" : "supplier"),
+                      );
                     }}
                   >
                     {addingHere ? "Close" : "Add subcategory"}
@@ -214,7 +216,13 @@ export function CategoriesPage() {
             {open ? (
               children.length ? (
                 <div className="sub-list">
-                  {children.map((child) => (
+                  {[...children]
+                    .sort((a, b) => {
+                      const aKind = a.kind === "service" ? 1 : 0;
+                      const bKind = b.kind === "service" ? 1 : 0;
+                      return aKind - bKind || (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+                    })
+                    .map((child) => (
                     <CategoryBranch
                       key={child.id}
                       category={child}
@@ -337,6 +345,9 @@ function CategorySummary({
           ) : null}
           <strong>{category.name}</strong>
           <span className={`badge ${active ? "ok" : ""}`}>{active ? "Enabled" : "Disabled"}</span>
+          <span className={`badge ${category.kind === "service" ? "" : "ok"}`}>
+            {category.kind === "service" ? "Service professional" : "Supplier"}
+          </span>
           <span className="muted">{kind}</span>
         </div>
         <p className="muted" style={{ margin: "0.25rem 0 0" }}>

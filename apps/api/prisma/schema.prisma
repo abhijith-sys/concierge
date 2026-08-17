@@ -110,6 +110,12 @@ enum ServiceApprovalStatus {
   rejected
 }
 
+/// Supplier shops/wholesalers vs individual tradespeople.
+enum CategoryKind {
+  supplier
+  service
+}
+
 model User {
   id              String                  @id @default(uuid()) @db.Uuid
   name            String
@@ -210,6 +216,7 @@ model Category {
   imageUrl    String?
   /// Listings page hero banner.
   bannerUrl   String?
+  kind        CategoryKind    @default(supplier)
   sortOrder   Int             @default(0)
   isActive    Boolean         @default(true)
   createdAt   DateTime        @default(now())
@@ -222,6 +229,7 @@ model Category {
 
   @@index([parentId, sortOrder])
   @@index([isActive])
+  @@index([kind])
 }
 
 model Business {
@@ -266,8 +274,10 @@ model Listing {
   avgRating   Float               @default(0)
   reviewCount Int                 @default(0)
   featured    Boolean             @default(false)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  /// Copied from Category.kind at create so retagging a category does not rewrite existing shops.
+  listingKind   CategoryKind        @default(supplier)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   fieldValues   ListingFieldValue[]
@@ -278,6 +288,7 @@ model Listing {
   @@index([avgRating])
   @@index([featured])
   @@index([lat, lng])
+  @@index([listingKind])
 }
 
 model Service {

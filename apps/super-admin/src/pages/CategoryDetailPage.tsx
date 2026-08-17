@@ -103,6 +103,11 @@ export function CategoryDetailPage() {
                 ? "Main category"
                 : "Subcategory"}
             {" · "}
+            {isPlatform(category)
+              ? null
+              : category.kind === "service"
+                ? "Service professional · "
+                : "Supplier / shop · "}
             {active ? "Enabled" : "Disabled"}
           </p>
         </div>
@@ -176,7 +181,7 @@ export function CategoryDetailPage() {
                 type="button"
                 onClick={() => {
                   setShowAddSub((open) => !open);
-                  setSubDraft(emptyCategoryDraft(String(children.length + 1)));
+                  setSubDraft(emptyCategoryDraft(String(children.length + 1), category.kind === "service" ? "service" : "supplier"));
                 }}
               >
                 {showAddSub ? "Close" : "Add subcategory"}

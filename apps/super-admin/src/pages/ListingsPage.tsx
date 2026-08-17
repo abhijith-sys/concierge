@@ -46,6 +46,7 @@ export function ListingsPage() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.rejectListing(id, reason),
     onSuccess: invalidate,
   });
+  const remove = useMutation({ mutationFn: api.deleteListing, onSuccess: invalidate });
   const rejecting = list.data?.items.find((listing) => listing.id === rejectingId);
 
   if (!hasPermission(user, "businesses.read")) {
@@ -55,8 +56,8 @@ export function ListingsPage() {
   return (
     <div className="stack">
       <div>
-        <h2 style={{ margin: 0 }}>Listings</h2>
-        <p className="muted">Moderate marketplace offerings before they appear on provider profiles</p>
+        <h2 style={{ margin: 0 }}>Catalog items</h2>
+        <p className="muted">Moderate shop catalog items and service offerings before they appear on public profiles</p>
       </div>
       <div className="row">
         <input className="input" placeholder="Search listing or provider" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -127,9 +128,21 @@ export function ListingsPage() {
                           Approve
                         </button>
                       ) : null}
-                      {listing.approvalStatus !== "rejected" ? (
+                      {listing.approvalStatus === "pending" || listing.approvalStatus === "draft" ? (
                         <button className="btn danger" type="button" onClick={() => setRejectingId(listing.id)}>
                           Reject
+                        </button>
+                      ) : null}
+                      {listing.approvalStatus === "approved" && hasPermission(user, "businesses.delete") ? (
+                        <button
+                          className="btn danger"
+                          type="button"
+                          onClick={() => {
+                            if (!window.confirm(`Delete “${listing.name}”? This cannot be undone.`)) return;
+                            remove.mutate(listing.id);
+                          }}
+                        >
+                          Delete
                         </button>
                       ) : null}
                     </div>

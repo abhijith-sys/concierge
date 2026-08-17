@@ -39,12 +39,12 @@ export function HeroSection({
     <section className="overflow-hidden bg-white py-6 md:py-8">
       <div className="page-shell grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
         <div>
-          <p className="label-caps text-gold-dark">Trusted. Verified. Reliable.</p>
+          <p className="label-caps text-gold-dark">Trade rates. Direct connect.</p>
           <h1 className="mt-3 max-w-xl text-3xl font-extrabold leading-[1.1] tracking-[-0.045em] text-navy md:text-5xl">
-            Exceptional service, carefully found.
+            Find shops and suppliers at the best rate.
           </h1>
           <p className="mt-3 max-w-lg text-sm leading-6 text-ink-soft md:text-base md:leading-7">
-            Discover verified businesses and skilled professionals for your home, business and everyday needs.
+            Browse electrical, plumbing, décor, clothing, and more. Compare bulk, by-order, or single-piece rates, then connect with the seller.
           </p>
           <SearchBar
             city={city}

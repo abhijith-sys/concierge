@@ -74,6 +74,13 @@ describe("search filters", () => {
     );
   });
 
+  it("filters shops vs service professionals by listingKind", () => {
+    const shops = searchRepository.buildWhere(query({ kind: "supplier" }));
+    expect(shops.AND).toEqual(expect.arrayContaining([{ listing: { listingKind: "supplier" } }]));
+    const trades = searchRepository.buildWhere(query({ kind: "service" }));
+    expect(trades.AND).toEqual(expect.arrayContaining([{ listing: { listingKind: "service" } }]));
+  });
+
   it("only returns active providers", () => {
     const where = searchRepository.buildWhere(query());
     expect(where.AND).toEqual(expect.arrayContaining([{ status: "active" }]));

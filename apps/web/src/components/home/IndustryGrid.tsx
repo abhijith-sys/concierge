@@ -44,9 +44,9 @@ export function IndustryGrid({
     <section className="py-6 md:py-8">
       <div className="page-shell">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-[1.75rem]">Explore by industry</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-[1.75rem]">Explore by category</h2>
           <Link to="/listings" className="inline-flex items-center gap-1 text-sm font-bold text-navy">
-            View all industries <ArrowRight className="size-4" />
+            View all categories <ArrowRight className="size-4" />
           </Link>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

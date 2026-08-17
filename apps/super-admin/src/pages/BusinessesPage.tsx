@@ -116,26 +116,33 @@ export function BusinessesPage() {
                   <div className="row">
                     {hasPermission(user, "businesses.moderate") ? (
                       <>
-                        {business.status !== "active" ? (
+                        {business.status !== "active" && business.status !== "deleted" ? (
                           <button className="btn" type="button" onClick={() => activate.mutate(business.id)}>
                             Activate
                           </button>
                         ) : null}
                         {business.status === "active" ? (
                           <button className="btn" type="button" onClick={() => suspend.mutate(business.id)}>
-                            Suspend
+                            Disable
                           </button>
                         ) : null}
-                        {business.status === "pending" || business.status === "active" ? (
+                        {business.status === "pending" ? (
                           <button className="btn danger" type="button" onClick={() => setRejectingId(business.id)}>
                             Reject
                           </button>
                         ) : null}
                       </>
                     ) : null}
-                    {hasPermission(user, "businesses.delete") ? (
-                      <button className="btn danger" type="button" onClick={() => remove.mutate(business.id)}>
-                        Soft delete
+                    {hasPermission(user, "businesses.delete") && business.status !== "pending" && business.status !== "deleted" ? (
+                      <button
+                        className="btn danger"
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm(`Delete “${business.name}”? This hides the shop from the directory.`)) return;
+                          remove.mutate(business.id);
+                        }}
+                      >
+                        Delete
                       </button>
                     ) : null}
                   </div>

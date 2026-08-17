@@ -320,6 +320,23 @@ export const adminService = {
     return listing;
   },
 
+  async removeListing(
+    id: string,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    const existing = await adminRepository.getListing(id);
+    if (!existing) throw new ApiError(404, "LISTING_NOT_FOUND", "Listing not found");
+    await adminRepository.removeListing(id);
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: "admin.listing.delete",
+      entityType: "service",
+      entityId: id,
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+  },
+
   async patchListing(
     id: string,
     input: ListingPatchInput,

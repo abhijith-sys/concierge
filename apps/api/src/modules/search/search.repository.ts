@@ -4,7 +4,12 @@ import { prisma } from "../../shared/db/prisma.js";
 import type { SearchQuery } from "./search.schemas.js";
 
 const listingInclude = {
-  listing: { include: { category: true } },
+  listing: {
+    include: {
+      category: true,
+      fieldValues: { include: { field: true } },
+    },
+  },
   services: { where: { isActive: true, approvalStatus: "approved" }, take: 5 },
 } as const;
 
@@ -60,6 +65,10 @@ function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
         },
       ],
     });
+  }
+
+  if (query.kind) {
+    filters.push({ listing: { listingKind: query.kind } });
   }
 
   if (categorySlug) {

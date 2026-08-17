@@ -23,8 +23,10 @@ export interface Category {
   imageUrl?: string | null;
   bannerUrl?: string | null;
   description?: string | null;
+  kind?: "supplier" | "service";
+  sortOrder?: number;
   parentId?: string | null;
-  parent?: { id: string; name: string; slug: string; imageUrl?: string | null; bannerUrl?: string | null; description?: string | null } | null;
+  parent?: { id: string; name: string; slug: string; imageUrl?: string | null; bannerUrl?: string | null; description?: string | null; kind?: "supplier" | "service" } | null;
   children?: Category[];
   _count?: { children?: number; listings?: number; services?: number };
 }
@@ -147,6 +149,7 @@ export interface Service {
   rejectionReason?: string | null;
   pricingType?: string | null;
   categoryId?: string | null;
+  category?: Category;
   fieldValues?: FieldValue[];
 }
 
@@ -170,10 +173,13 @@ export interface Business {
   status?: "pending" | "active" | "rejected" | "suspended" | "deleted";
   rejectionReason?: string | null;
   ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   listing?: Listing;
   reviews?: Review[];
   services?: Service[];
   fieldValues?: FieldValue[];
+  _count?: { services?: number };
 }
 
 export interface Listing {
@@ -191,9 +197,11 @@ export interface Listing {
   avgRating: number;
   reviewCount: number;
   featured?: boolean;
+  listingKind?: "supplier" | "service";
   category?: Category;
   business?: Business;
   distanceKm?: number | null;
+  fieldValues?: FieldValue[];
 }
 
 export interface SearchResult {
@@ -426,8 +434,8 @@ export const api = {
     return "business" in value ? value.business : value;
   },
   myBusinesses: async () => {
-    const value = await request<{ businesses: Business[] }>("/api/businesses/mine");
-    return value.businesses;
+    const value = await request<unknown>("/api/businesses/mine");
+    return unwrapArray<Business>(value, ["businesses", "items", "data"]);
   },
   updateBusiness: async (id: string, input: Record<string, unknown>) => {
     const value = await request<{ business: Business }>(`/api/businesses/${encodeURIComponent(id)}`, {
@@ -437,10 +445,8 @@ export const api = {
     return value.business;
   },
   services: async (businessId: string) => {
-    const value = await request<{ services: Service[] }>(
-      `/api/services/business/${encodeURIComponent(businessId)}`,
-    );
-    return value.services;
+    const value = await request<unknown>(`/api/services/business/${encodeURIComponent(businessId)}`);
+    return unwrapArray<Service>(value, ["services", "items", "data"]);
   },
   createService: async (input: Record<string, unknown>) => {
     const value = await request<{ service: Service }>("/api/services", {

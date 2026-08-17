@@ -45,7 +45,9 @@ function emptyNormalized(fieldId: string): NormalizedFieldValue {
 }
 
 function isBlank(value: unknown) {
-  return value === null || value === undefined || value === "";
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  return false;
 }
 
 export function normalizeAndValidateFieldValues(
@@ -143,33 +145,35 @@ export function coerceFieldValue(field: CategoryField, value: unknown): Normaliz
       if (typeof value !== "string") {
         throw new ApiError(400, "INVALID_FIELD", `"${field.key}" must be a string`);
       }
-      if (field.fieldType === "select" && options.length && !options.includes(value)) {
+      const text = value.trim();
+      if (!text) return { ...base, valueText: null };
+      if (field.fieldType === "select" && options.length && !options.includes(text)) {
         throw new ApiError(400, "INVALID_FIELD", `"${field.key}" has an invalid option`);
       }
-      if (field.fieldType === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      if (field.fieldType === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
         throw new ApiError(400, "INVALID_FIELD", `"${field.key}" must be a valid email`);
       }
       if (field.fieldType === "url") {
         try {
-          const protocol = new URL(value).protocol;
+          const protocol = new URL(text).protocol;
           if (protocol !== "http:" && protocol !== "https:") throw new Error("bad");
         } catch {
           throw new ApiError(400, "INVALID_FIELD", `"${field.key}" must be a valid URL`);
         }
       }
-      if (rules.minLength !== undefined && value.length < rules.minLength) {
+      if (rules.minLength !== undefined && text.length < rules.minLength) {
         throw new ApiError(400, "INVALID_FIELD", `"${field.key}" is too short`);
       }
-      if (rules.maxLength !== undefined && value.length > rules.maxLength) {
+      if (rules.maxLength !== undefined && text.length > rules.maxLength) {
         throw new ApiError(400, "INVALID_FIELD", `"${field.key}" is too long`);
       }
       if (rules.pattern) {
         const re = new RegExp(rules.pattern);
-        if (!re.test(value)) {
+        if (!re.test(text)) {
           throw new ApiError(400, "INVALID_FIELD", `"${field.key}" has an invalid format`);
         }
       }
-      return { ...base, valueText: value };
+      return { ...base, valueText: text };
     }
     default:
       throw new ApiError(400, "INVALID_FIELD", `Unsupported field type for "${field.key}"`);

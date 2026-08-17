@@ -1,13 +1,25 @@
 import { BadgeCheck, MapPin, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
-import type { Listing } from "../lib/api";
+import type { FieldValue, Listing } from "../lib/api";
 import { formatDistanceKm } from "../lib/discovery";
+import { isSupplierListing } from "../lib/listing-kind";
 import { formatListingPrice } from "../lib/pricing";
 import { SafeImage } from "./SafeImage";
 import { WishlistButton } from "./WishlistButton";
 
 const fallbackImage = "/assets/brett-villa.jpg";
+
+function displayValue(value: unknown) {
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return value.join(", ");
+  if (value == null || value === "") return "";
+  return String(value);
+}
+
+function fieldValue(fields: FieldValue[] | undefined, key: string) {
+  return fields?.find((item) => item.key === key)?.value;
+}
 
 export function listingHref(listing: Listing) {
   return `/business/${listing.business?.slug ?? listing.businessId ?? listing.id}`;
@@ -26,6 +38,9 @@ export function ProviderCard({
   const reviews = listing.reviewCount ?? 0;
   const distance = formatDistanceKm(listing.distanceKm);
   const place = [listing.city, distance].filter(Boolean).join(" · ");
+  const shop = isSupplierListing(listing);
+  const orderModes = displayValue(fieldValue(listing.fieldValues, "order_modes"));
+  const moq = displayValue(fieldValue(listing.fieldValues, "min_order_qty"));
 
   return (
     <article
@@ -66,6 +81,11 @@ export function ProviderCard({
           <p className="mt-1 flex items-center gap-1 truncate text-xs text-ink-soft">
             <MapPin className="size-3 shrink-0" aria-hidden="true" />
             {place}
+          </p>
+        ) : null}
+        {shop && (orderModes || moq) ? (
+          <p className="mt-2 text-xs font-semibold text-ink-soft">
+            {[orderModes, moq ? `MOQ ${moq}` : null].filter(Boolean).join(" · ")}
           </p>
         ) : null}
         {offer ? (

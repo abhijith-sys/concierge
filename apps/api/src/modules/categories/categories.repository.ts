@@ -1,4 +1,4 @@
-import { CategoryFieldScope, CategoryFieldType, Prisma } from "@prisma/client";
+import { CategoryFieldScope, CategoryFieldType, CategoryKind, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { PLATFORM_CATEGORY_SLUG } from "../../config/constants.js";
 import { prisma } from "../../shared/db/prisma.js";
@@ -6,11 +6,11 @@ import { slugify } from "../../shared/utils/index.js";
 import { ApiError } from "../../shared/errors/index.js";
 import type { NormalizedFieldValue } from "../../shared/domain/category-fields.js";
 import {
+  fieldsForCategoryKind,
   formSchemaVersion,
   mergeFieldLayers,
   scopesForFormKind,
   type ComposedField,
-  type FieldLayer,
   type FormKind,
 } from "../../shared/domain/composed-forms.js";
 
@@ -49,6 +49,7 @@ export const categoryUpsertSchema = z.object({
   bannerUrl: optionalMediaUrl,
   sortOrder: z.number().int().min(0).max(10_000).optional(),
   isActive: z.boolean().optional(),
+  kind: z.nativeEnum(CategoryKind).optional(),
 });
 
 export const categoryFieldUpsertSchema = z.object({
@@ -251,6 +252,7 @@ export const categoriesRepository = {
           bannerUrl: input.bannerUrl ?? null,
           sortOrder: input.sortOrder ?? 0,
           isActive: input.isActive ?? true,
+          kind: input.kind ?? CategoryKind.supplier,
         },
       });
     } catch (error) {
@@ -275,6 +277,7 @@ export const categoriesRepository = {
           bannerUrl: input.bannerUrl,
           sortOrder: input.sortOrder,
           isActive: input.isActive,
+          kind: input.kind,
         },
       });
     } catch (error) {
@@ -305,7 +308,7 @@ export const categoriesRepository = {
   ): Promise<ComposedField[]> {
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
-      select: { id: true, parentId: true, slug: true },
+      select: { id: true, parentId: true, slug: true, kind: true },
     });
     if (!category) throw new ApiError(404, "CATEGORY_NOT_FOUND", "Category not found");
 
@@ -354,7 +357,7 @@ export const categoriesRepository = {
         ]),
       );
     }
-    return composed;
+    return fieldsForCategoryKind(composed, category.kind);
   },
 
   async listFormLayers(categoryId: string, kind: FormKind) {

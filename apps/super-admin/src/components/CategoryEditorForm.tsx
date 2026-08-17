@@ -9,9 +9,10 @@ export type CategoryDraft = {
   sortOrder: string;
   imageUrl: string;
   bannerUrl: string;
+  kind: "supplier" | "service";
 };
 
-export function emptyCategoryDraft(sortOrder = "1"): CategoryDraft {
+export function emptyCategoryDraft(sortOrder = "1", kind: "supplier" | "service" = "supplier"): CategoryDraft {
   return {
     name: "",
     slug: "",
@@ -20,6 +21,7 @@ export function emptyCategoryDraft(sortOrder = "1"): CategoryDraft {
     sortOrder,
     imageUrl: "",
     bannerUrl: "",
+    kind,
   };
 }
 
@@ -31,6 +33,7 @@ export function draftFromCategory(category: {
   sortOrder?: number;
   imageUrl?: string | null;
   bannerUrl?: string | null;
+  kind?: "supplier" | "service" | null;
 }): CategoryDraft {
   return {
     name: category.name,
@@ -40,6 +43,7 @@ export function draftFromCategory(category: {
     sortOrder: String(category.sortOrder ?? 0),
     imageUrl: category.imageUrl ?? "",
     bannerUrl: category.bannerUrl ?? "",
+    kind: category.kind === "service" ? "service" : "supplier",
   };
 }
 
@@ -126,6 +130,19 @@ export function CategoryEditorForm({
             onChange={(event) => onChange({ ...draft, sortOrder: event.target.value })}
           />
         </label>
+        <label className="stack" style={{ minWidth: "11rem" }}>
+          <span className="field-label">Kind</span>
+          <select
+            className="select"
+            value={draft.kind}
+            onChange={(event) =>
+              onChange({ ...draft, kind: event.target.value === "service" ? "service" : "supplier" })
+            }
+          >
+            <option value="supplier">Supplier / shop</option>
+            <option value="service">Service professional</option>
+          </select>
+        </label>
       </div>
       <label className="stack">
         <span className="field-label">Description *</span>
@@ -186,6 +203,7 @@ export function payloadFromDraft(draft: CategoryDraft, extra?: Record<string, un
     imageUrl: draft.imageUrl.trim(),
     bannerUrl: draft.bannerUrl.trim(),
     sortOrder: Number(draft.sortOrder) || 0,
+    kind: draft.kind,
     ...extra,
   };
 }
