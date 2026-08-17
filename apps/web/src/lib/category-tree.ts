@@ -50,9 +50,10 @@ export function popularSubcategories(tree: Category[], limit = 5) {
   const children: Array<{ child: Category; score: number; order: number }> = [];
   tree.forEach((main, mainIndex) => {
     flattenDescendants(main).forEach((entry, childIndex) => {
+      const supplierBoost = entry.category.kind === "service" ? 0 : 1000;
       children.push({
         child: entry.category,
-        score: entry.category._count?.listings ?? entry.category._count?.services ?? 0,
+        score: supplierBoost + (entry.category._count?.listings ?? entry.category._count?.services ?? 0),
         order: mainIndex * 100 + childIndex,
       });
     });

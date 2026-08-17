@@ -63,11 +63,17 @@ export const servicesService = {
     const business = await servicesRepository.findBusinessOwner(input.businessId);
     if (!business) throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
     assertOwner(business.ownerId, user);
-    if (user.role !== Role.admin && business.status !== BusinessStatus.active) {
+    const canCreate =
+      user.role === Role.admin ||
+      business.status === BusinessStatus.active ||
+      business.status === BusinessStatus.pending;
+    if (!canCreate) {
       throw new ApiError(
         403,
         "BUSINESS_NOT_ACTIVE",
-        "Your business profile must be approved before you can create listings",
+        business.status === BusinessStatus.suspended
+          ? "This business is disabled by admin"
+          : "This business cannot accept new listings",
       );
     }
     const { fieldValues, ...data } = input;
@@ -131,6 +137,6 @@ export const servicesService = {
     const existing = await servicesRepository.findById(id);
     if (!existing) throw new ApiError(404, "SERVICE_NOT_FOUND", "Service not found");
     assertOwner(existing.business.ownerId, user);
-    await servicesRepository.update(id, { isActive: false });
+    await servicesRepository.remove(id);
   },
 };

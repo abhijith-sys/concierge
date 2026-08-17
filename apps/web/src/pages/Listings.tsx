@@ -8,6 +8,12 @@ import { Button, Input, PageState, Select } from "../components/ui";
 import { api } from "../lib/api";
 import { AllCategoriesIcon, iconForCategory } from "../lib/category-icon";
 import { recordExploredCategory, setSavedCity } from "../lib/discovery";
+import {
+  categoryKind,
+  mixedKindChildren,
+  sortSupplierFirst,
+  type MarketplaceKind,
+} from "../lib/listing-kind";
 
 const heroImage = "/assets/builders-hero.jpg";
 
@@ -30,6 +36,14 @@ export function Listings() {
     enabled: Boolean(category.data?.parent?.slug),
   });
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
+
+  const leafKind = category.data?.parent ? categoryKind(category.data) : undefined;
+  const mixedMain = Boolean(category.data && !category.data.parent && mixedKindChildren(category.data));
+  const mainKind = category.data && !category.data.parent && !mixedMain ? categoryKind(category.data) : undefined;
+  const defaultKind: MarketplaceKind = leafKind ?? (mixedMain ? "supplier" : mainKind) ?? "supplier";
+  const selectedKind = leafKind ?? (params.get("kind") as MarketplaceKind | null) ?? defaultKind;
+  const showKindTabs = !leafKind && (mixedMain || !categorySlug);
+  requestParams.set("kind", selectedKind);
 
   if (categorySlug) {
     if (category.data?.parent) requestParams.set("subcategory", categorySlug);
@@ -66,9 +80,15 @@ export function Listings() {
     queryKey: ["search", requestParams.toString()],
     queryFn: () => api.search(requestParams),
   });
-  const subcategoryChips = category.data?.children?.length
-    ? category.data.children
-    : (parentCategory.data?.children ?? []);
+  const subcategoryChips = sortSupplierFirst(
+    category.data?.children?.length
+      ? category.data.children
+      : (parentCategory.data?.children ?? []),
+  ).filter((child) => {
+    if (!showKindTabs) return true;
+    return categoryKind(child) === selectedKind;
+  });
+  const tradesView = selectedKind === "service";
   const heroSrc =
     category.data?.bannerUrl?.trim() ||
     category.data?.imageUrl?.trim() ||
@@ -78,7 +98,9 @@ export function Listings() {
   const heroCopy =
     category.data?.description?.trim() ||
     parentCategory.data?.description?.trim() ||
-    "Verified professionals, remarkable places, and services selected for quality.";
+    (tradesView
+      ? "Licensed tradespeople ready to take the job."
+      : "Shops and wholesalers selling bulk, by order, or single piece at trade rates.");
 
   function goToCategory(slug: string) {
     const next = new URLSearchParams(params);
@@ -150,18 +172,34 @@ export function Listings() {
           })}
         </div>
       ) : null}
+      {showKindTabs ? (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {(["supplier", "service"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => updateParam("kind", kind)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                selectedKind === kind ? "bg-navy text-white" : "border border-line bg-white hover:border-black"
+              }`}
+            >
+              {kind === "supplier" ? "Shops & sellers" : "Service professionals"}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] bg-navy">
         <SafeImage src={heroSrc} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="relative z-10 flex min-h-[340px] max-w-2xl flex-col justify-center p-8 text-white md:p-12">
-          <p className="label-caps text-gold-light">Curated partners</p>
+          <p className="label-caps text-gold-light">{tradesView ? "Need a technician?" : "Supplier network"}</p>
           <h1 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
-            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : "Find your next expert")}
+            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : tradesView ? "Find a professional" : "Find shops at the best rate")}
           </h1>
           <p className="mt-4 leading-7 text-white/75">{heroCopy}</p>
           <form onSubmit={submit} className="mt-7 flex rounded-xl bg-white p-1.5">
             <label className="flex flex-1 items-center gap-2 px-3 text-black">
               <Search className="size-5" /><span className="sr-only">Search listings</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder="Search businesses or services" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder={tradesView ? "Search technicians or services" : "Search shops or items"} />
             </label>
             <Button type="submit">Search</Button>
           </form>
@@ -250,7 +288,7 @@ export function Listings() {
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
-            <div><p className="label-caps text-gold-dark">Directory</p><h2 className="mt-2 text-3xl font-semibold">Verified partners</h2></div>
+            <div><p className="label-caps text-gold-dark">{tradesView ? "Technicians" : "Directory"}</p><h2 className="mt-2 text-3xl font-semibold">{tradesView ? "Service professionals" : "Shops & sellers"}</h2></div>
             {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
           </div>
           {results.isLoading ? (

@@ -26,7 +26,7 @@ export function AdminLayout() {
         </NavLink>
         <NavGroup label="Marketplace">
           {hasPermission(user, "businesses.read") ? <NavLink to="/businesses">Businesses</NavLink> : null}
-          {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Listings</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Catalog items</NavLink> : null}
           {hasPermission(user, "verification.review") ? <NavLink to="/verification">KYC</NavLink> : null}
         </NavGroup>
         <NavGroup label="Catalog">

@@ -8,6 +8,11 @@ function fieldOptions(field: CategoryField): string[] {
   return field.options.map(String);
 }
 
+function validationNumber(field: CategoryField, key: "minLength" | "maxLength") {
+  const value = field.validation?.[key];
+  return typeof value === "number" ? value : undefined;
+}
+
 function widgetOf(field: CategoryField): string | undefined {
   const widget = field.validation?.widget;
   return typeof widget === "string" ? widget : undefined;
@@ -60,25 +65,34 @@ export function valuesFromFieldValues(
 }
 
 export function toFieldValuePayload(fields: CategoryField[], values: FieldValueMap) {
-  return fields.filter((field) => isFieldVisible(field, values)).map((field) => {
-    let value = values[field.key];
-    if (field.fieldType === "number" && value !== "" && value != null) {
-      value = Number(value);
-    }
-    if (field.fieldType === "multiselect" && !Array.isArray(value)) {
-      value = [];
-    }
-    if (field.fieldType === "boolean") {
-      value = Boolean(value);
-    }
-    if (field.fieldType === "json" && widgetOf(field) === "location") {
-      const raw = value && typeof value === "object" ? (value as { lat?: unknown; lng?: unknown }) : {};
-      const lat = raw.lat === "" || raw.lat == null ? null : Number(raw.lat);
-      const lng = raw.lng === "" || raw.lng == null ? null : Number(raw.lng);
-      value = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null };
-    }
-    return { key: field.key, value };
-  });
+  return fields
+    .filter((field) => isFieldVisible(field, values))
+    .flatMap((field) => {
+      let value = values[field.key];
+      if (field.fieldType === "number" && value !== "" && value != null) {
+        value = Number(value);
+      }
+      if (field.fieldType === "multiselect" && !Array.isArray(value)) {
+        value = [];
+      }
+      if (field.fieldType === "boolean") {
+        value = Boolean(value);
+      }
+      if (field.fieldType === "json" && widgetOf(field) === "location") {
+        const raw = value && typeof value === "object" ? (value as { lat?: unknown; lng?: unknown }) : {};
+        const lat = raw.lat === "" || raw.lat == null ? null : Number(raw.lat);
+        const lng = raw.lng === "" || raw.lng == null ? null : Number(raw.lng);
+        value = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null };
+      }
+      if (typeof value === "string") value = value.trim();
+      const blank =
+        value === "" ||
+        value === null ||
+        value === undefined ||
+        (Array.isArray(value) && value.length === 0);
+      if (blank && !field.required) return [];
+      return [{ key: field.key, value }];
+    });
 }
 
 function locationValue(value: unknown): { lat: string; lng: string } {
@@ -115,13 +129,15 @@ export function DynamicForm({
   }
 
   return (
-    <div className="grid gap-5 md:col-span-2 md:grid-cols-2">
+    <div className="grid gap-6 md:col-span-2">
       {[...sections.entries()].map(([section, sectionFields]) => (
-        <div key={section} className="contents">
+        <div key={section} className="grid gap-5 md:grid-cols-2">
           <p className="label-caps text-gold-dark md:col-span-2">{section}</p>
           {sectionFields.map((field) => {
             const widget = widgetOf(field);
             const required = Boolean(field.required);
+            const minLength = validationNumber(field, "minLength");
+            const maxLength = validationNumber(field, "maxLength");
             const label = `${field.label}${required ? "" : " (optional)"}`;
             const help = field.helpText ? (
               <p className="mt-1 text-xs font-normal text-ink-soft">{field.helpText}</p>
@@ -154,6 +170,8 @@ export function DynamicForm({
                       onChange={(event) => setValue(field.key, event.target.value)}
                       rows={4}
                       required={required}
+                      minLength={required ? minLength : undefined}
+                      maxLength={maxLength}
                       placeholder={placeholder}
                     />
                     {help}
@@ -305,6 +323,8 @@ export function DynamicForm({
                   value={values[field.key] == null ? "" : String(values[field.key])}
                   onChange={(event) => setValue(field.key, event.target.value)}
                   required={required}
+                  minLength={required ? minLength : undefined}
+                  maxLength={maxLength}
                   placeholder={placeholder}
                 />
                 {help}

@@ -30,7 +30,7 @@ type DemoCatalogItem = {
   price: number;
   pricingType?: string;
   images: string[];
-  fields?: Record<string, string>;
+  fields?: Record<string, string | number | boolean>;
 };
 
 type DemoBusiness = {
@@ -46,6 +46,11 @@ type DemoBusiness = {
   images: string[];
   years?: number;
   supportTurnaround?: string;
+  whatsapp?: string;
+  orderModes?: string[];
+  minOrderQty?: number;
+  sellsSinglePiece?: boolean;
+  wholesale?: boolean;
   catalog?: DemoCatalogItem[];
 };
 
@@ -58,7 +63,7 @@ const businesses: DemoBusiness[] = [
     address: "150 Madison Avenue, New York, NY",
     headline: "Artistry in Every Atom.",
     description:
-      "Curating the world's most exquisite architectural materials for luxury custom homes and high-end commercial developments.\n\nFor over three decades, Elite Build & Masonry has been the silent partner behind the world's most exclusive architectural envelopes. We source rare stones from Italy, Greece, and Brazil to ensure every project is a masterpiece of geological artistry.",
+      "Architectural materials for luxury homes and commercial envelopes. Bulk slab reservations, made-to-order panels, and single-piece samples.",
     lat: 40.7458,
     lng: -73.9847,
     images: [
@@ -69,7 +74,11 @@ const businesses: DemoBusiness[] = [
       "/assets/arcadian-desert.jpg",
     ],
     years: 30,
-    supportTurnaround: "24h",
+    whatsapp: "+1 212 555 0100",
+    orderModes: ["Bulk", "By order", "Single piece"],
+    minOrderQty: 1,
+    sellsSinglePiece: true,
+    wholesale: true,
     catalog: [
       {
         name: "Calacatta Borghini Selection",
@@ -81,6 +90,9 @@ const businesses: DemoBusiness[] = [
           availability_qty: "42 Slabs",
           thickness: "20mm / 30mm",
           finish: "Polished",
+          unit: "slab",
+          moq: 1,
+          custom_order: true,
         },
       },
       {
@@ -89,7 +101,7 @@ const businesses: DemoBusiness[] = [
         price: 0,
         pricingType: "contact",
         images: ["/assets/heritage-estate.jpg"],
-        fields: { selection_note: "12 Variants" },
+        fields: { selection_note: "12 Variants", unit: "sqm", moq: 20 },
       },
       {
         name: "Architectural Steel",
@@ -97,7 +109,7 @@ const businesses: DemoBusiness[] = [
         price: 0,
         pricingType: "contact",
         images: ["/assets/builders-hero.jpg"],
-        fields: { selection_note: "4 Finishes" },
+        fields: { selection_note: "4 Finishes", unit: "piece", custom_order: true },
       },
       {
         name: "Structural Glass",
@@ -105,69 +117,239 @@ const businesses: DemoBusiness[] = [
         price: 0,
         pricingType: "contact",
         images: ["/assets/aura-showroom.jpg"],
-        fields: { selection_note: "Ultra-Clear" },
+        fields: { selection_note: "Ultra-Clear", unit: "panel" },
+      },
+    ],
+  },
+  {
+    name: "Volt & Wire Electrical",
+    slug: "volt-wire-electrical",
+    category: "electrical",
+    city: "New York",
+    address: "410 Queens Boulevard, New York, NY",
+    headline: "Best-rate electrical supplies, any quantity.",
+    description:
+      "Wholesale electrical shop for contractors and homeowners. Cables, switchgear, lighting, and panels — bulk coils, project orders, or a single piece at trade rates.",
+    lat: 40.735,
+    lng: -73.877,
+    images: ["/assets/elite-plans.jpg", "/assets/builders-hero.jpg"],
+    years: 18,
+    whatsapp: "+1 718 555 0142",
+    orderModes: ["Bulk", "By order", "Single piece"],
+    minOrderQty: 1,
+    sellsSinglePiece: true,
+    wholesale: true,
+    catalog: [
+      {
+        name: "Copper building wire 2.5mm",
+        description: "ISI copper conductor, 90m coil or cut length.",
+        price: 42,
+        pricingType: "starting_from",
+        images: ["/assets/elite-slab.jpg"],
+        fields: { unit: "coil", moq: 1, price_bulk: 38, price_piece: 42, lead_time_days: 0 },
+      },
+      {
+        name: "Modular switch range",
+        description: "16A switches and sockets. Box or single piece.",
+        price: 2.4,
+        pricingType: "starting_from",
+        images: ["/assets/aura-craft.jpg"],
+        fields: { unit: "piece", moq: 10, price_bulk: 1.9, price_piece: 2.4, lead_time_days: 2 },
+      },
+      {
+        name: "LED panel lights 18W",
+        description: "Trade packs of 20 or single replacements.",
+        price: 9.5,
+        pricingType: "starting_from",
+        images: ["/assets/aura-showroom.jpg"],
+        fields: { unit: "piece", moq: 4, price_bulk: 7.8, price_piece: 9.5 },
+      },
+    ],
+  },
+  {
+    name: "AquaFlow Plumbing Supplies",
+    slug: "terra-stone-collective",
+    category: "plumbing-items",
+    city: "New York",
+    address: "210 West 18th Street, New York, NY",
+    headline: "Pipes, fittings, and sanitary ware at trade rates.",
+    description:
+      "Plumbing wholesaler for fit-outs and repairs. CPVC, PVC, valves, and bathroom fittings in bulk, on-order, or as single replacements.",
+    lat: 40.7411,
+    lng: -74.0002,
+    images: [listingImages[1], "/assets/terra-stone.jpg"],
+    years: 14,
+    whatsapp: "+1 212 555 0188",
+    orderModes: ["Bulk", "By order", "Single piece"],
+    minOrderQty: 1,
+    sellsSinglePiece: true,
+    wholesale: true,
+    catalog: [
+      {
+        name: "CPVC pipe 3/4 inch",
+        description: "3m lengths. Bundle of 10 or single stick.",
+        price: 6.2,
+        pricingType: "starting_from",
+        images: ["/assets/terra-stone.jpg"],
+        fields: { unit: "length", moq: 1, price_bulk: 5.4, price_piece: 6.2 },
+      },
+      {
+        name: "Brass ball valves",
+        description: "Quarter-turn valves, 1/2 to 2 inch.",
+        price: 4.8,
+        pricingType: "starting_from",
+        images: ["/assets/elite-slab.jpg"],
+        fields: { unit: "piece", moq: 5, price_bulk: 3.9, price_piece: 4.8 },
       },
     ],
   },
   {
     name: "Aura Interior & Furniture",
     slug: "aura-interior-furniture",
-    category: "interior-designers",
+    category: "home-decor",
     city: "New York",
     address: "88 Wooster Street, New York, NY",
-    description: "A curated sanctuary of artisanal craftsmanship, contemporary furniture, and bespoke living.",
+    headline: "Home décor wholesale for living and hospitality.",
+    description:
+      "A curated sanctuary of artisanal décor, lighting, and furniture. Project lots for interiors houses, or a single statement piece.",
     lat: 40.723,
     lng: -74.0017,
     images: ["/assets/aura-showroom.jpg", "/assets/aura-chair.jpg", "/assets/aura-craft.jpg"],
+    years: 12,
+    whatsapp: "+1 212 555 0164",
+    orderModes: ["Bulk", "By order", "Single piece"],
+    sellsSinglePiece: true,
+    wholesale: true,
+    catalog: [
+      {
+        name: "Artisan lounge chair",
+        description: "Hand-finished oak frame with linen upholstery.",
+        price: 420,
+        pricingType: "starting_from",
+        images: ["/assets/aura-chair.jpg"],
+        fields: { unit: "piece", moq: 1, price_bulk: 360, price_piece: 420, custom_order: true, lead_time_days: 21 },
+      },
+      {
+        name: "Ceramic table lamp set",
+        description: "Trade carton of 6, or single showroom piece.",
+        price: 85,
+        pricingType: "starting_from",
+        images: ["/assets/aura-craft.jpg"],
+        fields: { unit: "piece", moq: 1, price_bulk: 68, price_piece: 85 },
+      },
+    ],
   },
   {
-    name: "Brett Architects & Builders",
+    name: "Loom & Thread Garments",
     slug: "brett-architects-builders",
-    category: "interior-designers",
+    category: "clothing",
     city: "Brooklyn",
     address: "45 Main Street, Brooklyn, NY",
-    description: "Award-winning architects and builders creating refined, sustainable homes with natural materials.",
+    headline: "Apparel wholesale, uniforms, and fabrics.",
+    description:
+      "Garment supplier for retailers, hotels, and workwear buyers. Full lots, made-to-order uniforms, or sample pieces at published rates.",
     lat: 40.7033,
     lng: -73.9903,
-    images: [listingImages[0]],
+    images: [listingImages[0], "/assets/heritage-estate.jpg"],
+    years: 9,
+    whatsapp: "+1 347 555 0119",
+    orderModes: ["Bulk", "By order", "Single piece"],
+    minOrderQty: 12,
+    sellsSinglePiece: true,
+    wholesale: true,
+    catalog: [
+      {
+        name: "Cotton work shirts",
+        description: "Sizes S–XXL. Dozen packs or sample.",
+        price: 14,
+        pricingType: "starting_from",
+        images: ["/assets/heritage-estate.jpg"],
+        fields: { unit: "piece", moq: 12, price_bulk: 11, price_piece: 16, lead_time_days: 7 },
+      },
+      {
+        name: "Hotel linen uniforms",
+        description: "Made-to-order sets with embroidery.",
+        price: 0,
+        pricingType: "contact",
+        images: ["/assets/brett-villa.jpg"],
+        fields: { unit: "set", custom_order: true, lead_time_days: 18 },
+      },
+    ],
   },
   {
-    name: "Terra & Stone Collective",
-    slug: "terra-stone-collective",
-    category: "fabricators",
-    city: "New York",
-    address: "210 West 18th Street, New York, NY",
-    description: "Premium stone sourcing and architectural material consultancy for exceptional residential projects.",
-    lat: 40.7411,
-    lng: -74.0002,
-    images: [listingImages[1]],
-  },
-  {
-    name: "Arcadian Structures",
+    name: "Stride Wholesale Footwear",
     slug: "arcadian-structures",
-    category: "interior-designers",
+    category: "shoes",
     city: "Scottsdale",
     address: "7200 East Camelback Road, Scottsdale, AZ",
-    description: "Modern desert architecture combining rammed earth, glass, and integrated landscape design.",
+    headline: "Footwear lots for retailers and job sites.",
+    description:
+      "Shoes and safety footwear at trade rates. Case packs for stores, or a single pair when you need a replacement fast.",
     lat: 33.5021,
     lng: -111.9261,
-    images: [listingImages[2]],
+    images: [listingImages[2], "/assets/arcadian-desert.jpg"],
+    years: 11,
+    whatsapp: "+1 480 555 0177",
+    orderModes: ["Bulk", "Single piece"],
+    minOrderQty: 1,
+    sellsSinglePiece: true,
+    wholesale: true,
+    catalog: [
+      {
+        name: "Safety boots S3",
+        description: "Steel toe, oil-resistant sole. Pair or carton of 8.",
+        price: 48,
+        pricingType: "starting_from",
+        images: ["/assets/arcadian-desert.jpg"],
+        fields: { unit: "pair", moq: 1, price_bulk: 39, price_piece: 48 },
+      },
+      {
+        name: "Everyday canvas sneakers",
+        description: "Assorted sizes, mixed carton or sample pair.",
+        price: 18,
+        pricingType: "starting_from",
+        images: ["/assets/aura-chair.jpg"],
+        fields: { unit: "pair", moq: 6, price_bulk: 14, price_piece: 18 },
+      },
+    ],
   },
   {
-    name: "Heritage Artisan Group",
+    name: "Metro Line Electricians",
     slug: "heritage-artisan-group",
-    category: "interior-designers",
+    category: "electricians",
     city: "New York",
     address: "12 East 74th Street, New York, NY",
-    description: "Expert restoration of landmark estates through traditional craft and modern precision.",
+    headline: "Licensed electricians for install and repair.",
+    description:
+      "Residential and commercial electrical work — wiring, lighting, and switchboards. Second-priority trade listing when you need a technician, not a shop.",
     lat: 40.7731,
     lng: -73.9652,
     images: [listingImages[3]],
+    years: 16,
+    supportTurnaround: "24h",
+    catalog: [
+      {
+        name: "Site visit & wiring repair",
+        description: "Licensed electrician callout for diagnostics and repair.",
+        price: 120,
+        pricingType: "starting_from",
+        images: [],
+      },
+    ],
   },
 ];
 
 function jsonField(value: Prisma.InputJsonValue | object | undefined) {
   return value === undefined ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
+function seedFieldData(value: string | number | boolean | string[]) {
+  if (typeof value === "boolean") return { valueBool: value, valueNumber: null, valueText: null, valueJson: Prisma.DbNull };
+  if (typeof value === "number") return { valueNumber: value, valueBool: null, valueText: null, valueJson: Prisma.DbNull };
+  if (Array.isArray(value)) {
+    return { valueJson: value as Prisma.InputJsonValue, valueText: null, valueNumber: null, valueBool: null };
+  }
+  return { valueText: value, valueNumber: null, valueBool: null, valueJson: Prisma.DbNull };
 }
 
 async function upsertFields(categoryId: string, fields: FieldSeed[]) {
@@ -240,6 +422,7 @@ async function main() {
   }
 
   const categoryIds = new Map<string, string>();
+  const categoryKinds = new Map<string, "supplier" | "service">();
 
   const platform = await prisma.category.upsert({
     where: { slug: PLATFORM_CATEGORY_SLUG },
@@ -255,6 +438,7 @@ async function main() {
       create: { ...category, isActive: true },
     });
     categoryIds.set(category.slug, saved.id);
+    categoryKinds.set(category.slug, category.kind);
   }
 
   for (const category of phase1Subs) {
@@ -267,6 +451,7 @@ async function main() {
       create: { ...data, parentId, isActive: true },
     });
     categoryIds.set(data.slug, saved.id);
+    categoryKinds.set(data.slug, data.kind);
   }
 
   const keepRootSlugs = [...phase1Mains.map((item) => item.slug), PLATFORM_CATEGORY_SLUG];
@@ -337,12 +522,14 @@ async function main() {
       },
     });
     businessIds.push(business.id);
-    const categoryId = categoryIds.get(demoBusinessCategoryMap[item.category] ?? item.category);
+    const categoryId = categoryIds.get(item.category);
     if (!categoryId) throw new Error(`Missing seeded category ${item.category}`);
+    const categoryKind = categoryKinds.get(item.category) ?? "supplier";
     const listing = await prisma.listing.upsert({
       where: { businessId: business.id },
       update: {
         categoryId,
+        listingKind: categoryKind,
         title: item.headline ?? item.name,
         description: item.description,
         address: item.address,
@@ -355,6 +542,7 @@ async function main() {
       create: {
         businessId: business.id,
         categoryId,
+        listingKind: categoryKind,
         title: item.headline ?? item.name,
         description: item.description,
         address: item.address,
@@ -401,6 +589,22 @@ async function main() {
       });
     }
 
+    const listingShopFields: Array<[string, string | number | boolean | string[]]> = [];
+    if (item.orderModes?.length) listingShopFields.push(["order_modes", item.orderModes]);
+    if (item.minOrderQty != null) listingShopFields.push(["min_order_qty", item.minOrderQty]);
+    if (item.sellsSinglePiece != null) listingShopFields.push(["sells_single_piece", item.sellsSinglePiece]);
+    if (item.wholesale != null) listingShopFields.push(["wholesale_available", item.wholesale]);
+    if (item.whatsapp) listingShopFields.push(["whatsapp", item.whatsapp]);
+    for (const [key, value] of listingShopFields) {
+      const fieldId = platformFields.get(key);
+      if (!fieldId) continue;
+      await prisma.listingFieldValue.upsert({
+        where: { listingId_fieldId: { listingId: listing.id, fieldId } },
+        update: seedFieldData(value),
+        create: { listingId: listing.id, fieldId, ...seedFieldData(value) },
+      });
+    }
+
     const catalog = item.catalog ?? [
       {
         name: "Design consultation",
@@ -431,16 +635,24 @@ async function main() {
       });
       if (entry.fields) {
         const categoryFields = await prisma.categoryField.findMany({
-          where: { categoryId, key: { in: Object.keys(entry.fields) } },
-          select: { id: true, key: true },
+          where: {
+            key: { in: Object.keys(entry.fields) },
+            categoryId: { in: [categoryId, platform.id] },
+          },
+          select: { id: true, key: true, categoryId: true },
         });
+        const preferred = new Map<string, { id: string; key: string }>();
         for (const field of categoryFields) {
+          if (field.categoryId === platform.id && preferred.has(field.key)) continue;
+          preferred.set(field.key, field);
+        }
+        for (const field of preferred.values()) {
           const value = entry.fields[field.key];
-          if (!value) continue;
+          if (value === undefined) continue;
           await prisma.serviceFieldValue.upsert({
             where: { serviceId_fieldId: { serviceId: service.id, fieldId: field.id } },
-            update: { valueText: value },
-            create: { serviceId: service.id, fieldId: field.id, valueText: value },
+            update: seedFieldData(value),
+            create: { serviceId: service.id, fieldId: field.id, ...seedFieldData(value) },
           });
         }
       }
@@ -455,6 +667,7 @@ async function main() {
     [5, 5, 5, 5, 5, 5, 5, 5, 4, 4],
     [5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
     [5, 5, 5, 5, 5, 5, 5, 4, 4, 4],
+    [5, 5, 5, 5, 5, 5, 4, 4, 4, 4],
   ];
 
   for (const [businessIndex, businessId] of businessIds.entries()) {

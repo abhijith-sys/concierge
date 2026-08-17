@@ -1,4 +1,4 @@
-import { CategoryFieldScope, type CategoryField } from "@prisma/client";
+import { CategoryFieldScope, type CategoryField, type CategoryKind } from "@prisma/client";
 
 export const FORM_KINDS = ["provider", "listing"] as const;
 export type FormKind = (typeof FORM_KINDS)[number];
@@ -42,6 +42,44 @@ export function mergeFieldLayers(
 export function formSchemaVersion(fields: Array<{ schemaVersion: number }>): number {
   if (!fields.length) return 1;
   return Math.max(1, ...fields.map((field) => field.schemaVersion));
+}
+
+/** Platform fields that only belong on service-professional categories. */
+export const SERVICE_ONLY_FIELD_KEYS = new Set([
+  "emergency_service",
+  "emergency_timing",
+  "home_visit",
+  "service_radius_km",
+  "availability",
+]);
+
+/** Platform fields that only belong on supplier / shop categories. */
+export const SUPPLIER_ONLY_FIELD_KEYS = new Set([
+  "order_modes",
+  "min_order_qty",
+  "sells_single_piece",
+  "wholesale_available",
+  "sample_available",
+  "service_area",
+  "whatsapp",
+  "unit",
+  "moq",
+  "price_bulk",
+  "price_piece",
+  "lead_time_days",
+  "custom_order",
+]);
+
+export function fieldsForCategoryKind<T extends { key: string }>(
+  fields: T[],
+  kind: CategoryKind | null | undefined,
+): T[] {
+  if (!kind) return fields;
+  return fields.filter((field) => {
+    if (kind === "supplier" && SERVICE_ONLY_FIELD_KEYS.has(field.key)) return false;
+    if (kind === "service" && SUPPLIER_ONLY_FIELD_KEYS.has(field.key)) return false;
+    return true;
+  });
 }
 
 export type ConditionalRule = {

@@ -1,16 +1,21 @@
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../context/useAuth";
+import { isProvider } from "../../lib/provider";
 import { SafeImage } from "../SafeImage";
 import { Button } from "../ui";
 
 const benefits = [
-  "Create your profile",
-  "Reach more customers",
-  "Manage enquiries",
-  "Grow your business",
+  "Create your shop",
+  "Reach more buyers",
+  "Publish bulk & piece rates",
+  "Grow your network",
 ];
 
 export function BecomeProviderSection() {
+  const { user, isLoading } = useAuth();
+  const provider = isProvider(user);
+
   return (
     <section className="py-6 md:py-8">
       <div className="page-shell">
@@ -26,10 +31,9 @@ export function BecomeProviderSection() {
               />
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-3xl">Have a service to offer?</h2>
+              <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-3xl">Sell to a network of buyers?</h2>
               <p className="mt-3 max-w-md text-sm leading-6 text-ink-soft">
-                Join thousands of professionals and grow your business with Concierge. List your services, reach more
-                customers and manage everything easily.
+                List your shop, publish a catalog with bulk and piece rates, and get discovered by businesses looking to connect.
               </p>
             </div>
             <div>
@@ -43,11 +47,13 @@ export function BecomeProviderSection() {
                   </li>
                 ))}
               </ul>
-              <Link to="/list-business" className="mt-6 inline-flex">
-                <Button className="px-6">
-                  Become a provider <ArrowRight className="size-4" />
-                </Button>
-              </Link>
+              {isLoading || !user ? null : (
+                <Link to="/provider" className="mt-6 inline-flex">
+                  <Button className="px-6">
+                    {provider ? "My Business" : "List your business"} <ArrowRight className="size-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

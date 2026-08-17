@@ -10,6 +10,7 @@ import { useAuth } from "../context/useAuth";
 import { api, type FieldValue, type Listing, type Service } from "../lib/api";
 import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
 import { formatListingPrice } from "../lib/pricing";
+import { isSupplierListing } from "../lib/listing-kind";
 import { lazyWithReload } from "../lib/lazyWithReload";
 
 const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
@@ -151,7 +152,8 @@ export function BusinessDetail() {
   const legacyImage = images[1] ?? images[0];
   const projectImages = (images.length > 4 ? images.slice(2, 5) : images.slice(1, 4)).filter(Boolean).slice(0, 3);
   const offerings = services.data ?? [];
-  const isMaterialsCatalog = listing.category?.slug === "fabricators";
+  const isMaterialsCatalog = isSupplierListing(listing);
+  const whatsapp = displayValue(fieldByKey(profile.fieldValues, "whatsapp")?.value);
   const featured = offerings[0];
   const sideOfferings = offerings.slice(1, 4);
   const featuredFields = visibleFields(featured?.fieldValues)
@@ -236,18 +238,28 @@ export function BusinessDetail() {
                   href="#collections"
                   className="inline-flex min-h-11 items-center rounded-lg bg-white px-5 text-sm font-extrabold tracking-wide text-black"
                 >
-                  VIEW COLLECTIONS
+                  {isMaterialsCatalog ? "VIEW CATALOG" : "VIEW OFFERINGS"}
                 </a>
               ) : null}
               <a
                 href="#contact"
                 className="inline-flex min-h-11 items-center rounded-lg border border-white/80 px-5 text-sm font-extrabold tracking-wide text-white"
               >
-                CONTACT AGENT
+                {isMaterialsCatalog ? "CONNECT" : "CONTACT"}
               </a>
               {profile.phone ? (
                 <a href={`tel:${profile.phone}`} className="text-sm font-semibold text-white/80 underline-offset-4 hover:underline">
                   {profile.phone}
+                </a>
+              ) : null}
+              {whatsapp ? (
+                <a
+                  href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
+                  className="text-sm font-semibold text-white/80 underline-offset-4 hover:underline"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  WhatsApp
                 </a>
               ) : null}
             </div>
@@ -298,7 +310,7 @@ export function BusinessDetail() {
               <div>
                 <p className="label-caps text-ink-soft/70">Latest selection</p>
                 <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.03em] text-ink md:text-4xl">
-                  {isMaterialsCatalog ? "Products & Slabs" : "Listings"}
+                  {isMaterialsCatalog ? "Catalog" : "Offerings"}
                 </h2>
               </div>
               {listing.category ? (
@@ -575,7 +587,7 @@ function buildLegacyStats({
     stats.push({ value: Number(rating ?? 0).toFixed(1), label: "Average rating" });
   }
 
-  if (listingsCount) stats.push({ value: String(listingsCount), label: "Listings" });
+  if (listingsCount) stats.push({ value: String(listingsCount), label: "Catalog items" });
   stats.push({ value: plusLabel(reviewCount), label: "Client reviews" });
 
   if (emergency?.value) {

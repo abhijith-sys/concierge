@@ -62,6 +62,9 @@ export const businessesService = {
       throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist or is not available");
     }
 
+    const listingCategory = await categoriesRepository.findById(categoryId);
+    const listingKind = listingCategory?.kind ?? "supplier";
+
     const listingFields = await categoriesRepository.listComposedFields(categoryId, {
       kind: "provider",
       activeOnly: true,
@@ -76,11 +79,12 @@ export const businessesService = {
       ...businessData,
       slug,
       ownerId: user.id,
-      status: user.role === Role.admin ? BusinessStatus.active : BusinessStatus.pending,
+      status: BusinessStatus.pending,
       formSchemaVersion: schemaVersion,
       listing: {
         create: {
           categoryId,
+          listingKind,
           title,
           description,
           address,
@@ -166,7 +170,12 @@ export const businessesService = {
     ] as const;
     const listingData = Object.fromEntries(
       listingKeys.filter((key) => input[key] !== undefined).map((key) => [key, input[key]]),
-    );
+    ) as Record<string, unknown>;
+
+    if (input.categoryId) {
+      const nextCategory = await categoriesRepository.findById(input.categoryId);
+      if (nextCategory) listingData.listingKind = nextCategory.kind;
+    }
 
     const business = await businessesRepository.update(id, {
       ...businessData,

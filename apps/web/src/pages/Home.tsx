@@ -36,7 +36,7 @@ export function Home() {
   const popularSearches = useMemo(() => popularSubcategories(mains), [mains]);
 
   const nearbyParams = useMemo(() => {
-    const params = new URLSearchParams({ pageSize: "8" });
+    const params = new URLSearchParams({ pageSize: "8", kind: "supplier" });
     if (city.trim()) params.set("city", city.trim());
     if (coords) {
       params.set("lat", String(coords.lat));
@@ -50,7 +50,7 @@ export function Home() {
     queryFn: async () => {
       const result = await api.search(nearbyParams);
       if (result.items.length || !nearbyParams.get("city")) return result;
-      const fallback = new URLSearchParams({ pageSize: "8" });
+      const fallback = new URLSearchParams({ pageSize: "8", kind: "supplier" });
       if (coords) {
         fallback.set("lat", String(coords.lat));
         fallback.set("lng", String(coords.lng));
@@ -60,7 +60,7 @@ export function Home() {
   });
 
   const recommendedParams = useMemo(() => {
-    const params = new URLSearchParams({ pageSize: "8" });
+    const params = new URLSearchParams({ pageSize: "8", kind: "supplier" });
     if (explored[0]?.slug) params.set("category", explored[0].slug);
     if (city.trim()) params.set("city", city.trim());
     return params;
@@ -78,7 +78,7 @@ export function Home() {
   function submit(event: FormEvent) {
     event.preventDefault();
     setSavedCity(city);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ kind: "supplier" });
     if (query.trim()) params.set("q", query.trim());
     if (city.trim()) params.set("city", city.trim());
     navigate(`/listings?${params.toString()}`);

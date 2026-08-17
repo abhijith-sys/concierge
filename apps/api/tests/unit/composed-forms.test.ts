@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CategoryField } from "@prisma/client";
 import {
+  fieldsForCategoryKind,
   formSchemaVersion,
   isFieldVisible,
   mergeFieldLayers,
@@ -71,5 +72,15 @@ describe("composed forms", () => {
     });
     expect(isFieldVisible(child, new Map([["home_visit", false]]))).toBe(false);
     expect(isFieldVisible(child, new Map([["home_visit", true]]))).toBe(true);
+  });
+
+  it("keeps shop wholesale fields off service-professional forms", () => {
+    const rows = [
+      field({ id: "1", key: "order_modes" }),
+      field({ id: "2", key: "emergency_service" }),
+      field({ id: "3", key: "business_type" }),
+    ];
+    expect(fieldsForCategoryKind(rows, "supplier").map((row) => row.key)).toEqual(["order_modes", "business_type"]);
+    expect(fieldsForCategoryKind(rows, "service").map((row) => row.key)).toEqual(["emergency_service", "business_type"]);
   });
 });

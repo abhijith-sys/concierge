@@ -51,6 +51,7 @@ export type Category = {
   icon?: string | null;
   imageUrl?: string | null;
   bannerUrl?: string | null;
+  kind?: "supplier" | "service";
   sortOrder?: number;
   isActive?: boolean;
   createdAt?: string;
@@ -100,6 +101,7 @@ export type AdminStats = {
   pendingListings?: number;
   categories?: number;
   subcategories?: number;
+  categoryKinds?: { supplier: number; service: number };
   kycQueue: number;
   assets: number;
 };
@@ -278,6 +280,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  deleteListing: (id: string) =>
+    request(`/api/admin/listings/${id}`, { method: "DELETE" }),
   verificationQueue: async () => {
     const value = await request<{ items: VerificationItem[] }>("/api/verification/queue");
     return value.items;

@@ -8,9 +8,11 @@ describe("category upsert schema", () => {
       name: "Home",
       slug: "home",
       description: "Desc",
+      kind: "service",
       imageUrl: "/assets/builders-hero.jpg",
       bannerUrl: "/uploads/public/banner.jpg",
     });
+    expect(parsed.kind).toBe("service");
     expect(parsed.imageUrl).toBe("/assets/builders-hero.jpg");
     expect(parsed.bannerUrl).toBe("/uploads/public/banner.jpg");
   });
@@ -41,7 +43,7 @@ describe("taxonomy seed catalog", () => {
       expect.arrayContaining(["hotels-resorts-stays", "rental-hire", "travel-taxi-transport"]),
     );
     expect(phase1Mains.map((item) => item.slug)).toEqual(
-      expect.arrayContaining(["automotive", "logistics-other"]),
+      expect.arrayContaining(["fashion-apparel", "home-property", "automotive"]),
     );
   });
 
@@ -53,7 +55,8 @@ describe("taxonomy seed catalog", () => {
         expect.objectContaining({ slug: "camera-rental", parentSlug: "electronics-rental" }),
         expect.objectContaining({ slug: "taxi-services", parentSlug: "travel-taxi-transport" }),
         expect.objectContaining({ slug: "hotels", parentSlug: "hotels-resorts-stays" }),
-        expect.objectContaining({ slug: "car-hire-rental", parentSlug: "automotive" }),
+        expect.objectContaining({ slug: "electrical", parentSlug: "home-property" }),
+        expect.objectContaining({ slug: "clothing", parentSlug: "fashion-apparel" }),
       ]),
     );
   });
