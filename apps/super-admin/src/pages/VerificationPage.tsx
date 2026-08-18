@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EmptyList } from "../components/EmptyList";
 import { api, hasPermission } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -66,7 +67,7 @@ export function VerificationPage() {
           </tbody>
         </table>
         {!queue.isLoading && (queue.data?.length ?? 0) === 0 ? (
-          <p className="muted">No submissions in queue</p>
+          <EmptyList compact title="No submissions in queue" />
         ) : null}
       </div>
     </div>

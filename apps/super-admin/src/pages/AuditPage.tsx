@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { EmptyList } from "../components/EmptyList";
 import { api, hasPermission } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -55,6 +56,9 @@ export function AuditPage() {
           </tbody>
         </table>
         {list.isLoading ? <p className="muted">Loading…</p> : null}
+        {!list.isLoading && !(list.data?.items.length ?? 0) ? (
+          <EmptyList compact title="No audit events yet." />
+        ) : null}
       </div>
     </div>
   );

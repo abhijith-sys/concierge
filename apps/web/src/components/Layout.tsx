@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type ReactNode, type SVGProps } from "re
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { isProvider } from "../lib/provider";
 import { theme } from "../lib/theme";
 import { AuthIntentHandler } from "./AuthIntentHandler";
 import { Logo } from "./Logo";
@@ -47,7 +48,11 @@ export function TopNav() {
   const { user, logout, isLoading } = useAuth();
   const location = useLocation();
   const inMyBusiness = isMyBusinessPath(location.pathname);
-  const showMyBusiness = !isLoading && Boolean(user) && !inMyBusiness;
+  const provider = isProvider(user);
+  const showBusinessCta = Boolean(user) && !isLoading && !inMyBusiness;
+  const businessCta = provider
+    ? { to: "/provider", label: "My Business" }
+    : { to: "/list-business", label: "List your business" };
   const businessId = new URLSearchParams(location.search).get("business");
   const onItemsPage = location.pathname === "/provider/listings" && Boolean(businessId);
   const wishlist = useQuery({
@@ -110,9 +115,9 @@ export function TopNav() {
           </div>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
-          {showMyBusiness ? (
-            <Link to="/provider">
-              <Button>My Business</Button>
+          {showBusinessCta ? (
+            <Link to={businessCta.to}>
+              <Button>{businessCta.label}</Button>
             </Link>
           ) : null}
           {isLoading ? null : user ? (
@@ -171,9 +176,9 @@ export function TopNav() {
                 <Link to="/wishlist" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
                   Wishlist{savedCount > 0 ? ` (${savedCount})` : ""}
                 </Link>
-                {showMyBusiness ? (
-                  <Link to="/provider" onClick={() => setOpen(false)}>
-                    <Button className="mt-2 w-full">My Business</Button>
+                {showBusinessCta ? (
+                  <Link to={businessCta.to} onClick={() => setOpen(false)}>
+                    <Button className="mt-2 w-full">{businessCta.label}</Button>
                   </Link>
                 ) : null}
               </>
@@ -236,7 +241,11 @@ export function Footer() {
         <div>
           <p className="label-caps text-ink-soft">For providers</p>
           <div className="mt-5 grid gap-3 text-sm text-ink-soft [&_a]:transition hover:[&_a]:text-navy">
-            {!isLoading && user ? <Link to="/provider">My Business</Link> : null}
+            {isLoading ? null : user ? (
+              isProvider(user) ? <Link to="/provider">My Business</Link> : <Link to="/list-business">List your business</Link>
+            ) : (
+              <Link to="/list-business">List your business</Link>
+            )}
             <Link to="/contact">Help & Support</Link>
           </div>
         </div>

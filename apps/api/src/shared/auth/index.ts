@@ -1,8 +1,16 @@
+import { createHash, randomBytes } from "node:crypto";
 import type { RequestHandler, Response } from "express";
 import type { Role } from "@prisma/client";
 import jwt from "jsonwebtoken";
-import { AUTH_COOKIE_NAME, JWT_TTL_SECONDS } from "../../config/constants.js";
+import {
+  ACCESS_TTL_SECONDS,
+  AUTH_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+  REFRESH_TTL_SECONDS,
+  RESET_TTL_SECONDS,
+} from "../../config/constants.js";
 import { getEnv } from "../../config/env.js";
+import { prisma } from "../db/prisma.js";
 import { ApiError } from "../errors/index.js";
 import type { PermissionKey } from "./permissions.js";
 import {
@@ -11,28 +19,118 @@ import {
   userHasPermission,
 } from "./rbac.service.js";
 
+type AccessPayload = { id: string; role: Role; typ: "access" };
+type ResetPayload = { userId: string; email: string; method: "account" | "recovery"; typ: "password_reset" };
+
 function jwtSecret() {
   return getEnv().JWT_SECRET;
 }
 
-export function setAuthCookie(res: Response, user: { id: string; role: Role }) {
-  const token = jwt.sign(user, jwtSecret(), { expiresIn: JWT_TTL_SECONDS });
-  res.cookie(AUTH_COOKIE_NAME, token, {
+function cookieBase() {
+  return {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: getEnv().COOKIE_SECURE,
-    maxAge: JWT_TTL_SECONDS * 1000,
     path: "/",
+  };
+}
+
+function hashRefreshToken(raw: string) {
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+export function setAccessCookie(res: Response, user: { id: string; role: Role }) {
+  const token = jwt.sign({ id: user.id, role: user.role, typ: "access" } satisfies AccessPayload, jwtSecret(), {
+    expiresIn: ACCESS_TTL_SECONDS,
+  });
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    ...cookieBase(),
+    maxAge: ACCESS_TTL_SECONDS * 1000,
   });
 }
 
-export function clearAuthCookie(res: Response) {
-  res.clearCookie(AUTH_COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: getEnv().COOKIE_SECURE,
-    path: "/",
+async function persistRefreshToken(userId: string) {
+  const raw = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + REFRESH_TTL_SECONDS * 1000);
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash: hashRefreshToken(raw),
+      expiresAt,
+    },
   });
+  return raw;
+}
+
+export async function issueSession(res: Response, user: { id: string; role: Role }) {
+  setAccessCookie(res, user);
+  const refresh = await persistRefreshToken(user.id);
+  res.cookie(REFRESH_COOKIE_NAME, refresh, {
+    ...cookieBase(),
+    maxAge: REFRESH_TTL_SECONDS * 1000,
+  });
+}
+
+/** Access cookie only — used when role changes mid-session. */
+export function setAuthCookie(res: Response, user: { id: string; role: Role }) {
+  setAccessCookie(res, user);
+}
+
+export async function rotateRefreshSession(res: Response, rawToken: string) {
+  const tokenHash = hashRefreshToken(rawToken);
+  const stored = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    include: { user: { select: { id: true, role: true, disabledAt: true } } },
+  });
+  if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now() || stored.user.disabledAt) {
+    throw new ApiError(401, "UNAUTHENTICATED", "Session expired. Please sign in again.");
+  }
+  await prisma.refreshToken.update({
+    where: { id: stored.id },
+    data: { revokedAt: new Date() },
+  });
+  await issueSession(res, stored.user);
+  return stored.user;
+}
+
+export async function clearSession(res: Response, rawToken?: string) {
+  if (rawToken) {
+    await prisma.refreshToken.updateMany({
+      where: { tokenHash: hashRefreshToken(rawToken), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+  res.clearCookie(AUTH_COOKIE_NAME, cookieBase());
+  res.clearCookie(REFRESH_COOKIE_NAME, cookieBase());
+}
+
+export function clearAuthCookie(res: Response) {
+  res.clearCookie(AUTH_COOKIE_NAME, cookieBase());
+  res.clearCookie(REFRESH_COOKIE_NAME, cookieBase());
+}
+
+export function signPasswordResetToken(input: {
+  userId: string;
+  email: string;
+  method: "account" | "recovery";
+}) {
+  return jwt.sign(
+    { ...input, typ: "password_reset" } satisfies ResetPayload,
+    jwtSecret(),
+    { expiresIn: RESET_TTL_SECONDS },
+  );
+}
+
+export function verifyPasswordResetToken(token: string): ResetPayload {
+  try {
+    const payload = jwt.verify(token, jwtSecret()) as ResetPayload;
+    if (payload.typ !== "password_reset" || !payload.userId || !payload.email) {
+      throw new Error("invalid");
+    }
+    return payload;
+  } catch {
+    throw new ApiError(401, "RESET_TOKEN_INVALID", "Invalid or expired reset token");
+  }
 }
 
 export const optionalAuth: RequestHandler = (req, _res, next) => {
@@ -42,7 +140,11 @@ export const optionalAuth: RequestHandler = (req, _res, next) => {
     return;
   }
   try {
-    const payload = jwt.verify(token, jwtSecret()) as { id: string; role: Role };
+    const payload = jwt.verify(token, jwtSecret()) as AccessPayload;
+    if (payload.typ && payload.typ !== "access") {
+      next();
+      return;
+    }
     req.user = { id: payload.id, role: payload.role };
   } catch {
     // Expired or invalid cookie is treated as anonymous.

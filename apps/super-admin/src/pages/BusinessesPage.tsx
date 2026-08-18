@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RejectPanel } from "../components/RejectPanel";
+import { EmptyList } from "../components/EmptyList";
 import { useAuth } from "../context/auth";
 import { api, hasPermission } from "../lib/api";
 import { flattenCategories } from "../lib/taxonomy";
@@ -153,7 +154,9 @@ export function BusinessesPage() {
         </table>
         {list.isLoading ? <p className="muted">Loading…</p> : null}
         {list.isError ? <p className="error">Failed to load businesses</p> : null}
-        {list.data && !list.data.items.length ? <p className="muted">No businesses match these filters.</p> : null}
+        {list.data && !list.data.items.length ? (
+          <EmptyList compact title="No businesses match these filters." />
+        ) : null}
       </div>
     </div>
   );

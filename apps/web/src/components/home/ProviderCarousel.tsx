@@ -2,6 +2,7 @@ import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Listing } from "../../lib/api";
+import { EmptyList } from "../EmptyList";
 import { ProviderCard } from "../ListingCard";
 
 export function ProviderCarousel({
@@ -56,7 +57,7 @@ export function ProviderCarousel({
                     <ProviderCard key={listing.id} listing={listing} className="w-[240px] shrink-0" />
                   ))
                 : (
-                    <p className="py-8 text-sm text-ink-soft">{empty ?? "Nothing to show here yet."}</p>
+                    <EmptyList compact className="min-w-full" title={empty ?? "Nothing to show here yet."} />
                   )}
           </div>
           {listings.length > 3 ? (

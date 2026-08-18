@@ -16,6 +16,7 @@ import { formSchemaVersion } from "../../shared/domain/composed-forms.js";
 import { slugify } from "../../shared/utils/index.js";
 import { assetsService } from "../assets/assets.service.js";
 import { authRepository } from "../auth/auth.repository.js";
+import { authService } from "../auth/auth.service.js";
 import { categoriesRepository } from "../categories/categories.repository.js";
 import { businessesRepository } from "./businesses.repository.js";
 import type { CreateBusinessInput, UpdateBusinessInput } from "./businesses.schemas.js";
@@ -56,6 +57,10 @@ export const businessesService = {
 
     if (!hours || Object.keys(hours).length === 0) {
       throw new ApiError(400, "HOURS_REQUIRED", "Business hours are required to submit a listing");
+    }
+    if (user.role !== Role.admin) {
+      const owner = await authRepository.findPublicById(user.id);
+      authService.assertEmailVerified(owner ?? {});
     }
 
     if (!(await categoriesRepository.categoryIsAssignable(categoryId))) {

@@ -34,7 +34,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={twMerge(
-        "min-h-12 w-full rounded-xl border border-line bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-black focus:ring-2 focus:ring-black/10",
+        "min-h-12 w-full rounded-xl border border-line bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-black focus:ring-2 focus:ring-black/10 aria-[invalid=true]:border-red-500",
         className,
       )}
       {...props}
@@ -46,7 +46,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={twMerge(
-        "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-black focus:ring-2 focus:ring-black/10",
+        "w-full rounded-xl border border-line bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-black focus:ring-2 focus:ring-black/10 aria-[invalid=true]:border-red-500",
         className,
       )}
       {...props}
@@ -58,7 +58,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   return (
     <select
       className={twMerge(
-        "min-h-12 w-full rounded-xl border border-line bg-white px-4 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10",
+        "min-h-12 w-full rounded-xl border border-line bg-white px-4 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10 aria-[invalid=true]:border-red-500",
         className,
       )}
       {...props}
@@ -69,17 +69,32 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
 export function Field({
   label,
   error,
+  required,
+  hint,
   children,
 }: {
   label: string;
   error?: string;
+  required?: boolean;
+  hint?: string;
   children: ReactNode;
 }) {
   return (
     <label className="grid gap-2 text-sm font-semibold">
-      {label}
+      <span>
+        {label}
+        {required ? (
+          <span className="ml-0.5 text-red-600" aria-hidden="true">
+            *
+          </span>
+        ) : null}
+      </span>
       {children}
-      {error ? <span className="text-xs font-normal text-red-700">{error}</span> : null}
+      {error ? (
+        <span className="text-xs font-normal text-red-700">{error}</span>
+      ) : hint ? (
+        <span className="text-xs font-normal text-ink-soft">{hint}</span>
+      ) : null}
     </label>
   );
 }

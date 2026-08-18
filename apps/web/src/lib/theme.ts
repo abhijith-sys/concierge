@@ -14,6 +14,7 @@ export type AppTheme = {
     logoMark: string;
     banner: string;
     backdrop: string;
+    emptyList: string;
   };
 };
 

@@ -3,6 +3,7 @@ import { ArrowRight, BadgeCheck, Check, MapPin, Star, Trash2 } from "lucide-reac
 import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApprovalBanner } from "../components/ApprovalBanner";
+import { EmptyList } from "../components/EmptyList";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
 import { WishlistButton } from "../components/WishlistButton";
@@ -512,7 +513,12 @@ export function BusinessDetail() {
               {deleteReview.isError ? <p className="mt-4 text-sm text-red-700">{deleteReview.error.message}</p> : null}
             </>
           ) : (
-            <p className="mt-6 text-sm text-ink-soft">No reviews yet. Be the first to share your experience.</p>
+            <EmptyList
+              compact
+              className="mt-2"
+              title="No reviews yet"
+              description="Be the first to share your experience."
+            />
           )}
         </div>
         <div>

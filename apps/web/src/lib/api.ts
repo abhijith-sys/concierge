@@ -9,6 +9,8 @@ export interface User {
   avatarUrl?: string | null;
   emailVerifiedAt?: string | null;
   phoneVerifiedAt?: string | null;
+  recoveryEmail?: string | null;
+  recoveryEmailVerifiedAt?: string | null;
   mfaEnabled?: boolean;
   permissions?: string[];
   roles?: string[];
@@ -235,10 +237,14 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly code?: string;
+  readonly fieldErrors?: Record<string, string>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string, fieldErrors?: Record<string, string>) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -247,7 +253,52 @@ function csrfToken() {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+const SKIP_REFRESH = /\/api\/auth\/(login|register|refresh|forgot-password|verify-reset-otp|reset-password)$/;
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function tryRefreshSession() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const token = csrfToken();
+      const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: token ? { "X-CSRF-Token": token } : {},
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+type ErrorBody = {
+  error?: string | { message?: string; code?: string; details?: { fieldErrors?: Record<string, string[] | string> } };
+  message?: string;
+};
+
+function readApiError(body: ErrorBody | null, status: number) {
+  const payload = body?.error;
+  const object = payload && typeof payload === "object" ? payload : null;
+  const message =
+    typeof payload === "string" ? payload : object?.message ?? body?.message ?? "Something went wrong.";
+  const fieldErrors: Record<string, string> = {};
+  const raw = object?.details?.fieldErrors;
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      const text = Array.isArray(value) ? value[0] : value;
+      if (text) fieldErrors[key] = text;
+    }
+  }
+  return new ApiError(message, status, object?.code, Object.keys(fieldErrors).length ? fieldErrors : undefined);
+}
+
+async function request<T>(path: string, init?: RequestInit, didRefresh = false): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   const mutating = method !== "GET" && method !== "HEAD";
   const token = csrfToken();
@@ -261,15 +312,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  if (response.status === 401 && !didRefresh && !SKIP_REFRESH.test(path)) {
+    const refreshed = await tryRefreshSession();
+    if (refreshed) return request<T>(path, init, true);
+  }
+
   if (response.status === 204) return undefined as T;
 
-  const body = (await response.json().catch(() => null)) as
-    | { error?: string | { message?: string }; message?: string }
-    | null;
+  const body = (await response.json().catch(() => null)) as ErrorBody | null;
   if (!response.ok) {
-    const errorMessage =
-      typeof body?.error === "string" ? body.error : body?.error?.message;
-    throw new ApiError(errorMessage ?? body?.message ?? "Something went wrong.", response.status);
+    throw readApiError(body, response.status);
   }
   return body as T;
 }
@@ -290,17 +342,62 @@ export const api = {
     const value = await request<{ user: User }>("/api/auth/me");
     return value.user;
   },
-  updateMe: async (input: { name?: string; phone?: string | null; avatarUrl?: string | null }) => {
+  updateMe: async (input: {
+    name?: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+    recoveryEmail?: string | null;
+  }) => {
     const value = await request<{ user: User }>("/api/auth/me", {
       method: "PATCH",
       body: JSON.stringify(input),
     });
     return value.user;
   },
-  requestOtp: (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; phone?: string }) =>
-    request<{ sent: boolean }>("/api/auth/otp/request", { method: "POST", body: JSON.stringify(input) }),
-  verifyOtp: async (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; code: string }) => {
+  requestOtp: (input: {
+    channel?: "email" | "sms";
+    purpose?: "register" | "login" | "change" | "reset" | "recovery";
+    phone?: string;
+  }) => request<{ sent: boolean }>("/api/auth/otp/request", { method: "POST", body: JSON.stringify(input) }),
+  verifyOtp: async (input: {
+    channel?: "email" | "sms";
+    purpose?: "register" | "login" | "change" | "reset" | "recovery";
+    code: string;
+  }) => {
     const value = await request<{ user: User }>("/api/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.user;
+  },
+  verifySignupOtp: async (code: string) => {
+    const value = await request<{ user: User }>("/api/auth/verify-signup-otp", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    return value.user;
+  },
+  resendSignupOtp: () => request<{ sent: boolean }>("/api/auth/resend-signup-otp", { method: "POST", body: "{}" }),
+  forgotPassword: (input: { email: string; method?: "account" | "recovery" }) =>
+    request<{ sent: boolean }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify(input) }),
+  verifyResetOtp: (input: { email: string; method?: "account" | "recovery"; code: string }) =>
+    request<{ resetToken: string }>("/api/auth/verify-reset-otp", { method: "POST", body: JSON.stringify(input) }),
+  resetPassword: (input: { email: string; method?: "account" | "recovery"; newPassword: string; resetToken: string }) =>
+    request<{ updated: boolean }>("/api/auth/reset-password", { method: "POST", body: JSON.stringify(input) }),
+  sendRecoveryEmailOtp: () =>
+    request<{ sent: boolean; alreadyVerified?: boolean }>("/api/auth/send-recovery-email-otp", {
+      method: "POST",
+      body: "{}",
+    }),
+  verifyRecoveryEmailOtp: async (code: string) => {
+    const value = await request<{ user: User }>("/api/auth/verify-recovery-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    return value.user;
+  },
+  changePassword: async (input: { currentPassword: string; newPassword: string }) => {
+    const value = await request<{ user: User }>("/api/auth/change-password", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -317,6 +414,7 @@ export const api = {
     name: string;
     email: string;
     phone?: string;
+    recoveryEmail?: string;
     password: string;
     role?: UserRole;
   }) => {
