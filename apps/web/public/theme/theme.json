@@ -1,0 +1,16 @@
+{
+  "name": "DialGo",
+  "shortName": "DialGo",
+  "tagline": "Exceptional service, carefully found",
+  "description": "Discover verified businesses, exceptional places, and trusted experts with DialGo.",
+  "legalName": "DialGo Digital Services",
+  "themeColor": "#ffffff",
+  "logoIncludesWordmark": false,
+  "assets": {
+    "favicon": "/theme/favicon.svg",
+    "logo": "/theme/logo.svg",
+    "logoMark": "/theme/logo-mark.svg",
+    "banner": "/theme/banner.svg",
+    "backdrop": "/theme/backdrop.json"
+  }
+}

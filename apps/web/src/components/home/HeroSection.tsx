@@ -2,11 +2,13 @@ import { ArrowRight } from "lucide-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Category } from "../../lib/api";
+import { theme } from "../../lib/theme";
 import { SafeImage } from "../SafeImage";
+import { ThemeBackdrop } from "../ThemeBackdrop";
 import { PopularSearches } from "./PopularSearches";
 import { SearchBar } from "./SearchBar";
 
-const heroImage = "/assets/concierge-architectural-hero.jpg";
+const cardFallback = theme.assets.banner;
 
 function categoryCopy(category: Category) {
   return category.description?.trim() || "Verified partners selected for quality.";
@@ -57,20 +59,12 @@ export function HeroSection({
           <PopularSearches categories={popularSearches} />
         </div>
 
-        <div className="relative min-h-[260px] overflow-hidden rounded-[1.75rem] lg:min-h-[340px]">
-          <SafeImage
-            src={heroImage}
-            alt="A considered living space with natural materials"
-            width={960}
-            height={720}
-            loading="eager"
-            fetchPriority="high"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+        <div className="relative min-h-[260px] overflow-hidden rounded-[1.75rem] border border-line bg-white lg:min-h-[340px]">
+          <ThemeBackdrop className="pointer-events-none absolute inset-0 h-full w-full" />
           <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2.5 p-3 md:p-4">
             {categoriesLoading
               ? Array.from({ length: 4 }, (_, index) => (
-                  <div key={index} className="animate-pulse rounded-2xl bg-white/50" />
+                  <div key={index} className="animate-pulse rounded-2xl bg-surface-high" />
                 ))
               : heroTiles.map((category) => (
                   <Link
@@ -79,7 +73,7 @@ export function HeroSection({
                     className="group relative flex flex-col justify-between overflow-hidden rounded-2xl p-3 shadow-lg"
                   >
                     <SafeImage
-                      src={category.imageUrl || heroImage}
+                      src={category.imageUrl || cardFallback}
                       alt=""
                       width={480}
                       height={280}

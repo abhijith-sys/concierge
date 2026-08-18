@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrandHead } from "./components/BrandHead";
 import { Layout } from "./components/Layout";
 import { PageState } from "./components/ui";
 import { lazyWithReload } from "./lib/lazyWithReload";
@@ -96,6 +97,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <BrandHead />
       <AppRoutes />
     </BrowserRouter>
   );

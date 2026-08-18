@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { getEnv } from "../../config/env.js";
 import { ApiError } from "../../shared/errors/index.js";
+import { brand } from "../../shared/brand.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { SmsService } from "../../shared/integrations/sms.js";
 import { generateOtpCode, hashOtp } from "../../shared/integrations/storage.js";
@@ -30,7 +31,7 @@ export const authService = {
     });
     void EmailService.send({
       to: user.email,
-      subject: "Welcome to Concierge",
+      subject: `Welcome to ${brand.name}`,
       body: `Welcome, ${user.name}. Verify your email to continue.`,
     });
     return authRepository.withAccess(user);
@@ -95,19 +96,19 @@ export const authService = {
     if (input.channel === "email") {
       await EmailService.send({
         to: user.email,
-        subject: "Your Concierge verification code",
+        subject: `Your ${brand.name} verification code`,
         body: `Your verification code is ${code}. It expires in 10 minutes.`,
       });
     } else {
       const phone = input.phone ?? user.phone!;
       try {
-        await SmsService.send(phone, `Concierge code: ${code}`);
+        await SmsService.send(phone, `${brand.name} code: ${code}`);
       } catch {
         // Local stub logs via email adapter fallback for developer visibility.
         await EmailService.send({
           to: user.email,
-          subject: "[SMS stub] Concierge verification code",
-          body: `SMS to ${phone}: Concierge code ${code}`,
+          subject: `[SMS stub] ${brand.name} verification code`,
+          body: `SMS to ${phone}: ${brand.name} code ${code}`,
         });
       }
     }

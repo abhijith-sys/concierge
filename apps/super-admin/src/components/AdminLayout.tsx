@@ -2,6 +2,7 @@ import { Children, type ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/auth";
 import { hasPermission } from "../lib/api";
+import { useBrand } from "../lib/theme";
 
 function NavGroup({ label, children }: { label: string; children: ReactNode }) {
   const items = Children.toArray(children).filter(Boolean);
@@ -16,11 +17,15 @@ function NavGroup({ label, children }: { label: string; children: ReactNode }) {
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
+  const brand = useBrand();
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <h1>Concierge Admin</h1>
+        <h1>
+          <img src="/theme/logo-mark.svg" alt="" width={22} height={22} style={{ marginRight: "0.45rem", verticalAlign: "middle" }} />
+          {brand.name} Admin
+        </h1>
         <NavLink to="/" end>
           Dashboard
         </NavLink>

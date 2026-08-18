@@ -8,6 +8,7 @@ import { useAuth } from "../context/useAuth";
 import { api, type Business } from "../lib/api";
 import { isProvider } from "../lib/provider";
 import { businessStatus, StatusBadge } from "../lib/status";
+import { theme } from "../lib/theme";
 
 export function ProviderDashboard() {
   const { user, isLoading } = useAuth();
@@ -50,12 +51,12 @@ export function ProviderDashboard() {
 
       {pending.length ? (
         <ApprovalBanner tone="pending" title="A profile is waiting for review">
-          The shop stays hidden until Concierge activates it. You can still add items; they stay in verification.
+          The shop stays hidden until {theme.name} activates it. You can still add items; they stay in verification.
         </ApprovalBanner>
       ) : null}
       {suspended.map((business) => (
         <ApprovalBanner key={business.id} tone="suspended" title={`${business.name} is disabled by admin`}>
-          This shop is hidden from search until Concierge restores it.
+          This shop is hidden from search until {theme.name} restores it.
         </ApprovalBanner>
       ))}
       {rejected.map((business) => (

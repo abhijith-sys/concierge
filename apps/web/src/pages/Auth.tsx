@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button, Field, Input } from "../components/ui";
 import { useAuth } from "../context/useAuth";
+import { theme } from "../lib/theme";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email."),
@@ -32,11 +33,12 @@ function AuthShell({
 }) {
   return (
     <section className="page-shell grid min-h-[75vh] items-center gap-12 py-14 lg:grid-cols-2">
-      <div className="hidden min-h-[580px] flex-col justify-end overflow-hidden rounded-[2rem] bg-navy p-12 text-white lg:flex">
+      <div className="relative hidden min-h-[580px] flex-col justify-end overflow-hidden rounded-[2rem] bg-navy p-12 text-white lg:flex">
+        <img src={theme.assets.banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="auth-glow" />
         <div className="relative z-10">
           <ShieldCheck className="mb-6 size-10 text-gold-light" />
-          <p className="label-caps text-gold-light">Concierge membership</p>
+          <p className="label-caps text-gold-light">{theme.name} membership</p>
           <h2 className="mt-5 max-w-lg text-5xl font-bold leading-tight tracking-[-.04em]">A trusted network for exceptional decisions.</h2>
           <p className="mt-5 max-w-md leading-7 text-white/65">Save discoveries, share considered reviews, or introduce your business to discerning clients.</p>
         </div>
@@ -60,7 +62,7 @@ export function Login() {
   if (user) return <Navigate to={destination} replace />;
 
   return (
-    <AuthShell eyebrow="Welcome back" title="Sign in to Concierge" copy="Continue to your account and trusted recommendations.">
+    <AuthShell eyebrow="Welcome back" title={`Sign in to ${theme.name}`} copy="Continue to your account and trusted recommendations.">
       <form
         className="grid gap-5"
         onSubmit={form.handleSubmit(async (values) => {
@@ -77,7 +79,7 @@ export function Login() {
         {form.formState.errors.root ? <p className="text-sm text-red-700">{form.formState.errors.root.message}</p> : null}
         <Button type="submit" className="mt-1 w-full" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4" /></>}</Button>
       </form>
-      <p className="mt-7 text-center text-sm text-ink-soft">New to Concierge? <Link to="/register" state={{ from: destination }} className="font-bold text-black underline">Create an account</Link></p>
+      <p className="mt-7 text-center text-sm text-ink-soft">New to {theme.name}? <Link to="/register" state={{ from: destination }} className="font-bold text-black underline">Create an account</Link></p>
     </AuthShell>
   );
 }

@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { Button, PageState, Select } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type AttachmentPurpose } from "../lib/api";
+import { theme } from "../lib/theme";
 
 type PhotoKey =
   | "ownerPhotoUrl"
@@ -99,7 +100,7 @@ export function Verification() {
       <h1 className="mt-3 text-4xl font-bold tracking-tight">Identity verification</h1>
       <p className="mt-4 max-w-2xl text-sm leading-6 text-ink-soft">
         Upload owner, location, storefront, document, and selfie photos. Files are stored as private
-        assets attached to your verification submission — only you and Concierge admins can access them.
+        assets attached to your verification submission — only you and {theme.name} admins can access them.
       </p>
 
       <div className="mt-8 max-w-md">

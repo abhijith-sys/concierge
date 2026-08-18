@@ -8,13 +8,14 @@ import { Button, PageState, Textarea } from "../components/ui";
 import { WishlistButton } from "../components/WishlistButton";
 import { useAuth } from "../context/useAuth";
 import { api, type FieldValue, type Listing, type Service } from "../lib/api";
+import { theme } from "../lib/theme";
 import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
 import { formatListingPrice } from "../lib/pricing";
 import { isSupplierListing } from "../lib/listing-kind";
 import { lazyWithReload } from "../lib/lazyWithReload";
 
 const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
-const fallbackHero = "/assets/concierge-architectural-hero.jpg";
+const fallbackHero = theme.assets.banner;
 
 function displayValue(value: unknown) {
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -391,7 +392,7 @@ export function BusinessDetail() {
             <p className="mt-6 max-w-md text-sm leading-7 text-white/65">
               {isMaterialsCatalog
                 ? "From quarry reservation to climate-controlled delivery, we coordinate procurement for architects, developers, and interior houses that cannot wait on standard lead times."
-                : `Share the scope, timeline, and materials you need. ${profile.name} will follow up directly — Concierge does not sit in the middle of the conversation.`}
+                : `Share the scope, timeline, and materials you need. ${profile.name} will follow up directly — ${theme.name} does not sit in the middle of the conversation.`}
             </p>
             <ul className="mt-10 grid gap-4">
               {(isMaterialsCatalog
@@ -483,7 +484,7 @@ export function BusinessDetail() {
                   <article key={review.id} className="rounded-xl border border-line p-6">
                     <div className="flex justify-between gap-4">
                       <div>
-                        <strong>{review.user?.name ?? "Concierge member"}</strong>
+                        <strong>{review.user?.name ?? `${theme.name} member`}</strong>
                         <div className="mt-1 flex gap-0.5">
                           {Array.from({ length: 5 }, (_, index) => (
                             <Star
@@ -518,7 +519,7 @@ export function BusinessDetail() {
           {canReview ? (
             <form onSubmit={submitReview} className="rounded-xl bg-black p-7 text-white md:p-9">
               <h2 className="text-2xl font-semibold">Share your experience</h2>
-              <p className="mt-2 text-sm text-white/65">Your review helps the Concierge community choose confidently.</p>
+              <p className="mt-2 text-sm text-white/65">Your review helps the {theme.name} community choose confidently.</p>
               <div className="mt-6 flex gap-2" aria-label="Rating">
                 {Array.from({ length: 5 }, (_, index) => (
                   <button key={index} type="button" onClick={() => setRating(index + 1)} aria-label={`${index + 1} stars`}>
@@ -593,7 +594,7 @@ function buildLegacyStats({
   if (emergency?.value) {
     stats.push({ value: displayValue(emergency.value), label: "Support Turnaround" });
   } else if (verified) {
-    stats.push({ value: "Yes", label: "Concierge verified" });
+    stats.push({ value: "Yes", label: `${theme.name} verified` });
   } else {
     stats.push({ value: Number(rating ?? 0).toFixed(1), label: "Average rating" });
   }

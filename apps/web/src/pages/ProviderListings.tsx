@@ -17,6 +17,7 @@ import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/cat
 import { listingKind as marketplaceKindOf } from "../lib/listing-kind";
 import { isProvider } from "../lib/provider";
 import { businessStatus, canAddItems, StatusBadge } from "../lib/status";
+import { theme } from "../lib/theme";
 
 const PRICING_TYPES = [
   { value: "fixed", label: "Fixed price" },
@@ -195,7 +196,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
 
       {selected?.status === "pending" ? (
         <ApprovalBanner tone="pending" title={`${selected.name} is waiting for review`}>
-          You can add items now. They stay in verification until Concierge approves them.
+          You can add items now. They stay in verification until {theme.name} approves them.
         </ApprovalBanner>
       ) : null}
       {selected?.status === "suspended" ? (
@@ -406,12 +407,12 @@ function BusinessItemsPage({
 
       {business.status === "pending" ? (
         <ApprovalBanner tone="pending" title={`${business.name} is waiting for review`}>
-          You can add items now. They stay in verification until Concierge approves them.
+          You can add items now. They stay in verification until {theme.name} approves them.
         </ApprovalBanner>
       ) : null}
       {business.status === "suspended" ? (
         <ApprovalBanner tone="suspended" title={`${business.name} is disabled by admin`}>
-          This shop is hidden until Concierge restores it.
+          This shop is hidden until {theme.name} restores it.
         </ApprovalBanner>
       ) : null}
       {business.status === "rejected" ? (
