@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ApprovalBanner } from "../components/ApprovalBanner";
 import {
   DynamicForm,
@@ -9,15 +10,17 @@ import {
   valuesFromFieldValues,
   type FieldValueMap,
 } from "../components/CategoryFieldsEditor";
+import { EmptyList } from "../components/EmptyList";
 import { ProviderListingsTable } from "../components/ProviderListingsTable";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { api, type Business, type Service } from "../lib/api";
+import { ApiError, api, type Business, type Service } from "../lib/api";
 import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/category-tree";
 import { listingKind as marketplaceKindOf } from "../lib/listing-kind";
 import { isProvider } from "../lib/provider";
 import { businessStatus, canAddItems, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
+import { firstFormError, isFieldRequired, validateForm, type FieldKey } from "../lib/validation";
 
 const PRICING_TYPES = [
   { value: "fixed", label: "Fixed price" },
@@ -75,6 +78,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     pricingType: "fixed",
   });
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const seededFor = useRef("");
 
   const listingCategoryId = assignedCategoryId(mainId, subId, categories.data ?? []);
@@ -145,7 +149,11 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["services", selected?.id] });
       await queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+      toast.success(editing ? "Listing saved." : "Listing submitted for review.");
       navigate(selected ? `/provider/listings?business=${selected.id}` : "/provider");
+    },
+    onError: (error) => {
+      toast.error(error instanceof ApiError ? error.message : "Unable to save this listing.");
     },
   });
 
@@ -154,7 +162,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (!isProvider(user) && !businesses.length) {
-    return <Navigate to="/list-business" replace />;
+    return <Navigate to="/provider" replace />;
   }
   if (!formMode) {
     if (!selected) return <Navigate to="/provider" replace />;
@@ -177,6 +185,24 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!selected) return;
+    const extra: FieldKey[] = subcategoryOptions.length ? ["subcategoryId"] : [];
+    const nextErrors = validateForm(
+      "listing",
+      {
+        categoryId: mainId,
+        subcategoryId: subId,
+        listingName: form.name,
+        price: form.price,
+        pricingType: form.pricingType,
+        listingDescription: form.description,
+      },
+      extra,
+    );
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      toast.error(firstFormError(nextErrors) ?? "Please fix the highlighted fields.");
+      return;
+    }
     save.mutate();
   }
 
@@ -212,7 +238,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
 
       {mine.isLoading ? <PageState title="Loading businesses" loading /> : null}
       {!businesses.length && !mine.isLoading ? (
-        <PageState
+        <EmptyList
           title="Create a business profile first"
           description="You need a provider profile before adding listings."
           action={
@@ -262,14 +288,15 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
             onSubmit={submit}
             className="mt-10 grid gap-5 rounded-3xl border border-line bg-white p-6 md:grid-cols-2 md:p-9"
           >
-            <Field label="Category">
+            <Field label="Category" error={errors.categoryId} required={isFieldRequired("categoryId")}>
               <Select
                 value={mainId}
                 onChange={(event) => {
                   setMainId(event.target.value);
                   setSubId("");
+                  setErrors((current) => ({ ...current, categoryId: undefined, subcategoryId: undefined }));
                 }}
-                required
+                aria-invalid={Boolean(errors.categoryId)}
               >
                 <option value="">Select category</option>
                 {categories.data
@@ -286,8 +313,15 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
               </Select>
             </Field>
             {subcategoryOptions.length ? (
-              <Field label="Subcategory">
-                <Select value={subId} onChange={(event) => setSubId(event.target.value)} required>
+              <Field label="Subcategory" error={errors.subcategoryId} required={isFieldRequired("subcategoryId")}>
+                <Select
+                  value={subId}
+                  onChange={(event) => {
+                    setSubId(event.target.value);
+                    setErrors((current) => ({ ...current, subcategoryId: undefined }));
+                  }}
+                  aria-invalid={Boolean(errors.subcategoryId)}
+                >
                   <option value="">Select subcategory</option>
                   {subcategoryOptions.map(({ category, label }) => (
                     <option key={category.id} value={category.id}>
@@ -297,26 +331,33 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 </Select>
               </Field>
             ) : null}
-            <Field label="Listing name">
+            <Field label="Listing name" error={errors.listingName} required={isFieldRequired("listingName")}>
               <Input
                 value={form.name}
-                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, name: event.target.value }));
+                  setErrors((current) => ({ ...current, listingName: undefined }));
+                }}
+                aria-invalid={Boolean(errors.listingName)}
               />
             </Field>
-            <Field label="Starting price">
+            <Field label="Starting price" error={errors.price} required={isFieldRequired("price")}>
               <Input
                 type="number"
                 min="0"
                 value={form.price}
-                onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, price: event.target.value }));
+                  setErrors((current) => ({ ...current, price: undefined }));
+                }}
+                aria-invalid={Boolean(errors.price)}
               />
             </Field>
-            <Field label="Pricing type">
+            <Field label="Pricing type" error={errors.pricingType} required={isFieldRequired("pricingType")}>
               <Select
                 value={form.pricingType}
                 onChange={(event) => setForm((current) => ({ ...current, pricingType: event.target.value }))}
+                aria-invalid={Boolean(errors.pricingType)}
               >
                 {PRICING_TYPES.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -326,13 +367,15 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
               </Select>
             </Field>
             <div className="md:col-span-2">
-              <Field label="Description">
+              <Field label="Description" error={errors.listingDescription} required={isFieldRequired("listingDescription")}>
                 <Textarea
                   rows={5}
-                  minLength={10}
                   value={form.description}
-                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                  required
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, description: event.target.value }));
+                    setErrors((current) => ({ ...current, listingDescription: undefined }));
+                  }}
+                  aria-invalid={Boolean(errors.listingDescription)}
                 />
               </Field>
             </div>

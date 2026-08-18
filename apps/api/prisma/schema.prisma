@@ -30,6 +30,8 @@ enum OtpPurpose {
   register
   login
   change
+  reset
+  recovery
 }
 
 enum VerificationStatus {
@@ -117,29 +119,33 @@ enum CategoryKind {
 }
 
 model User {
-  id              String                  @id @default(uuid()) @db.Uuid
-  name            String
-  email           String                  @unique
-  phone           String?
-  passwordHash    String
-  role            Role                    @default(user)
-  emailVerifiedAt DateTime?
-  phoneVerifiedAt DateTime?
-  avatarUrl       String?
-  mfaEnabled      Boolean                 @default(false)
-  disabledAt      DateTime?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-  businesses      Business[]
-  reviews         Review[]
-  otpChallenges   VerificationChallenge[]
-  auditLogs       AuditLog[]              @relation("AuditActor")
-  userRoles       UserRole[]
-  assignedRoles   UserRole[]              @relation("RoleAssigner")
-  uploadedAssets  Asset[]                 @relation("AssetUploader")
-  wishlistItems   WishlistItem[]
+  id                        String                  @id @default(uuid()) @db.Uuid
+  name                      String
+  email                     String                  @unique
+  phone                     String?
+  passwordHash              String
+  role                      Role                    @default(user)
+  emailVerifiedAt           DateTime?
+  phoneVerifiedAt           DateTime?
+  recoveryEmail             String?
+  recoveryEmailVerifiedAt   DateTime?
+  avatarUrl                 String?
+  mfaEnabled                Boolean                 @default(false)
+  disabledAt                DateTime?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  businesses                Business[]
+  reviews                   Review[]
+  otpChallenges             VerificationChallenge[]
+  refreshTokens             RefreshToken[]
+  auditLogs                 AuditLog[]              @relation("AuditActor")
+  userRoles                 UserRole[]
+  assignedRoles             UserRole[]              @relation("RoleAssigner")
+  uploadedAssets            Asset[]                 @relation("AssetUploader")
+  wishlistItems             WishlistItem[]
 
   @@index([role])
+  @@index([recoveryEmail])
 }
 
 /// RBAC permission catalog (stable string keys).
@@ -202,6 +208,19 @@ model VerificationChallenge {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, channel, purpose])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 

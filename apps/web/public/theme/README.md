@@ -11,6 +11,7 @@ Replace files in this folder to rebrand the app. Restart the dev server (or rebu
 | `logo.svg` | Full logo (used when `logoIncludesWordmark` is `true`) |
 | `banner.svg` | Listings fallback and auth panel background |
 | `backdrop.json` | Home hero Lottie animation behind the category tiles |
+| `animated/empty-list.json` | Shared empty-list Lottie (astronaut) |
 
 PNG or JPG is fine — drop the file here and update the matching path in `theme.json`.
 

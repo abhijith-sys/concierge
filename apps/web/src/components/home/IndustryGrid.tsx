@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Category } from "../../lib/api";
 import { iconForCategory } from "../../lib/category-icon";
+import { EmptyList } from "../EmptyList";
 import { SafeImage } from "../SafeImage";
 
 export function IndustryCard({ category }: { category: Category }) {
@@ -54,7 +55,13 @@ export function IndustryGrid({
             ? Array.from({ length: 8 }, (_, index) => (
                 <div key={index} className="h-32 animate-pulse rounded-2xl bg-surface-high md:h-36" />
               ))
-            : categories.map((category) => <IndustryCard key={category.id} category={category} />)}
+            : categories.length
+              ? categories.map((category) => <IndustryCard key={category.id} category={category} />)
+              : (
+                  <div className="col-span-full">
+                    <EmptyList compact title="No categories yet" description="Explore the directory to get started." />
+                  </div>
+                )}
         </div>
       </div>
     </section>

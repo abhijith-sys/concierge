@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ApprovalBanner } from "../components/ApprovalBanner";
+import { EmptyList } from "../components/EmptyList";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Business } from "../lib/api";
-import { isProvider } from "../lib/provider";
 import { businessStatus, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
 
@@ -23,9 +23,6 @@ export function ProviderDashboard() {
     return <PageState title="Loading" loading />;
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (!isProvider(user) && !mine.data?.length) {
-    return <Navigate to="/list-business" replace />;
-  }
 
   const businesses = mine.data ?? [];
   const pending = businesses.filter((business) => business.status === "pending");
@@ -74,7 +71,7 @@ export function ProviderDashboard() {
       ) : null}
 
       {!mine.isError && !businesses.length ? (
-        <PageState
+        <EmptyList
           title="Add your first business"
           description="Create a business profile, then list items from that shop."
           action={

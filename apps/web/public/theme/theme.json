@@ -11,6 +11,7 @@
     "logo": "/theme/logo.svg",
     "logoMark": "/theme/logo-mark.svg",
     "banner": "/theme/banner.svg",
-    "backdrop": "/theme/backdrop.json"
+    "backdrop": "/theme/backdrop.json",
+    "emptyList": "/theme/animated/empty-list.json"
   }
 }

@@ -8,6 +8,7 @@ import {
   payloadFromDraft,
   type CategoryDraft,
 } from "../components/CategoryEditorForm";
+import { EmptyList } from "../components/EmptyList";
 import { ApiError, api, hasPermission } from "../lib/api";
 import { findCategory, isPlatform, slugifyName } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
@@ -280,7 +281,7 @@ export function CategoryDetailPage() {
                 </div>
               </div>
             ))}
-            {children.length === 0 ? <p className="muted">No subcategories yet.</p> : null}
+            {children.length === 0 ? <EmptyList compact title="No subcategories yet." /> : null}
           </div>
         </>
       ) : null}

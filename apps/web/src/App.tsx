@@ -14,6 +14,14 @@ const BusinessDetail = lazyWithReload(
 );
 const Login = lazyWithReload(() => import("./pages/Auth"), (module) => module.Login);
 const Register = lazyWithReload(() => import("./pages/Auth"), (module) => module.Register);
+const VerifyEmail = lazyWithReload(
+  () => import("./pages/VerifyEmail"),
+  (module) => module.VerifyEmail,
+);
+const ForgotPassword = lazyWithReload(
+  () => import("./pages/ForgotPassword"),
+  (module) => module.ForgotPassword,
+);
 const ListBusiness = lazyWithReload(
   () => import("./pages/ListBusiness"),
   (module) => module.ListBusiness,
@@ -65,6 +73,8 @@ function AppRoutes() {
           <Route path="business/:slug/edit" element={<EditBusiness />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
+          <Route path="verify-email" element={<VerifyEmail />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="account" element={<Account />} />
           <Route path="wishlist" element={<Wishlist />} />
           <Route path="list-business" element={<ListBusiness />} />

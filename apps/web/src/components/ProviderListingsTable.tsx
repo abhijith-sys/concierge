@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api, type Business, type Service } from "../lib/api";
 import { canAddItems, listingStatus, StatusBadge } from "../lib/status";
+import { EmptyList } from "./EmptyList";
 import { Button } from "./ui";
 
 export function ProviderListingsTable({
@@ -118,9 +119,12 @@ export function ProviderListingsTable({
             })
           ) : (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-ink-soft">
-                No items yet{business ? ` for ${business.name}` : ""}.
-                {business && canAddItems(business) ? " Use Add item to create one." : ""}
+              <td colSpan={5}>
+                <EmptyList
+                  compact
+                  title={`No items yet${business ? ` for ${business.name}` : ""}`}
+                  description={business && canAddItems(business) ? "Use Add item to create one." : undefined}
+                />
               </td>
             </tr>
           )}

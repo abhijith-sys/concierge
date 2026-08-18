@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { EmptyList } from "../components/EmptyList";
 import { ApiError, api, hasPermission, type Category, type CategoryField } from "../lib/api";
 import { findCategory, isPlatform, keyFromLabel } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
@@ -418,7 +419,7 @@ function LayerTable({
           ))}
         </tbody>
       </table>
-      {fields.length === 0 ? <p className="muted">No fields in this layer.</p> : null}
+      {fields.length === 0 ? <EmptyList compact title="No fields in this layer." /> : null}
     </div>
   );
 }

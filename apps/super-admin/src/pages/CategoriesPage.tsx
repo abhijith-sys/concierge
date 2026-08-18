@@ -7,6 +7,7 @@ import {
   payloadFromDraft,
   type CategoryDraft,
 } from "../components/CategoryEditorForm";
+import { EmptyList } from "../components/EmptyList";
 import { ApiError, api, hasPermission, type Category } from "../lib/api";
 import { isPlatform, slugifyName } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
@@ -134,7 +135,10 @@ export function CategoriesPage() {
       {categories.isLoading ? <p className="muted">Loading…</p> : null}
       {categories.isError ? <p className="error">Failed to load categories</p> : null}
       {!categories.isLoading && roots.length === 0 ? (
-        <p className="muted">No main categories yet. Use Add main category to create the first one.</p>
+        <EmptyList
+          title="No main categories yet"
+          description="Use Add main category to create the first one."
+        />
       ) : null}
 
       {roots.map((category) => {
@@ -246,9 +250,7 @@ export function CategoriesPage() {
                   ))}
                 </div>
               ) : (
-                <p className="muted" style={{ margin: 0 }}>
-                  No subcategories yet.
-                </p>
+                <EmptyList compact title="No subcategories yet" />
               )
             ) : null}
           </article>

@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { EmptyList } from "../components/EmptyList";
 import { ListingCard } from "../components/ListingCard";
 import { SafeImage } from "../components/SafeImage";
 import { Button, Input, PageState, Select } from "../components/ui";
 import { api } from "../lib/api";
 import { theme } from "../lib/theme";
-import { AllCategoriesIcon, iconForCategory } from "../lib/category-icon";
+import { iconForCategory } from "../lib/category-icon";
 import { recordExploredCategory, setSavedCity } from "../lib/discovery";
 import {
   categoryKind,
@@ -38,12 +39,21 @@ export function Listings() {
   });
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
 
+  const browseMainFromTree = categories.data?.find((main) => {
+    if (main.slug === categorySlug) return true;
+    return (main.children ?? []).some(
+      (child) =>
+        child.slug === categorySlug ||
+        (child.children ?? []).some((nested) => nested.slug === categorySlug),
+    );
+  });
+  const browseMain = browseMainFromTree ?? (category.data?.parent ? parentCategory.data : category.data);
   const leafKind = category.data?.parent ? categoryKind(category.data) : undefined;
-  const mixedMain = Boolean(category.data && !category.data.parent && mixedKindChildren(category.data));
-  const mainKind = category.data && !category.data.parent && !mixedMain ? categoryKind(category.data) : undefined;
+  const mixedMain = Boolean(browseMain && mixedKindChildren(browseMain));
+  const mainKind = browseMain && !mixedMain ? categoryKind(browseMain) : undefined;
   const defaultKind: MarketplaceKind = leafKind ?? (mixedMain ? "supplier" : mainKind) ?? "supplier";
   const selectedKind = leafKind ?? (params.get("kind") as MarketplaceKind | null) ?? defaultKind;
-  const showKindTabs = !leafKind && (mixedMain || !categorySlug);
+  const showKindTabs = Boolean(mixedMain || !categorySlug);
   requestParams.set("kind", selectedKind);
 
   if (categorySlug) {
@@ -81,11 +91,7 @@ export function Listings() {
     queryKey: ["search", requestParams.toString()],
     queryFn: () => api.search(requestParams),
   });
-  const subcategoryChips = sortSupplierFirst(
-    category.data?.children?.length
-      ? category.data.children
-      : (parentCategory.data?.children ?? []),
-  ).filter((child) => {
+  const subcategoryChips = sortSupplierFirst(browseMain?.children ?? []).filter((child) => {
     if (!showKindTabs) return true;
     return categoryKind(child) === selectedKind;
   });
@@ -103,10 +109,28 @@ export function Listings() {
       ? "Licensed tradespeople ready to take the job."
       : "Shops and wholesalers selling bulk, by order, or single piece at trade rates.");
 
-  function goToCategory(slug: string) {
+  function listingsPath(slug: string, patch?: Record<string, string>) {
     const next = new URLSearchParams(params);
     next.delete("page");
-    navigate(slug ? `/listings/${slug}?${next.toString()}` : `/listings?${next.toString()}`);
+    if (patch) {
+      for (const [key, value] of Object.entries(patch)) next.set(key, value);
+    }
+    const queryString = next.toString();
+    const path = slug ? `/listings/${slug}` : "/listings";
+    return queryString ? `${path}?${queryString}` : path;
+  }
+
+  function goToCategory(slug: string) {
+    navigate(listingsPath(slug));
+  }
+
+  function selectKind(kind: MarketplaceKind) {
+    const parentSlug = category.data?.parent?.slug;
+    if (parentSlug) {
+      navigate(listingsPath(parentSlug, { kind }));
+      return;
+    }
+    updateParam("kind", kind);
   }
 
   function submit(event: FormEvent) {
@@ -128,26 +152,48 @@ export function Listings() {
 
   return (
     <div className="page-shell py-10">
+      {showKindTabs ? (
+        <div className="mb-6 flex justify-center">
+          <div
+            role="tablist"
+            aria-label="Listing type"
+            className="inline-grid grid-cols-2 rounded-xl bg-surface-low p-1"
+          >
+            {(["supplier", "service"] as const).map((kind) => {
+              const active = selectedKind === kind;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectKind(kind)}
+                  className={`min-w-[10.5rem] rounded-lg px-5 py-2.5 text-sm font-bold tracking-tight transition ${
+                    active
+                      ? "bg-white text-navy shadow-sm"
+                      : "text-ink-soft hover:text-navy"
+                  }`}
+                >
+                  {kind === "supplier" ? "Shops & sellers" : "Service professionals"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {subcategoryChips.length ? (
         <div className="mb-5 flex flex-wrap gap-2">
-          {category.data?.parent ? (
-            <Link
-              to={`/listings/${category.data.parent.slug}`}
-              className="inline-flex items-center gap-2.5 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-4 text-sm font-semibold transition hover:border-black hover:shadow-sm"
-            >
-              <span className="grid size-9 place-items-center rounded-full bg-surface-high text-ink">
-                <AllCategoriesIcon className="size-4" />
-              </span>
-              All {category.data.parent.name}
-            </Link>
-          ) : null}
           {subcategoryChips.map((child) => {
             const Icon = iconForCategory(child.icon, child.slug);
             const active = child.slug === categorySlug;
             return (
               <Link
                 key={child.id}
-                to={`/listings/${child.slug}`}
+                to={
+                  active && browseMain
+                    ? listingsPath(browseMain.slug, { kind: selectedKind })
+                    : listingsPath(child.slug, { kind: categoryKind(child) })
+                }
                 className={`inline-flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-semibold transition ${
                   active
                     ? "bg-navy text-white shadow-sm"
@@ -171,22 +217,6 @@ export function Listings() {
               </Link>
             );
           })}
-        </div>
-      ) : null}
-      {showKindTabs ? (
-        <div className="mb-5 flex flex-wrap gap-2">
-          {(["supplier", "service"] as const).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => updateParam("kind", kind)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                selectedKind === kind ? "bg-navy text-white" : "border border-line bg-white hover:border-black"
-              }`}
-            >
-              {kind === "supplier" ? "Shops & sellers" : "Service professionals"}
-            </button>
-          ))}
         </div>
       ) : null}
       <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] bg-navy">
@@ -297,7 +327,7 @@ export function Listings() {
           ) : results.isError ? (
             <PageState title="We couldn't load listings" description="Check that the API is running, then try again." action={<Button onClick={() => void results.refetch()}>Try again</Button>} />
           ) : results.data?.items.length === 0 ? (
-            <PageState title="No matches yet" description="Try broadening your filters or searching another city." action={<Button onClick={() => setParams(new URLSearchParams())}>Clear filters</Button>} />
+            <EmptyList title="No matches yet" description="Try broadening your filters or searching another city." action={<Button onClick={() => setParams(new URLSearchParams())}>Clear filters</Button>} />
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">

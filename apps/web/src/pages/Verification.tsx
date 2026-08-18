@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
+import { EmptyList } from "../components/EmptyList";
 import { Button, PageState, Select } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type AttachmentPurpose } from "../lib/api";
@@ -115,7 +116,7 @@ export function Verification() {
       </div>
 
       {!selectedId ? (
-        <PageState
+        <EmptyList
           title="Create a business first"
           description="Verification attaches to a business profile."
           action={<Link to="/list-business"><Button>List business</Button></Link>}

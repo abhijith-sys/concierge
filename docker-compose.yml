@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-concierge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-concierge}
       POSTGRES_DB: ${POSTGRES_DB:-concierge}
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,13 +26,19 @@ services:
       dockerfile: Dockerfile
     environment:
       API_PORT: 3001
-      DATABASE_URL: ${DATABASE_URL:-postgresql://concierge:concierge@db:5432/concierge?schema=public}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-concierge}:${POSTGRES_PASSWORD:-concierge}@db:5432/${POSTGRES_DB:-concierge}?schema=public
       JWT_SECRET: ${JWT_SECRET:-dev-change-me-in-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:5174,http://localhost:8080,http://localhost:8081}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       RUN_SEED: ${RUN_SEED:-true}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
       REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       UPLOAD_ROOT: /app/uploads
       NODE_ENV: ${NODE_ENV:-development}
       ADMIN_APP_ORIGIN: ${ADMIN_APP_ORIGIN:-http://localhost:8081}

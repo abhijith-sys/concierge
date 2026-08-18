@@ -138,6 +138,45 @@ describe.skipIf(!hasDb)("API integration", () => {
     expect(verified.body.user.emailVerifiedAt).toBeTruthy();
   });
 
+  it("refreshes an authenticated session", async () => {
+    const refreshed = await userAgent.post("/api/auth/refresh").expect(200);
+    expect(refreshed.body.user.email).toBe(`user-${suffix}@test.local`);
+    await userAgent.get("/api/auth/me").expect(200);
+  });
+
+  it("resets a password with email OTP", async () => {
+    const email = `reset-${suffix}@test.local`;
+    await request(app)
+      .post("/api/auth/register")
+      .send({ name: "Reset User", email, password: "Concierge123!" })
+      .expect(201);
+    await request(app).post("/api/auth/forgot-password").send({ email, method: "account" }).expect(200);
+    const user = await prisma.user.findUnique({ where: { email } });
+    const challenge = await prisma.verificationChallenge.findFirst({
+      where: { userId: user!.id, purpose: "reset", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    await prisma.verificationChallenge.update({
+      where: { id: challenge!.id },
+      data: { codeHash: hashOtp("424242") },
+    });
+    const verified = await request(app)
+      .post("/api/auth/verify-reset-otp")
+      .send({ email, method: "account", code: "424242" })
+      .expect(200);
+    expect(verified.body.resetToken).toBeTruthy();
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        email,
+        method: "account",
+        newPassword: "NewPass123!",
+        resetToken: verified.body.resetToken,
+      })
+      .expect(200);
+    await request(app).post("/api/auth/login").send({ email, password: "NewPass123!" }).expect(200);
+  });
+
   it("creates business with hours and lists for owner", async () => {
     const fieldsRes = await request(app).get(`/api/categories/${categoryId}/fields`).expect(200);
     const required = (fieldsRes.body.fields as { key: string; required: boolean }[]).filter((f) => f.required);
@@ -585,6 +624,16 @@ describe.skipIf(!hasDb)("API integration", () => {
       .expect(201);
     const agent = request.agent(app);
     await agent.post("/api/auth/login").send({ email, password: "Concierge123!" }).expect(200);
+    const onboardUser = await prisma.user.findUnique({ where: { email } });
+    const onboardOtp = await prisma.verificationChallenge.findFirst({
+      where: { userId: onboardUser!.id, purpose: "register", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    await prisma.verificationChallenge.update({
+      where: { id: onboardOtp!.id },
+      data: { codeHash: hashOtp("424242") },
+    });
+    await agent.post("/api/auth/verify-signup-otp").send({ code: "424242" }).expect(200);
 
     const fieldsRes = await request(app).get(`/api/categories/${sub.body.category.id}/forms/provider`).expect(200);
     const fieldValues = (fieldsRes.body.fields as {

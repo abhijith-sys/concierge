@@ -1,3 +1,4 @@
+import { FlagPhoneInput } from "./FlagPhoneInput";
 import { Field, Input, Select, Textarea } from "./ui";
 import type { CategoryField } from "../lib/api";
 
@@ -108,10 +109,12 @@ export function DynamicForm({
   fields,
   values,
   onChange,
+  errors,
 }: {
   fields: CategoryField[];
   values: FieldValueMap;
   onChange: (next: FieldValueMap) => void;
+  errors?: Record<string, string>;
 }) {
   const visible = fields.filter((field) => isFieldVisible(field, values));
   if (!visible.length) return null;
@@ -138,7 +141,7 @@ export function DynamicForm({
             const required = Boolean(field.required);
             const minLength = validationNumber(field, "minLength");
             const maxLength = validationNumber(field, "maxLength");
-            const label = `${field.label}${required ? "" : " (optional)"}`;
+            const label = field.label;
             const help = field.helpText ? (
               <p className="mt-1 text-xs font-normal text-ink-soft">{field.helpText}</p>
             ) : null;
@@ -164,15 +167,15 @@ export function DynamicForm({
             if (field.fieldType === "textarea") {
               return (
                 <div key={field.id} className="md:col-span-2">
-                  <Field label={label}>
+                  <Field label={label} required={required} error={errors?.[field.key]}>
                     <Textarea
                       value={String(values[field.key] ?? "")}
                       onChange={(event) => setValue(field.key, event.target.value)}
                       rows={4}
-                      required={required}
                       minLength={required ? minLength : undefined}
                       maxLength={maxLength}
                       placeholder={placeholder}
+                      aria-invalid={Boolean(errors?.[field.key])}
                     />
                     {help}
                   </Field>
@@ -182,7 +185,7 @@ export function DynamicForm({
 
             if (field.fieldType === "select" && widget === "radio") {
               return (
-                <Field key={field.id} label={label}>
+                <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
                   <div className="grid gap-2">
                     {fieldOptions(field).map((option) => (
                       <label key={option} className="flex items-center gap-2 text-sm font-normal">
@@ -205,7 +208,7 @@ export function DynamicForm({
 
             if (field.fieldType === "select") {
               return (
-                <Field key={field.id} label={label}>
+                <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
                   <Select
                     value={String(values[field.key] ?? "")}
                     onChange={(event) => setValue(field.key, event.target.value)}
@@ -229,7 +232,7 @@ export function DynamicForm({
                 : [];
               return (
                 <div key={field.id} className="md:col-span-2">
-                  <Field label={label}>
+                  <Field label={label} required={required} error={errors?.[field.key]}>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {fieldOptions(field).map((option) => {
                         const checked = selected.includes(option);
@@ -260,7 +263,7 @@ export function DynamicForm({
               const coords = locationValue(values[field.key]);
               return (
                 <div key={field.id} className="grid gap-3 md:col-span-2 md:grid-cols-2">
-                  <Field label={`${field.label} latitude${required ? "" : " (optional)"}`}>
+                  <Field label={`${field.label} latitude`} required={required}>
                     <Input
                       type="number"
                       step="any"
@@ -272,7 +275,7 @@ export function DynamicForm({
                       required={required}
                     />
                   </Field>
-                  <Field label={`${field.label} longitude${required ? "" : " (optional)"}`}>
+                  <Field label={`${field.label} longitude`} required={required}>
                     <Input
                       type="number"
                       step="any"
@@ -291,12 +294,25 @@ export function DynamicForm({
 
             if (field.fieldType === "asset_ref" || field.fieldType === "asset_gallery" || field.fieldType === "json") {
               return (
-                <Field key={field.id} label={label}>
+                <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
                   <Input
                     value={typeof values[field.key] === "string" ? String(values[field.key]) : ""}
                     onChange={(event) => setValue(field.key, event.target.value)}
                     placeholder={placeholder ?? "Managed after save via media uploads"}
                     disabled
+                  />
+                  {help}
+                </Field>
+              );
+            }
+
+            if (field.fieldType === "phone") {
+              return (
+                <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
+                  <FlagPhoneInput
+                    value={String(values[field.key] ?? "")}
+                    onChange={(value) => setValue(field.key, value)}
+                    error={Boolean(errors?.[field.key])}
                   />
                   {help}
                 </Field>
@@ -312,20 +328,18 @@ export function DynamicForm({
                     ? "url"
                     : field.fieldType === "email"
                       ? "email"
-                      : field.fieldType === "phone"
-                        ? "tel"
-                        : "text";
+                      : "text";
 
             return (
-              <Field key={field.id} label={label}>
+              <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
                 <Input
                   type={inputType}
                   value={values[field.key] == null ? "" : String(values[field.key])}
                   onChange={(event) => setValue(field.key, event.target.value)}
-                  required={required}
                   minLength={required ? minLength : undefined}
                   maxLength={maxLength}
                   placeholder={placeholder}
+                  aria-invalid={Boolean(errors?.[field.key])}
                 />
                 {help}
               </Field>
