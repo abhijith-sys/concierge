@@ -7,6 +7,7 @@ import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
 import { isProvider } from "../lib/provider";
 import { businessStatus, StatusBadge } from "../lib/status";
+import { theme } from "../lib/theme";
 
 export function Account() {
   const { user, isLoading } = useAuth();
@@ -55,7 +56,7 @@ export function Account() {
 
   return (
     <section className="page-shell py-14 md:py-20">
-      <p className="label-caps text-gold-dark">Your Concierge</p>
+      <p className="label-caps text-gold-dark">Your {theme.name}</p>
       <h1 className="mt-3 text-4xl font-bold tracking-tight">Account</h1>
       <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_2fr]">
         <aside className="rounded-3xl bg-black p-8 text-white">

@@ -19,9 +19,9 @@ export function Button({
     <button
       className={twMerge(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[.98]",
-        variant === "primary" && "bg-navy text-white hover:bg-[#0e1422]",
+        variant === "primary" && "bg-navy text-white hover:bg-navy-hover",
         variant === "outline" && "border border-navy bg-transparent text-navy hover:bg-navy hover:text-white",
-        variant === "gold" && "bg-gold text-navy hover:bg-[#b8893f]",
+        variant === "gold" && "bg-gold text-navy hover:bg-gold-hover",
         variant === "ghost" && "bg-transparent text-ink-soft hover:bg-surface-high hover:text-navy",
         className,
       )}

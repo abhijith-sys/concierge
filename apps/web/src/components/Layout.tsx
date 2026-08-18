@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type ReactNode, type SVGProps } from "re
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { theme } from "../lib/theme";
 import { AuthIntentHandler } from "./AuthIntentHandler";
 import { Logo } from "./Logo";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
@@ -251,7 +252,7 @@ export function Footer() {
         </div>
       </div>
       <div className="page-shell flex flex-wrap items-center justify-between gap-3 border-t border-line py-6 text-xs text-ink-soft">
-        <p>© 2026 Concierge Digital Services. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} {theme.legalName}. All rights reserved.</p>
         <p className="inline-flex items-center gap-2 font-semibold text-navy">
           <span aria-hidden="true">🇮🇳</span> India
         </p>

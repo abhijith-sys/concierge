@@ -12,6 +12,7 @@ import { ImagePreviewUpload } from "../components/ImagePreviewUpload";
 import { Button, Field, Input, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { theme } from "../lib/theme";
 
 const defaultHours = {
   monday: ["09:00", "18:00"] as [string, string],
@@ -124,7 +125,7 @@ export function EditBusiness() {
         </p>
         {profile.status === "pending" ? (
           <ApprovalBanner tone="pending" title="This profile is waiting for review">
-            Visitors cannot see it until Concierge activates the listing.
+            Visitors cannot see it until {theme.name} activates the listing.
           </ApprovalBanner>
         ) : null}
         {profile.status === "rejected" ? (

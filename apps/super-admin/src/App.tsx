@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
 import { useAuth } from "./context/auth";
+import { useBrand } from "./lib/theme";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { BusinessesPage } from "./pages/BusinessesPage";
@@ -23,6 +24,8 @@ function RequireStaff() {
 }
 
 export default function App() {
+  useBrand();
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

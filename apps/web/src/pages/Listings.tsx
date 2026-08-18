@@ -6,6 +6,7 @@ import { ListingCard } from "../components/ListingCard";
 import { SafeImage } from "../components/SafeImage";
 import { Button, Input, PageState, Select } from "../components/ui";
 import { api } from "../lib/api";
+import { theme } from "../lib/theme";
 import { AllCategoriesIcon, iconForCategory } from "../lib/category-icon";
 import { recordExploredCategory, setSavedCity } from "../lib/discovery";
 import {
@@ -15,7 +16,7 @@ import {
   type MarketplaceKind,
 } from "../lib/listing-kind";
 
-const heroImage = "/assets/builders-hero.jpg";
+const heroImage = theme.assets.banner;
 
 export function Listings() {
   const { categorySlug } = useParams();

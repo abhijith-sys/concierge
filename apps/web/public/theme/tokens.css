@@ -1,0 +1,21 @@
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@700&family=Manrope:wght@400;600;700;800&display=swap");
+
+:root {
+  --brand-font-sans: "Manrope", sans-serif;
+  --brand-font-label: "Hanken Grotesk", sans-serif;
+  --brand-theme-color: #ffffff;
+  --brand-surface: #ffffff;
+  --brand-surface-low: #f6f4f1;
+  --brand-surface-high: #eceae7;
+  --brand-card: #ffffff;
+  --brand-ink: #16181d;
+  --brand-ink-soft: #5c5f66;
+  --brand-line: #e4e1dc;
+  --brand-navy: #151b2c;
+  --brand-navy-hover: #0e1422;
+  --brand-gold: #c79b54;
+  --brand-gold-hover: #b8893f;
+  --brand-gold-dark: #6c4d18;
+  --brand-gold-light: #fed08c;
+  --brand-cream: #f3ead8;
+}

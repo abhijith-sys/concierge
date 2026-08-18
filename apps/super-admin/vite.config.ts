@@ -9,6 +9,7 @@ export default defineConfig({
       "/api": { target: "http://localhost:3001", changeOrigin: true },
       "/uploads": { target: "http://localhost:3001", changeOrigin: true },
       "/assets": { target: "http://localhost:5173", changeOrigin: true },
+      "/theme": { target: "http://localhost:5173", changeOrigin: true },
     },
   },
 });
