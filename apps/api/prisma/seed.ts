@@ -1,5 +1,8 @@
 import { BusinessStatus, Prisma, PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { assignDefaultRoleForLegacy, ensureRbacCatalog } from "../src/shared/auth/rbac.service.js";
 import {
   PLATFORM_CATEGORY_SLUG,
@@ -14,15 +17,23 @@ import {
   type FieldSeed,
 } from "./taxonomy.js";
 
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
+dotenv.config();
+
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "Concierge123!";
 
-const listingImages = [
-  "/assets/brett-villa.jpg",
-  "/assets/terra-stone.jpg",
-  "/assets/arcadian-desert.jpg",
-  "/assets/heritage-estate.jpg",
-];
+const listingImages = {
+  electrical: "/assets/listings/electrical-shop.jpg",
+  plumbing: "/assets/listings/plumbing.jpg",
+  furniture: "/assets/listings/furniture.jpg",
+  garments: "/assets/listings/garments.jpg",
+  electrician: "/assets/listings/electrician.jpg",
+  home: "/assets/categories/home-property.jpg",
+  fashion: "/assets/categories/fashion-apparel.jpg",
+  electronics: "/assets/categories/electronics-technology.jpg",
+  logistics: "/assets/categories/logistics-other.jpg",
+} as const;
 
 type DemoCatalogItem = {
   name: string;
@@ -66,13 +77,7 @@ const businesses: DemoBusiness[] = [
       "Architectural materials for luxury homes and commercial envelopes. Bulk slab reservations, made-to-order panels, and single-piece samples.",
     lat: 40.7458,
     lng: -73.9847,
-    images: [
-      "/assets/concierge-architectural-hero.jpg",
-      "/assets/elite-plans.jpg",
-      "/assets/brett-villa.jpg",
-      "/assets/terra-stone.jpg",
-      "/assets/arcadian-desert.jpg",
-    ],
+    images: [listingImages.logistics, listingImages.home],
     years: 30,
     whatsapp: "+1 212 555 0100",
     orderModes: ["Bulk", "By order", "Single piece"],
@@ -85,7 +90,7 @@ const businesses: DemoBusiness[] = [
         description: "Imported from Carrara, Italy",
         price: 0,
         pricingType: "contact",
-        images: ["/assets/elite-slab.jpg"],
+        images: [listingImages.home],
         fields: {
           availability_qty: "42 Slabs",
           thickness: "20mm / 30mm",
@@ -100,7 +105,7 @@ const businesses: DemoBusiness[] = [
         description: "Sustainable European Oak & Walnut",
         price: 0,
         pricingType: "contact",
-        images: ["/assets/heritage-estate.jpg"],
+        images: [listingImages.furniture],
         fields: { selection_note: "12 Variants", unit: "sqm", moq: 20 },
       },
       {
@@ -108,7 +113,7 @@ const businesses: DemoBusiness[] = [
         description: "Custom Beams & Facade Panels",
         price: 0,
         pricingType: "contact",
-        images: ["/assets/builders-hero.jpg"],
+        images: [listingImages.logistics],
         fields: { selection_note: "4 Finishes", unit: "piece", custom_order: true },
       },
       {
@@ -116,7 +121,7 @@ const businesses: DemoBusiness[] = [
         description: "High-Performance Thermal Glazing",
         price: 0,
         pricingType: "contact",
-        images: ["/assets/aura-showroom.jpg"],
+        images: [listingImages.electronics],
         fields: { selection_note: "Ultra-Clear", unit: "panel" },
       },
     ],
@@ -132,7 +137,7 @@ const businesses: DemoBusiness[] = [
       "Wholesale electrical shop for contractors and homeowners. Cables, switchgear, lighting, and panels — bulk coils, project orders, or a single piece at trade rates.",
     lat: 40.735,
     lng: -73.877,
-    images: ["/assets/elite-plans.jpg", "/assets/builders-hero.jpg"],
+    images: [listingImages.electrical, listingImages.electronics],
     years: 18,
     whatsapp: "+1 718 555 0142",
     orderModes: ["Bulk", "By order", "Single piece"],
@@ -145,7 +150,7 @@ const businesses: DemoBusiness[] = [
         description: "ISI copper conductor, 90m coil or cut length.",
         price: 42,
         pricingType: "starting_from",
-        images: ["/assets/elite-slab.jpg"],
+        images: [listingImages.electrical],
         fields: { unit: "coil", moq: 1, price_bulk: 38, price_piece: 42, lead_time_days: 0 },
       },
       {
@@ -153,7 +158,7 @@ const businesses: DemoBusiness[] = [
         description: "16A switches and sockets. Box or single piece.",
         price: 2.4,
         pricingType: "starting_from",
-        images: ["/assets/aura-craft.jpg"],
+        images: [listingImages.electronics],
         fields: { unit: "piece", moq: 10, price_bulk: 1.9, price_piece: 2.4, lead_time_days: 2 },
       },
       {
@@ -161,7 +166,7 @@ const businesses: DemoBusiness[] = [
         description: "Trade packs of 20 or single replacements.",
         price: 9.5,
         pricingType: "starting_from",
-        images: ["/assets/aura-showroom.jpg"],
+        images: [listingImages.electrical],
         fields: { unit: "piece", moq: 4, price_bulk: 7.8, price_piece: 9.5 },
       },
     ],
@@ -177,7 +182,7 @@ const businesses: DemoBusiness[] = [
       "Plumbing wholesaler for fit-outs and repairs. CPVC, PVC, valves, and bathroom fittings in bulk, on-order, or as single replacements.",
     lat: 40.7411,
     lng: -74.0002,
-    images: [listingImages[1], "/assets/terra-stone.jpg"],
+    images: [listingImages.plumbing, listingImages.home],
     years: 14,
     whatsapp: "+1 212 555 0188",
     orderModes: ["Bulk", "By order", "Single piece"],
@@ -190,7 +195,7 @@ const businesses: DemoBusiness[] = [
         description: "3m lengths. Bundle of 10 or single stick.",
         price: 6.2,
         pricingType: "starting_from",
-        images: ["/assets/terra-stone.jpg"],
+        images: [listingImages.plumbing],
         fields: { unit: "length", moq: 1, price_bulk: 5.4, price_piece: 6.2 },
       },
       {
@@ -198,7 +203,7 @@ const businesses: DemoBusiness[] = [
         description: "Quarter-turn valves, 1/2 to 2 inch.",
         price: 4.8,
         pricingType: "starting_from",
-        images: ["/assets/elite-slab.jpg"],
+        images: [listingImages.plumbing],
         fields: { unit: "piece", moq: 5, price_bulk: 3.9, price_piece: 4.8 },
       },
     ],
@@ -214,7 +219,7 @@ const businesses: DemoBusiness[] = [
       "A curated sanctuary of artisanal décor, lighting, and furniture. Project lots for interiors houses, or a single statement piece.",
     lat: 40.723,
     lng: -74.0017,
-    images: ["/assets/aura-showroom.jpg", "/assets/aura-chair.jpg", "/assets/aura-craft.jpg"],
+    images: [listingImages.furniture, listingImages.home],
     years: 12,
     whatsapp: "+1 212 555 0164",
     orderModes: ["Bulk", "By order", "Single piece"],
@@ -226,7 +231,7 @@ const businesses: DemoBusiness[] = [
         description: "Hand-finished oak frame with linen upholstery.",
         price: 420,
         pricingType: "starting_from",
-        images: ["/assets/aura-chair.jpg"],
+        images: [listingImages.furniture],
         fields: { unit: "piece", moq: 1, price_bulk: 360, price_piece: 420, custom_order: true, lead_time_days: 21 },
       },
       {
@@ -234,7 +239,7 @@ const businesses: DemoBusiness[] = [
         description: "Trade carton of 6, or single showroom piece.",
         price: 85,
         pricingType: "starting_from",
-        images: ["/assets/aura-craft.jpg"],
+        images: [listingImages.furniture],
         fields: { unit: "piece", moq: 1, price_bulk: 68, price_piece: 85 },
       },
     ],
@@ -250,7 +255,7 @@ const businesses: DemoBusiness[] = [
       "Garment supplier for retailers, hotels, and workwear buyers. Full lots, made-to-order uniforms, or sample pieces at published rates.",
     lat: 40.7033,
     lng: -73.9903,
-    images: [listingImages[0], "/assets/heritage-estate.jpg"],
+    images: [listingImages.garments, listingImages.fashion],
     years: 9,
     whatsapp: "+1 347 555 0119",
     orderModes: ["Bulk", "By order", "Single piece"],
@@ -263,7 +268,7 @@ const businesses: DemoBusiness[] = [
         description: "Sizes S–XXL. Dozen packs or sample.",
         price: 14,
         pricingType: "starting_from",
-        images: ["/assets/heritage-estate.jpg"],
+        images: [listingImages.garments],
         fields: { unit: "piece", moq: 12, price_bulk: 11, price_piece: 16, lead_time_days: 7 },
       },
       {
@@ -271,7 +276,7 @@ const businesses: DemoBusiness[] = [
         description: "Made-to-order sets with embroidery.",
         price: 0,
         pricingType: "contact",
-        images: ["/assets/brett-villa.jpg"],
+        images: [listingImages.fashion],
         fields: { unit: "set", custom_order: true, lead_time_days: 18 },
       },
     ],
@@ -287,7 +292,7 @@ const businesses: DemoBusiness[] = [
       "Shoes and safety footwear at trade rates. Case packs for stores, or a single pair when you need a replacement fast.",
     lat: 33.5021,
     lng: -111.9261,
-    images: [listingImages[2], "/assets/arcadian-desert.jpg"],
+    images: [listingImages.fashion, listingImages.garments],
     years: 11,
     whatsapp: "+1 480 555 0177",
     orderModes: ["Bulk", "Single piece"],
@@ -300,7 +305,7 @@ const businesses: DemoBusiness[] = [
         description: "Steel toe, oil-resistant sole. Pair or carton of 8.",
         price: 48,
         pricingType: "starting_from",
-        images: ["/assets/arcadian-desert.jpg"],
+        images: [listingImages.fashion],
         fields: { unit: "pair", moq: 1, price_bulk: 39, price_piece: 48 },
       },
       {
@@ -308,7 +313,7 @@ const businesses: DemoBusiness[] = [
         description: "Assorted sizes, mixed carton or sample pair.",
         price: 18,
         pricingType: "starting_from",
-        images: ["/assets/aura-chair.jpg"],
+        images: [listingImages.garments],
         fields: { unit: "pair", moq: 6, price_bulk: 14, price_piece: 18 },
       },
     ],
@@ -324,7 +329,7 @@ const businesses: DemoBusiness[] = [
       "Residential and commercial electrical work — wiring, lighting, and switchboards. Second-priority trade listing when you need a technician, not a shop.",
     lat: 40.7731,
     lng: -73.9652,
-    images: [listingImages[3]],
+    images: [listingImages.electrician],
     years: 16,
     supportTurnaround: "24h",
     catalog: [
@@ -333,7 +338,7 @@ const businesses: DemoBusiness[] = [
         description: "Licensed electrician callout for diagnostics and repair.",
         price: 120,
         pricingType: "starting_from",
-        images: [],
+        images: [listingImages.electrician],
       },
     ],
   },
@@ -341,6 +346,18 @@ const businesses: DemoBusiness[] = [
 
 function jsonField(value: Prisma.InputJsonValue | object | undefined) {
   return value === undefined ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
+function isAdminMedia(url: string | null | undefined) {
+  if (!url?.startsWith("/uploads/public/")) return false;
+  const uploadRoot = process.env.UPLOAD_ROOT ?? path.resolve("uploads");
+  return existsSync(path.join(uploadRoot, "public", url.slice("/uploads/public/".length)));
+}
+
+function keepImages(existing: unknown, fallback: string[]) {
+  if (!Array.isArray(existing)) return fallback;
+  const urls = existing.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return urls.some((url) => url.startsWith("/uploads/")) ? urls : fallback;
 }
 
 function seedFieldData(value: string | number | boolean | string[]) {
@@ -432,9 +449,19 @@ async function main() {
   categoryIds.set(PLATFORM_CATEGORY_SLUG, platform.id);
 
   for (const category of phase1Mains) {
+    const existing = await prisma.category.findUnique({
+      where: { slug: category.slug },
+      select: { imageUrl: true, bannerUrl: true },
+    });
     const saved = await prisma.category.upsert({
       where: { slug: category.slug },
-      update: { ...category, parentId: null, isActive: true },
+      update: {
+        ...category,
+        parentId: null,
+        isActive: true,
+        imageUrl: isAdminMedia(existing?.imageUrl) ? existing.imageUrl : category.imageUrl,
+        bannerUrl: isAdminMedia(existing?.bannerUrl) ? existing.bannerUrl : category.bannerUrl,
+      },
       create: { ...category, isActive: true },
     });
     categoryIds.set(category.slug, saved.id);
@@ -445,9 +472,19 @@ async function main() {
     const { parentSlug, ...data } = category;
     const parentId = categoryIds.get(parentSlug);
     if (!parentId) throw new Error(`Missing parent category ${parentSlug}`);
+    const existing = await prisma.category.findUnique({
+      where: { slug: data.slug },
+      select: { imageUrl: true, bannerUrl: true },
+    });
     const saved = await prisma.category.upsert({
       where: { slug: data.slug },
-      update: { ...data, parentId, isActive: true },
+      update: {
+        ...data,
+        parentId,
+        isActive: true,
+        imageUrl: isAdminMedia(existing?.imageUrl) ? existing.imageUrl : data.imageUrl,
+        bannerUrl: isAdminMedia(existing?.bannerUrl) ? existing.bannerUrl : data.bannerUrl,
+      },
       create: { ...data, parentId, isActive: true },
     });
     categoryIds.set(data.slug, saved.id);
@@ -495,6 +532,12 @@ async function main() {
 
   const businessIds: string[] = [];
   for (const [index, item] of businesses.entries()) {
+    const existingBusiness = await prisma.business.findUnique({
+      where: { slug: item.slug },
+      select: { coverUrl: true, listing: { select: { images: true } } },
+    });
+    const coverUrl = isAdminMedia(existingBusiness?.coverUrl) ? existingBusiness.coverUrl : item.images[0];
+    const listingImagesKept = keepImages(existingBusiness?.listing?.images, item.images);
     const business = await prisma.business.upsert({
       where: { slug: item.slug },
       update: {
@@ -502,7 +545,7 @@ async function main() {
         email: `hello@${item.slug}.example`,
         verified: true,
         status: BusinessStatus.active,
-        coverUrl: item.images[0],
+        coverUrl,
         socialLinks: {
           instagram: `https://instagram.com/${item.slug}`,
         },
@@ -515,7 +558,7 @@ async function main() {
         phone: "+1 212 555 0100",
         verified: true,
         status: BusinessStatus.active,
-        coverUrl: item.images[0],
+        coverUrl,
         socialLinks: {
           instagram: `https://instagram.com/${item.slug}`,
         },
@@ -536,7 +579,7 @@ async function main() {
         city: item.city,
         lat: item.lat,
         lng: item.lng,
-        images: item.images,
+        images: listingImagesKept,
         featured: index < 2,
       },
       create: {
@@ -558,7 +601,7 @@ async function main() {
           saturday: ["10:00", "16:00"],
           sunday: null,
         },
-        images: item.images,
+        images: listingImagesKept,
         website: `https://${item.slug}.example`,
         featured: index < 2,
       },

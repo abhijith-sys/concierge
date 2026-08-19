@@ -9,11 +9,11 @@ describe("category upsert schema", () => {
       slug: "home",
       description: "Desc",
       kind: "service",
-      imageUrl: "/assets/builders-hero.jpg",
+      imageUrl: "/assets/categories/home-property.jpg",
       bannerUrl: "/uploads/public/banner.jpg",
     });
     expect(parsed.kind).toBe("service");
-    expect(parsed.imageUrl).toBe("/assets/builders-hero.jpg");
+    expect(parsed.imageUrl).toBe("/assets/categories/home-property.jpg");
     expect(parsed.bannerUrl).toBe("/uploads/public/banner.jpg");
   });
 
@@ -36,6 +36,18 @@ describe("category upsert schema", () => {
 });
 
 describe("taxonomy seed catalog", () => {
+  it("seeds twelve unique main categories with their own card and banner images", () => {
+    expect(phase1Mains).toHaveLength(12);
+    const slugs = phase1Mains.map((item) => item.slug);
+    expect(new Set(slugs).size).toBe(12);
+    expect(new Set(phase1Mains.map((item) => item.imageUrl)).size).toBe(12);
+    expect(new Set(phase1Mains.map((item) => item.bannerUrl)).size).toBe(12);
+    for (const category of phase1Mains) {
+      expect(category.imageUrl).toBe(`/assets/categories/${category.slug}.jpg`);
+      expect(category.bannerUrl).toBe(`/assets/categories/${category.slug}-banner.jpg`);
+    }
+  });
+
   it("adds the new mains without duplicating slugs", () => {
     const slugs = [...phase1Mains, ...phase1Subs].map((item) => item.slug);
     expect(new Set(slugs).size).toBe(slugs.length);

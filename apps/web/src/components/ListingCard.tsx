@@ -8,7 +8,7 @@ import { formatListingPrice } from "../lib/pricing";
 import { SafeImage } from "./SafeImage";
 import { WishlistButton } from "./WishlistButton";
 
-const fallbackImage = "/assets/brett-villa.jpg";
+const fallbackImage = "/assets/categories/home-property.jpg";
 
 function displayValue(value: unknown) {
   if (typeof value === "boolean") return value ? "Yes" : "No";

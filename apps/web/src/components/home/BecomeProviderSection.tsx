@@ -23,7 +23,7 @@ export function BecomeProviderSection() {
           <div className="grid items-center gap-6 p-5 md:grid-cols-[0.7fr_1.3fr] md:p-8 lg:grid-cols-[0.7fr_1.1fr_0.9fr]">
             <div className="relative min-h-44 overflow-hidden rounded-2xl md:min-h-52">
               <SafeImage
-                src="/assets/aura-showroom.jpg"
+                src="/assets/listings/electrical-shop.jpg"
                 alt="A local professional ready to take on new work"
                 width={640}
                 height={640}
