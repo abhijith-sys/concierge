@@ -1,5 +1,6 @@
 import { ChevronDown, MapPin } from "lucide-react";
 import type { FormEvent } from "react";
+import { twMerge } from "tailwind-merge";
 import { Button } from "../ui";
 
 export function SearchBar({
@@ -9,6 +10,8 @@ export function SearchBar({
   onQueryChange,
   onSubmit,
   onUseLocation,
+  queryPlaceholder = "Search services, businesses or professionals...",
+  className,
 }: {
   city: string;
   query: string;
@@ -16,11 +19,16 @@ export function SearchBar({
   onQueryChange: (value: string) => void;
   onSubmit: (event: FormEvent) => void;
   onUseLocation?: () => void;
+  queryPlaceholder?: string;
+  className?: string;
 }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="search-panel mt-6 flex flex-col gap-2 rounded-3xl border border-line bg-white p-1.5 shadow-xl shadow-navy/10 md:flex-row md:items-center md:rounded-full"
+      className={twMerge(
+        "search-panel mt-6 flex flex-col gap-2 rounded-3xl border border-line bg-white p-1.5 shadow-xl shadow-navy/10 md:flex-row md:items-center md:rounded-full",
+        className,
+      )}
     >
       <label className="flex min-w-36 items-center gap-2 px-4">
         <MapPin className="size-4 shrink-0 text-gold-dark" aria-hidden="true" />
@@ -42,12 +50,12 @@ export function SearchBar({
         </button>
       </label>
       <label className="flex flex-1 items-center gap-3 border-t border-line px-4 md:border-l md:border-t-0">
-        <span className="sr-only">Search services, businesses or professionals</span>
+        <span className="sr-only">{queryPlaceholder}</span>
         <input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           className="h-11 w-full bg-transparent text-sm outline-none"
-          placeholder="Search services, businesses or professionals..."
+          placeholder={queryPlaceholder}
         />
       </label>
       <Button type="submit" variant="gold" className="w-full px-7 md:w-auto">

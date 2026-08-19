@@ -239,6 +239,34 @@ export interface WishlistItem {
   listing?: Listing;
 }
 
+export type StayEnquiryStatus = "new" | "viewed" | "responded" | "closed";
+
+export interface StayRoomSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface StayEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  notes?: string | null;
+  roomSelections: StayRoomSelection[];
+  status: StayEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
 export interface VerificationSubmission {
   id: string;
   businessId: string;
@@ -687,6 +715,38 @@ export const api = {
   },
   removeWishlist: (listingId: string) =>
     request<void>(`/api/wishlist/${encodeURIComponent(listingId)}`, { method: "DELETE" }),
+  createStayEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children: number;
+    notes?: string;
+    roomSelections: StayRoomSelection[];
+  }) => {
+    const value = await request<{ enquiry: StayEnquiry }>("/api/stay-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  stayEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: StayEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/stay-enquiries${query}`);
+  },
+  updateStayEnquiry: async (id: string, input: { status?: StayEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: StayEnquiry }>(`/api/stay-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
   recommendations: (params?: URLSearchParams) =>
     api.search(params ?? new URLSearchParams({ pageSize: "8" })),
 };

@@ -390,6 +390,27 @@ export const api = {
     request<{ items: AssetItem[]; pagination: { total: number } }>(
       `/api/admin/assets?${params.toString()}`,
     ),
+  stayEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        checkIn: string;
+        checkOut: string;
+        adults: number;
+        children: number;
+        notes?: string | null;
+        roomSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/stay-enquiries?${params.toString()}`),
+  updateStayEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/stay-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
 };
 
 export { ApiError };

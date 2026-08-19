@@ -1,4 +1,5 @@
 import { CategoryFieldScope, type CategoryField, type CategoryKind } from "@prisma/client";
+import { STAY_HIDDEN_PLATFORM_KEYS, isStayRootSlug } from "./stays.js";
 
 export const FORM_KINDS = ["provider", "listing"] as const;
 export type FormKind = (typeof FORM_KINDS)[number];
@@ -73,7 +74,11 @@ export const SUPPLIER_ONLY_FIELD_KEYS = new Set([
 export function fieldsForCategoryKind<T extends { key: string }>(
   fields: T[],
   kind: CategoryKind | null | undefined,
+  rootSlug?: string | null,
 ): T[] {
+  if (isStayRootSlug(rootSlug)) {
+    return fields.filter((field) => !STAY_HIDDEN_PLATFORM_KEYS.has(field.key));
+  }
   if (!kind) return fields;
   return fields.filter((field) => {
     if (kind === "supplier" && SERVICE_ONLY_FIELD_KEYS.has(field.key)) return false;

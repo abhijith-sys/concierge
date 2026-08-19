@@ -112,6 +112,13 @@ enum ServiceApprovalStatus {
   rejected
 }
 
+enum StayEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
 /// Supplier shops/wholesalers vs individual tradespeople.
 enum CategoryKind {
   supplier
@@ -143,6 +150,7 @@ model User {
   assignedRoles             UserRole[]              @relation("RoleAssigner")
   uploadedAssets            Asset[]                 @relation("AssetUploader")
   wishlistItems             WishlistItem[]
+  stayEnquiries             StayEnquiry[]
 
   @@index([role])
   @@index([recoveryEmail])
@@ -272,6 +280,7 @@ model Business {
   reviews        Review[]
   services       Service[]
   verifications  VerificationSubmission[]
+  stayEnquiries  StayEnquiry[]
 
   @@index([ownerId])
   @@index([status, verified])
@@ -301,6 +310,7 @@ model Listing {
   category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   fieldValues   ListingFieldValue[]
   wishlistItems WishlistItem[]
+  stayEnquiries StayEnquiry[]
 
   @@index([categoryId])
   @@index([city])
@@ -435,6 +445,34 @@ model WishlistItem {
   @@unique([userId, listingId])
   @@index([userId, createdAt])
   @@index([listingId])
+}
+
+model StayEnquiry {
+  id              String            @id @default(uuid()) @db.Uuid
+  businessId      String            @db.Uuid
+  listingId       String            @db.Uuid
+  userId          String?           @db.Uuid
+  guestName       String
+  guestEmail      String
+  guestPhone      String?
+  checkIn         DateTime          @db.Date
+  checkOut        DateTime          @db.Date
+  adults          Int
+  children        Int               @default(0)
+  notes           String?
+  roomSelections  Json
+  status          StayEnquiryStatus @default(new)
+  ownerNote       String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing         Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
 }
 
 model Review {

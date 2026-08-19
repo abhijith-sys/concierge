@@ -54,6 +54,10 @@ const ProviderListings = lazyWithReload(
   () => import("./pages/ProviderListings"),
   (module) => module.ProviderListings,
 );
+const ProviderEnquiries = lazyWithReload(
+  () => import("./pages/ProviderEnquiries"),
+  (module) => module.ProviderEnquiries,
+);
 const Content = lazyWithReload(() => import("./pages/Content"), (module) => module.Content);
 
 function ScrollToTop() {
@@ -87,6 +91,7 @@ function AppRoutes() {
           <Route path="provider/listings" element={<ProviderListings />} />
           <Route path="provider/listings/create" element={<ProviderListings mode="create" />} />
           <Route path="provider/listings/:serviceId/edit" element={<ProviderListings mode="edit" />} />
+          <Route path="provider/enquiries" element={<ProviderEnquiries />} />
           <Route path="admin" element={<AdminRedirect />} />
           <Route path="verification" element={<Verification />} />
           <Route path="about" element={<Content />} />

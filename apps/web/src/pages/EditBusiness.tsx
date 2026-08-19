@@ -12,6 +12,7 @@ import { ImagePreviewUpload } from "../components/ImagePreviewUpload";
 import { Button, Field, Input, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
+import { isStayListing } from "../lib/stays";
 import { theme } from "../lib/theme";
 
 const defaultHours = {
@@ -180,12 +181,21 @@ export function EditBusiness() {
       </form>
 
       <div className="rounded-3xl border border-line p-6 md:p-9">
-        <h2 className="text-2xl font-semibold">Listings</h2>
-        <p className="mt-2 text-sm text-ink-soft">Open the listings table to add or edit items for this business.</p>
-        <div className="mt-5">
+        <h2 className="text-2xl font-semibold">{isStayListing(listing) ? "Rooms & cottages" : "Listings"}</h2>
+        <p className="mt-2 text-sm text-ink-soft">
+          {isStayListing(listing)
+            ? "Add rooms, cottages, and stay options with photos and nightly rates."
+            : "Open the listings table to add or edit items for this business."}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
           <Link to={`/provider/listings?business=${profile.id}`}>
-            <Button>View listings</Button>
+            <Button>{isStayListing(listing) ? "Manage rooms" : "View listings"}</Button>
           </Link>
+          {isStayListing(listing) ? (
+            <Link to={`/provider/enquiries?business=${profile.id}`}>
+              <Button variant="outline">Stay enquiries</Button>
+            </Link>
+          ) : null}
         </div>
       </div>
     </section>

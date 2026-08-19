@@ -67,6 +67,7 @@ describe("taxonomy seed catalog", () => {
         expect.objectContaining({ slug: "camera-rental", parentSlug: "electronics-rental" }),
         expect.objectContaining({ slug: "taxi-services", parentSlug: "travel-taxi-transport" }),
         expect.objectContaining({ slug: "hotels", parentSlug: "hotels-resorts-stays" }),
+        expect.objectContaining({ slug: "resorts", parentSlug: "hotels-resorts-stays" }),
         expect.objectContaining({ slug: "electrical", parentSlug: "home-property" }),
         expect.objectContaining({ slug: "clothing", parentSlug: "fashion-apparel" }),
       ]),

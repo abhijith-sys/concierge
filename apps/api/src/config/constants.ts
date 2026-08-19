@@ -11,3 +11,19 @@ export const SERVICE_NAME = "concierge-api";
 
 /** Hidden from public category trees. Holds platform-wide common form fields. */
 export const PLATFORM_CATEGORY_SLUG = "_platform";
+
+/** Hotels / resorts / homestays marketplace vertical. */
+export const STAY_CATEGORY_SLUG = "hotels-resorts-stays";
+export const STAY_SUBCATEGORY_SLUGS = [
+  "hotels",
+  "resorts",
+  "homestays",
+  "villas",
+  "serviced-apartments",
+  "guest-houses",
+  "hostels",
+  "boutique-hotels",
+  "farm-stays",
+  "cottages",
+  "camping-glamping",
+] as const;
