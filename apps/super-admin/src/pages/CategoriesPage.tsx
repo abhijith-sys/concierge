@@ -81,7 +81,8 @@ export function CategoriesPage() {
           <h2 style={{ margin: 0 }}>Categories</h2>
           <p className="muted">
             This catalog drives the public home screen and listings pages. Every main category and
-            subcategory needs a description, background/card image, and banner image.
+            subcategory needs a description, card/background image, and listings banner. Replace any
+            image here — Super Admin uploads are kept when the demo seed runs again.
           </p>
         </div>
         {canWrite ? (

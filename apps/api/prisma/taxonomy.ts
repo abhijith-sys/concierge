@@ -2,22 +2,29 @@ import { PLATFORM_CATEGORY_SLUG } from "../src/config/constants.js";
 
 export { PLATFORM_CATEGORY_SLUG };
 
-const catalogPhotos = [
-  "/assets/heritage-estate.jpg",
-  "/assets/builders-hero.jpg",
-  "/assets/concierge-architectural-hero.jpg",
-  "/assets/aura-showroom.jpg",
-  "/assets/brett-villa.jpg",
-  "/assets/terra-stone.jpg",
-  "/assets/arcadian-desert.jpg",
-  "/assets/elite-plans.jpg",
-  "/assets/aura-chair.jpg",
-  "/assets/aura-craft.jpg",
-  "/assets/elite-slab.jpg",
-] as const;
+function categoryCard(slug: string) {
+  return `/assets/categories/${slug}.jpg`;
+}
 
-function catalogImage(index: number, offset = 0) {
-  return catalogPhotos[(index + offset + catalogPhotos.length) % catalogPhotos.length];
+function categoryBanner(slug: string) {
+  return `/assets/categories/${slug}-banner.jpg`;
+}
+
+const nestedParentMain: Record<string, string> = {
+  "vehicle-rental": "rental-hire",
+  "electronics-rental": "rental-hire",
+  "event-equipment": "rental-hire",
+  "outdoor-travel": "rental-hire",
+  "tools-equipment": "rental-hire",
+  "furniture-rental": "rental-hire",
+};
+
+function mediaForCategory(slug: string) {
+  const mainSlug = nestedParentMain[slug] ?? slug;
+  return {
+    imageUrl: categoryCard(mainSlug),
+    bannerUrl: categoryBanner(mainSlug),
+  };
 }
 
 export type MainCategorySeed = {
@@ -75,8 +82,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 1,
     kind: "supplier",
     description: "Electrical, plumbing, hardware, and home decor shops — bulk, by order, or single piece.",
-    imageUrl: catalogImage(0),
-    bannerUrl: catalogImage(0, 4),
+    ...mediaForCategory("home-property"),
   },
   {
     name: "Fashion & Apparel",
@@ -85,8 +91,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 2,
     kind: "supplier",
     description: "Clothing, footwear, textiles, and accessory wholesalers.",
-    imageUrl: catalogImage(9),
-    bannerUrl: catalogImage(9, 4),
+    ...mediaForCategory("fashion-apparel"),
   },
   {
     name: "Automotive",
@@ -95,8 +100,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 3,
     kind: "supplier",
     description: "Auto parts, tyres, and batteries first — repair workshops second.",
-    imageUrl: catalogImage(1),
-    bannerUrl: catalogImage(1, 4),
+    ...mediaForCategory("automotive"),
   },
   {
     name: "Electronics & Technology",
@@ -105,8 +109,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 4,
     kind: "supplier",
     description: "Wholesale electronics, mobiles, CCTV, and computer hardware.",
-    imageUrl: catalogImage(2),
-    bannerUrl: catalogImage(2, 4),
+    ...mediaForCategory("electronics-technology"),
   },
   {
     name: "Professional & Business",
@@ -115,8 +118,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 5,
     kind: "supplier",
     description: "Office supplies and print shops, plus consultants when you need a professional.",
-    imageUrl: catalogImage(3),
-    bannerUrl: catalogImage(3, 4),
+    ...mediaForCategory("professional-business"),
   },
   {
     name: "Health & Wellness",
@@ -125,8 +127,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 6,
     kind: "supplier",
     description: "Medical and wellness supplies, with clinics and care providers as a second option.",
-    imageUrl: catalogImage(4),
-    bannerUrl: catalogImage(4, 4),
+    ...mediaForCategory("health-wellness"),
   },
   {
     name: "Education & Training",
@@ -135,8 +136,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 7,
     kind: "supplier",
     description: "Books and stationery suppliers, plus coaching when you need an instructor.",
-    imageUrl: catalogImage(5),
-    bannerUrl: catalogImage(5, 4),
+    ...mediaForCategory("education-training"),
   },
   {
     name: "Events & Lifestyle",
@@ -145,8 +145,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 8,
     kind: "supplier",
     description: "Jewellery, décor materials, and catering supplies — event crews second.",
-    imageUrl: catalogImage(6),
-    bannerUrl: catalogImage(6, 4),
+    ...mediaForCategory("events-lifestyle"),
   },
   {
     name: "Logistics & Other Services",
@@ -155,8 +154,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 9,
     kind: "supplier",
     description: "Packing materials, scrap, and fabricators — movers and courier as a second option.",
-    imageUrl: catalogImage(7),
-    bannerUrl: catalogImage(7, 4),
+    ...mediaForCategory("logistics-other"),
   },
   {
     name: "Hotels, Resorts & Stays",
@@ -165,8 +163,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 10,
     kind: "service",
     description: "Hotels, resorts, homestays, villas, and other places to stay.",
-    imageUrl: catalogImage(8),
-    bannerUrl: catalogImage(8, 4),
+    ...mediaForCategory("hotels-resorts-stays"),
   },
   {
     name: "Rental & Hire",
@@ -175,8 +172,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 11,
     kind: "supplier",
     description: "Hire vehicles, tools, furniture, and event equipment by the hour or day.",
-    imageUrl: catalogImage(9),
-    bannerUrl: catalogImage(9, 4),
+    ...mediaForCategory("rental-hire"),
   },
   {
     name: "Travel, Taxi & Transport",
@@ -185,8 +181,7 @@ export const phase1Mains: MainCategorySeed[] = [
     sortOrder: 12,
     kind: "service",
     description: "Taxi, cab, airport transfers, tours, and passenger transport.",
-    imageUrl: catalogImage(10),
-    bannerUrl: catalogImage(10, 4),
+    ...mediaForCategory("travel-taxi-transport"),
   },
 ];
 
@@ -1080,7 +1075,6 @@ function namedSubs(
       kind === "service"
         ? `Verified ${name.toLowerCase()} ready to take on jobs.`
         : `Shops and wholesalers for ${name.toLowerCase()} — bulk, by order, or single piece.`,
-    imageUrl: catalogImage(index, 2),
-    bannerUrl: catalogImage(index, 6),
+    ...mediaForCategory(parentSlug),
   }));
 }
