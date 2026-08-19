@@ -11,10 +11,11 @@ import { verificationRouter } from "../modules/verification/index.js";
 import { uploadsRouter } from "../modules/uploads/index.js";
 import { assetsRouter } from "../modules/assets/index.js";
 import { wishlistRouter } from "../modules/wishlist/index.js";
+import { stayEnquiriesRouter } from "../modules/bookings/index.js";
 
 /**
  * Mounts active domain routers under /api.
- * Scaffolded modules (bookings, payments, messaging, ads, analytics, notifications)
+ * Scaffolded modules (payments, messaging, ads, analytics, notifications)
  * stay unmounted until implemented — import and wire them here when ready.
  */
 export function composeApiRouter() {
@@ -27,6 +28,7 @@ export function composeApiRouter() {
   apiRouter.use("/reviews", reviewsRouter);
   apiRouter.use("/services", servicesRouter);
   apiRouter.use("/wishlist", wishlistRouter);
+  apiRouter.use("/stay-enquiries", stayEnquiriesRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/verification", verificationRouter);
   apiRouter.use("/uploads", uploadsRouter);

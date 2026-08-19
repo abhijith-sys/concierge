@@ -13,8 +13,10 @@ import { api, type Listing } from "../lib/api";
 import { fieldByKey, displayValue } from "../lib/field-values";
 import { theme } from "../lib/theme";
 import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
+import { isStayListing } from "../lib/stays";
 import { isSupplierListing } from "../lib/listing-kind";
 import { lazyWithReload } from "../lib/lazyWithReload";
+import { StayPropertyView } from "../components/stay/StayPropertyView";
 
 const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
 const fallbackHero = theme.assets.banner;
@@ -130,6 +132,7 @@ export function BusinessDetail() {
   const projectImages = (images.length > 4 ? images.slice(2, 5) : images.slice(1, 4)).filter(Boolean).slice(0, 3);
   const offerings = services.data ?? [];
   const isMaterialsCatalog = isSupplierListing(listing);
+  const stayProperty = isStayListing(listing);
   const whatsapp = displayValue(fieldByKey(profile.fieldValues, "whatsapp")?.value);
 
   function submitReview(event: FormEvent) {
@@ -152,6 +155,32 @@ export function BusinessDetail() {
       .join("\n");
     window.location.href = `mailto:${profile.email}?subject=${encodeURIComponent(`Inquiry for ${profile.name}`)}&body=${encodeURIComponent(body)}`;
     setInquirySent(true);
+  }
+
+  if (stayProperty) {
+    return (
+      <StayPropertyView
+        profile={profile}
+        listing={listing}
+        rooms={offerings}
+        roomsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
   }
 
   return (

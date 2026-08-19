@@ -2,14 +2,14 @@ import { z } from "zod";
 import { fieldValueInputSchema } from "../categories/categories.repository.js";
 
 const mediaUrl = z.string().min(1).max(500).refine((value) => {
-  if (value.startsWith("/uploads/")) return true;
+  if (value.startsWith("/uploads/") || value.startsWith("/assets/")) return true;
   try {
     const protocol = new URL(value).protocol;
     return protocol === "http:" || protocol === "https:";
   } catch {
     return false;
   }
-}, "Only HTTP(S) or /uploads paths are allowed");
+}, "Only HTTP(S), /uploads, or /assets paths are allowed");
 
 export const createServiceSchema = z.object({
   businessId: z.string().uuid(),
@@ -19,7 +19,7 @@ export const createServiceSchema = z.object({
   price: z.coerce.number().min(0).max(1_000_000),
   currency: z.string().trim().length(3).default("USD"),
   durationMinutes: z.coerce.number().int().min(5).max(24 * 60).optional(),
-  images: z.array(mediaUrl).max(10).default([]),
+  images: z.array(mediaUrl).max(20).default([]),
   isActive: z.boolean().default(true),
   pricingType: z
     .enum(["fixed", "starting_from", "hourly", "daily", "weekly", "monthly", "contact", "custom"])

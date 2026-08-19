@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import type { FieldValue, Listing } from "../lib/api";
 import { formatDistanceKm } from "../lib/discovery";
+import { isStayListing } from "../lib/stays";
+import { stayAmenityPreview } from "../lib/stay-amenities";
 import { isSupplierListing } from "../lib/listing-kind";
 import { formatListingPrice } from "../lib/pricing";
 import { SafeImage } from "./SafeImage";
@@ -39,8 +41,10 @@ export function ProviderCard({
   const distance = formatDistanceKm(listing.distanceKm);
   const place = [listing.city, distance].filter(Boolean).join(" · ");
   const shop = isSupplierListing(listing);
+  const stay = isStayListing(listing);
   const orderModes = displayValue(fieldValue(listing.fieldValues, "order_modes"));
   const moq = displayValue(fieldValue(listing.fieldValues, "min_order_qty"));
+  const amenities = stay ? stayAmenityPreview(listing.fieldValues) : [];
 
   return (
     <article
@@ -88,8 +92,14 @@ export function ProviderCard({
             {[orderModes, moq ? `MOQ ${moq}` : null].filter(Boolean).join(" · ")}
           </p>
         ) : null}
-        {offer ? (
+        {stay && amenities.length ? (
+          <p className="mt-2 truncate text-xs font-semibold text-ink-soft">{amenities.join(" · ")}</p>
+        ) : null}
+        {offer && !stay ? (
           <p className="mt-2 text-sm font-extrabold text-navy">{formatListingPrice(offer)}</p>
+        ) : null}
+        {stay && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">From {formatListingPrice(offer)}</p>
         ) : null}
       </div>
     </article>

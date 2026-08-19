@@ -14,7 +14,9 @@ import { ImagePreviewUpload } from "../components/ImagePreviewUpload";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { ApiError, api, type Business } from "../lib/api";
+import { assignedCategoryId, flattenDescendants } from "../lib/category-tree";
 import { mainsForKind, type MarketplaceKind } from "../lib/listing-kind";
+import { isStayCategory } from "../lib/stays";
 import { firstFormError, isFieldRequired, validateForm, type FieldKey } from "../lib/validation";
 
 interface BusinessForm {
@@ -61,16 +63,23 @@ export function ListBusiness() {
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
   const [intent, setIntent] = useState<MarketplaceKind | "">("");
+  const [subId, setSubId] = useState("");
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
-  const providerForm = useQuery({
-    queryKey: ["category-form", form.mainCategoryId, "provider"],
-    queryFn: () => api.categoryForm(form.mainCategoryId, "provider"),
-    enabled: Boolean(form.mainCategoryId),
-  });
   const visibleMains = intent ? mainsForKind(categories.data ?? [], intent) : (categories.data ?? []);
+  const selectedMain = visibleMains.find((category) => category.id === form.mainCategoryId);
+  const subcategoryOptions = selectedMain
+    ? flattenDescendants(selectedMain).filter((entry) => !intent || entry.category.kind === intent)
+    : [];
+  const listingCategoryId = assignedCategoryId(form.mainCategoryId, subId, categories.data ?? []);
+  const stayForm = isStayCategory(selectedMain);
+  const providerForm = useQuery({
+    queryKey: ["category-form", listingCategoryId || form.mainCategoryId, "provider"],
+    queryFn: () => api.categoryForm(listingCategoryId || form.mainCategoryId, "provider"),
+    enabled: Boolean(listingCategoryId || form.mainCategoryId),
+  });
   const create = useMutation({
     mutationFn: api.createBusiness,
     onSuccess: (result) => {
@@ -170,7 +179,15 @@ export function ListBusiness() {
       lat: form.lat,
       lng: form.lng,
     };
-    const nextErrors = validateForm("business", values);
+    const extra: FieldKey[] = subcategoryOptions.length ? ["subcategoryId"] : [];
+    const nextErrors = validateForm(
+      "business",
+      {
+        ...values,
+        subcategoryId: subId,
+      },
+      extra,
+    );
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       toast.error(firstFormError(nextErrors) ?? "Please fix the highlighted fields.");
@@ -191,7 +208,7 @@ export function ListBusiness() {
       email: form.email,
       phone: form.phone || undefined,
       title: form.title || form.name,
-      categoryId: form.mainCategoryId,
+      categoryId: listingCategoryId || form.mainCategoryId,
       description: form.description,
       address: form.address,
       city: form.city,
@@ -236,11 +253,11 @@ export function ListBusiness() {
           <Field label="Business name" error={errors.businessName} required={isFieldRequired("businessName")}>
             <Input value={form.name} onChange={(event) => update("name", event.target.value)} aria-invalid={Boolean(errors.businessName)} />
           </Field>
-          <Field label="Profile title" error={errors.businessTitle} required={isFieldRequired("businessTitle")}>
+          <Field label={stayForm ? "Property title" : "Profile title"} error={errors.businessTitle} required={isFieldRequired("businessTitle")}>
             <Input
               value={form.title}
               onChange={(event) => update("title", event.target.value)}
-              placeholder="e.g. Bespoke Interior Studio"
+              placeholder={stayForm ? "e.g. Valley View Resort" : "e.g. Bespoke Interior Studio"}
               aria-invalid={Boolean(errors.businessTitle)}
             />
           </Field>
@@ -271,6 +288,7 @@ export function ListBusiness() {
               onChange={(event) => {
                 const next = event.target.value as MarketplaceKind | "";
                 setIntent(next);
+                setSubId("");
                 setForm((current) => ({ ...current, mainCategoryId: "" }));
                 setErrors((current) => ({ ...current, intent: undefined, categoryId: undefined }));
               }}
@@ -278,14 +296,17 @@ export function ListBusiness() {
             >
               <option value="">Select what you offer</option>
               <option value="supplier">Selling goods (shop / wholesale)</option>
-              <option value="service">Offering a trade (technician)</option>
+              <option value="service">Offering a service (stays, trades, transport)</option>
             </Select>
             </Field>
           </div>
           <Field label="Category" error={errors.categoryId} required={isFieldRequired("categoryId")}>
             <Select
               value={form.mainCategoryId}
-              onChange={(event) => update("mainCategoryId", event.target.value)}
+              onChange={(event) => {
+                update("mainCategoryId", event.target.value);
+                setSubId("");
+              }}
               disabled={!intent}
               aria-invalid={Boolean(errors.categoryId)}
             >
@@ -297,6 +318,25 @@ export function ListBusiness() {
               ))}
             </Select>
           </Field>
+          {subcategoryOptions.length ? (
+            <Field label={stayForm ? "Stay type" : "Subcategory"} error={errors.subcategoryId} required>
+              <Select
+                value={subId}
+                onChange={(event) => {
+                  setSubId(event.target.value);
+                  setErrors((current) => ({ ...current, subcategoryId: undefined }));
+                }}
+                aria-invalid={Boolean(errors.subcategoryId)}
+              >
+                <option value="">{stayForm ? "Select hotel, resort, homestay…" : "Select subcategory"}</option>
+                {subcategoryOptions.map(({ category, label }) => (
+                  <option key={category.id} value={category.id}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
           <Field label="Website" error={errors.website}>
             <Input
               type="url"
@@ -314,9 +354,11 @@ export function ListBusiness() {
           ) : null}
           {providerForm.data?.fields?.length ? (
             <div className="rounded-2xl border border-line bg-surface-low/60 p-4 md:col-span-2 md:p-5">
-              <p className="text-sm font-semibold">Category details</p>
+              <p className="text-sm font-semibold">{stayForm ? "Property details" : "Category details"}</p>
               <p className="mt-1 text-xs font-normal text-ink-soft">
-                Extra fields for this category, including license number when it applies.
+                {stayForm
+                  ? "Amenities, house rules, meals, and check-in times for this stay. Guests see these grouped like Breakfast included and Couple friendly."
+                  : "Extra fields for this category, including license number when it applies."}
               </p>
               <div className="mt-4">
                 <DynamicForm

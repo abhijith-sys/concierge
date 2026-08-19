@@ -197,6 +197,25 @@
     display: none;
   }
 
+  .scroll-hint {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(22 24 29 / 0.16) transparent;
+  }
+
+  .scroll-hint::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  .scroll-hint::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-hint::-webkit-scrollbar-thumb {
+    background: rgb(22 24 29 / 0.16);
+    border-radius: 999px;
+  }
+
   .leaflet-container {
     z-index: 0;
     font-family: var(--font-sans);

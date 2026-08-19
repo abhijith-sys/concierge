@@ -12,6 +12,7 @@ import { FormBuilderPage } from "./pages/FormBuilderPage";
 import { ListingsPage } from "./pages/ListingsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RolesPage } from "./pages/RolesPage";
+import { StayEnquiriesPage } from "./pages/StayEnquiriesPage";
 import { UsersPage } from "./pages/UsersPage";
 import { VerificationPage } from "./pages/VerificationPage";
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="businesses" element={<BusinessesPage />} />
           <Route path="listings" element={<ListingsPage />} />
+          <Route path="stay-enquiries" element={<StayEnquiriesPage />} />
           <Route path="verification" element={<VerificationPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="categories/:id" element={<CategoryDetailPage />} />

@@ -3,13 +3,15 @@ import { Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { EmptyList } from "../components/EmptyList";
+import { SearchBar } from "../components/home/SearchBar";
 import { ListingCard } from "../components/ListingCard";
 import { SafeImage } from "../components/SafeImage";
 import { Button, Input, PageState, Select } from "../components/ui";
 import { api } from "../lib/api";
 import { theme } from "../lib/theme";
 import { iconForCategory } from "../lib/category-icon";
-import { recordExploredCategory, setSavedCity } from "../lib/discovery";
+import { getSavedCity, recordExploredCategory, setSavedCity, setSavedCoords } from "../lib/discovery";
+import { isStayCategory } from "../lib/stays";
 import {
   categoryKind,
   mixedKindChildren,
@@ -24,7 +26,7 @@ export function Listings() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [city, setCity] = useState(params.get("city") ?? "");
+  const [city, setCity] = useState(() => params.get("city") ?? getSavedCity());
   const requestParams = new URLSearchParams(params);
 
   const category = useQuery({
@@ -62,7 +64,7 @@ export function Listings() {
   }
 
   useEffect(() => setQuery(params.get("q") ?? ""), [params]);
-  useEffect(() => setCity(params.get("city") ?? ""), [params]);
+  useEffect(() => setCity(params.get("city") ?? getSavedCity()), [params]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setParams((current) => {
@@ -84,7 +86,7 @@ export function Listings() {
   }, [category.data?.slug, category.data?.name]);
 
   useEffect(() => {
-    if (city.trim()) setSavedCity(city);
+    setSavedCity(city);
   }, [city]);
 
   const results = useQuery({
@@ -96,6 +98,10 @@ export function Listings() {
     return categoryKind(child) === selectedKind;
   });
   const tradesView = selectedKind === "service";
+  const stayView =
+    isStayCategory(category.data) ||
+    isStayCategory(browseMain) ||
+    isStayCategory(categorySlug ? { slug: categorySlug } : null);
   const heroSrc =
     category.data?.bannerUrl?.trim() ||
     category.data?.imageUrl?.trim() ||
@@ -105,7 +111,9 @@ export function Listings() {
   const heroCopy =
     category.data?.description?.trim() ||
     parentCategory.data?.description?.trim() ||
-    (tradesView
+    (stayView
+      ? "Compare hotels, resorts, and homestays — rooms, rates, facilities, and guest reviews."
+      : tradesView
       ? "Licensed tradespeople ready to take the job."
       : "Shops and wholesalers selling bulk, by order, or single piece at trade rates.");
 
@@ -135,11 +143,28 @@ export function Listings() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    setSavedCity(city);
     const next = new URLSearchParams(params);
     if (query.trim()) next.set("q", query.trim());
     else next.delete("q");
+    if (city.trim()) next.set("city", city.trim());
+    else next.delete("city");
     next.delete("page");
     setParams(next);
+  }
+
+  function useLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((position) => {
+      const nextCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setSavedCoords(nextCoords);
+      const next = new URLSearchParams(params);
+      next.set("lat", String(nextCoords.lat));
+      next.set("lng", String(nextCoords.lng));
+      next.set("radiusKm", params.get("radiusKm") ?? "10");
+      next.delete("page");
+      setParams(next);
+    });
   }
 
   function updateParam(key: string, value: string) {
@@ -221,19 +246,34 @@ export function Listings() {
       ) : null}
       <section className="relative overflow-hidden rounded-[1.75rem] bg-navy">
         <SafeImage src={heroSrc} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
-        <div className="relative z-10 flex max-w-2xl flex-col justify-center p-5 text-white md:p-7">
-          <p className="label-caps text-gold-light">{tradesView ? "Need a technician?" : "Supplier network"}</p>
+        <div className="relative z-10 flex max-w-3xl flex-col justify-center p-5 text-white md:p-7">
+          <p className="label-caps text-gold-light">
+            {stayView ? "Places to stay" : tradesView ? "Need a technician?" : "Supplier network"}
+          </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
-            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : tradesView ? "Find a professional" : "Find shops at the best rate")}
+            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : stayView ? "Find a stay" : tradesView ? "Find a professional" : "Find shops at the best rate")}
           </h1>
           <p className="mt-2 text-sm leading-6 text-white/75">{heroCopy}</p>
-          <form onSubmit={submit} className="mt-4 flex rounded-xl bg-white p-1.5">
-            <label className="flex flex-1 items-center gap-2 px-3 text-black">
-              <Search className="size-5" /><span className="sr-only">Search listings</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder={tradesView ? "Search technicians or services" : "Search shops or items"} />
-            </label>
-            <Button type="submit">Search</Button>
-          </form>
+          {stayView ? (
+            <SearchBar
+              city={city}
+              query={query}
+              onCityChange={setCity}
+              onQueryChange={setQuery}
+              onSubmit={submit}
+              onUseLocation={useLocation}
+              queryPlaceholder="Search hotels, resorts, or homestays"
+              className="mt-4 text-navy"
+            />
+          ) : (
+            <form onSubmit={submit} className="mt-4 flex rounded-xl bg-white p-1.5">
+              <label className="flex flex-1 items-center gap-2 px-3 text-black">
+                <Search className="size-5" /><span className="sr-only">Search listings</span>
+                <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder={tradesView ? "Search technicians or services" : "Search shops or items"} />
+              </label>
+              <Button type="submit">Search</Button>
+            </form>
+          )}
         </div>
       </section>
 
@@ -319,7 +359,7 @@ export function Listings() {
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
-            <div><p className="label-caps text-gold-dark">{tradesView ? "Technicians" : "Directory"}</p><h2 className="mt-2 text-3xl font-semibold">{tradesView ? "Service professionals" : "Shops & sellers"}</h2></div>
+            <div><p className="label-caps text-gold-dark">{stayView ? "Stays" : tradesView ? "Technicians" : "Directory"}</p><h2 className="mt-2 text-3xl font-semibold">{stayView ? "Hotels, resorts & stays" : tradesView ? "Service professionals" : "Shops & sellers"}</h2></div>
             {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
           </div>
           {results.isLoading ? (

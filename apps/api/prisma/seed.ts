@@ -14,6 +14,8 @@ import {
   platformListingFields,
   platformProviderFields,
   rentalHireListingFields,
+  stayPropertyFields,
+  stayRoomFields,
   type FieldSeed,
 } from "./taxonomy.js";
 
@@ -33,6 +35,18 @@ const listingImages = {
   fashion: "/assets/categories/fashion-apparel.jpg",
   electronics: "/assets/categories/electronics-technology.jpg",
   logistics: "/assets/categories/logistics-other.jpg",
+} as const;
+
+const stayPhotos = {
+  stay: "/assets/categories/hotels-resorts-stays.jpg",
+  stayBanner: "/assets/categories/hotels-resorts-stays-banner.jpg",
+  home: "/assets/categories/home-property.jpg",
+  homeBanner: "/assets/categories/home-property-banner.jpg",
+  wellness: "/assets/categories/health-wellness.jpg",
+  wellnessBanner: "/assets/categories/health-wellness-banner.jpg",
+  events: "/assets/categories/events-lifestyle.jpg",
+  eventsBanner: "/assets/categories/events-lifestyle-banner.jpg",
+  furniture: "/assets/listings/furniture.jpg",
 } as const;
 
 type DemoCatalogItem = {
@@ -63,6 +77,7 @@ type DemoBusiness = {
   sellsSinglePiece?: boolean;
   wholesale?: boolean;
   catalog?: DemoCatalogItem[];
+  stayFields?: Record<string, string | number | boolean | string[]>;
 };
 
 const businesses: DemoBusiness[] = [
@@ -342,6 +357,206 @@ const businesses: DemoBusiness[] = [
       },
     ],
   },
+  {
+    name: "Mist Valley Resorts",
+    slug: "mist-valley-resorts",
+    category: "resorts",
+    city: "Munnar",
+    address: "Old Munnar Road, Munnar, Kerala",
+    headline: "Valley cottages, pool, and campfire nights.",
+    description:
+      "A hillside resort with valley-facing cottages and hotel rooms. Breakfast is included, couples are welcome, and the team can arrange pickup from Munnar town. Evenings usually end at the campfire with tea and local snacks.\n\nThe property sits above the tea estates, about fifteen minutes from town. Guests come for quiet stays, family weekends, and small gatherings. Rooms are listed separately so you can compare rates, occupancy, and photos before you enquire.",
+    lat: 10.0889,
+    lng: 77.0595,
+    images: [stayPhotos.stay, stayPhotos.stayBanner, stayPhotos.home],
+    years: 12,
+    whatsapp: "+91 484 555 0190",
+    stayFields: {
+      check_in_time: "14:00",
+      check_out_time: "11:00",
+      min_stay_nights: 1,
+      meals: ["Breakfast included"],
+      breakfast_included: true,
+      amenities_highlighted: [
+        "Parking",
+        "Bonfire",
+        "Indoor Games",
+        "Restaurant",
+        "Swimming Pool",
+        "Breakfast included",
+        "Couple friendly",
+      ],
+      amenities_basic: ["Parking", "Swimming Pool", "Power Backup", "Housekeeping", "Room Service", "WiFi", "Play area"],
+      amenities_services: ["Concierge", "Luggage Assistance", "Pickup & drop", "Pool/Beach towels"],
+      amenities_wellness: ["First-aid Services"],
+      couples_allowed: true,
+      pets_allowed: false,
+      extra_bed_available: true,
+      extra_bed_rate: 1200,
+      other_activities: ["Trekking", "Bonfire", "Guided tours"],
+      cancellation_policy: "Moderate",
+      nearest_landmark: "12 minutes from Munnar town",
+      whatsapp: "+91 484 555 0190",
+    },
+    catalog: [
+      {
+        name: "Valley View Cottage",
+        description: "Private cottage with a sit-out, king bed, and valley view. Ideal for couples.",
+        price: 8500,
+        pricingType: "daily",
+        images: [stayPhotos.stay, stayPhotos.stayBanner, stayPhotos.homeBanner, stayPhotos.events],
+        fields: {
+          room_type: "Cottage",
+          occupancy_adults: 2,
+          occupancy_children: 1,
+          bed_type: "King",
+          room_size_sqft: 420,
+          room_count: 6,
+          room_facilities: [
+            "Coffee Machine",
+            "Dental Kit",
+            "Geyser/Water Heater",
+            "Toiletries",
+            "Work Desk",
+            "Air conditioning",
+            "TV",
+            "WiFi",
+            "Balcony",
+            "Hot water",
+            "Mountain view",
+          ],
+          rate_weekday: 8500,
+          rate_weekend: 9800,
+          rate_extra_person: 1500,
+          rate_extra_bed: 1200,
+        },
+      },
+      {
+        name: "Deluxe Room",
+        description: "Hotel-style deluxe room with garden view and attached bath.",
+        price: 5200,
+        pricingType: "daily",
+        images: [stayPhotos.stayBanner, stayPhotos.home, stayPhotos.wellness, stayPhotos.furniture],
+        fields: {
+          room_type: "Deluxe Room",
+          occupancy_adults: 2,
+          occupancy_children: 1,
+          bed_type: "Queen",
+          room_size_sqft: 280,
+          room_count: 10,
+          room_facilities: ["Air conditioning", "TV", "WiFi", "Hot water", "Geyser/Water Heater", "Toiletries", "Garden view"],
+          rate_weekday: 5200,
+          rate_weekend: 6200,
+          rate_extra_person: 1200,
+        },
+      },
+      {
+        name: "Family Suite",
+        description: "Two-room suite with extra bedding for families. Pool-facing sit-out.",
+        price: 12500,
+        pricingType: "daily",
+        images: [stayPhotos.home, stayPhotos.eventsBanner, stayPhotos.stay, stayPhotos.wellnessBanner],
+        fields: {
+          room_type: "Suite",
+          occupancy_adults: 4,
+          occupancy_children: 2,
+          bed_type: "Multiple",
+          room_size_sqft: 680,
+          room_count: 3,
+          room_facilities: [
+            "Coffee Machine",
+            "Toiletries",
+            "Air Purifier",
+            "Work Desk",
+            "Air conditioning",
+            "TV",
+            "WiFi",
+            "Balcony",
+            "Mini fridge",
+            "Pool view",
+          ],
+          rate_weekday: 12500,
+          rate_weekend: 14500,
+          rate_extra_person: 1800,
+          rate_extra_bed: 1200,
+        },
+      },
+    ],
+  },
+  {
+    name: "Tea Garden Homestay",
+    slug: "tea-garden-homestay",
+    category: "homestays",
+    city: "Munnar",
+    address: "Lockhart Gap Road, Munnar, Kerala",
+    headline: "A family homestay among the tea gardens.",
+    description:
+      "Stay with a local family in a garden cottage. Home-cooked meals, a play area for children, and pets are welcome. Pickup from Munnar bus stand is available on request.\n\nThe house looks over a working tea estate. Hosts help with short walks, taxi plans, and simple Kerala meals. Enquire with your dates and the rooms you want — they reply directly.",
+    lat: 10.0794,
+    lng: 77.0469,
+    images: [stayPhotos.stay, stayPhotos.home, stayPhotos.homeBanner],
+    years: 7,
+    whatsapp: "+91 484 555 0177",
+    stayFields: {
+      check_in_time: "13:00",
+      check_out_time: "11:00",
+      min_stay_nights: 1,
+      meals: ["Breakfast included", "Dinner"],
+      breakfast_included: true,
+      amenities_highlighted: ["Parking", "Bonfire", "Breakfast included", "Couple friendly", "Pet friendly"],
+      amenities_basic: ["Parking", "Housekeeping", "Newspaper", "WiFi", "Garden", "Play area"],
+      amenities_services: ["Caretaker", "Pickup & drop", "Luggage Assistance"],
+      amenities_wellness: ["First-aid Services"],
+      couples_allowed: true,
+      pets_allowed: true,
+      extra_bed_available: true,
+      extra_bed_rate: 800,
+      other_activities: ["Trekking", "Bonfire", "Kids activities"],
+      cancellation_policy: "Flexible",
+      nearest_landmark: "Near Lockhart Gap viewpoint",
+      whatsapp: "+91 484 555 0177",
+    },
+    catalog: [
+      {
+        name: "Garden Cottage",
+        description: "Standalone cottage with a small sit-out and garden. Sleeps two adults and a child.",
+        price: 3800,
+        pricingType: "daily",
+        images: [stayPhotos.home, stayPhotos.homeBanner, stayPhotos.events, stayPhotos.stay],
+        fields: {
+          room_type: "Cottage",
+          occupancy_adults: 2,
+          occupancy_children: 1,
+          bed_type: "Double",
+          room_size_sqft: 260,
+          room_count: 2,
+          room_facilities: ["WiFi", "Hot water", "Geyser/Water Heater", "Toiletries", "Garden view", "Private bathroom"],
+          rate_weekday: 3800,
+          rate_weekend: 4500,
+          rate_extra_person: 800,
+        },
+      },
+      {
+        name: "Family Room",
+        description: "Larger room in the main house with extra bedding for families.",
+        price: 4600,
+        pricingType: "daily",
+        images: [stayPhotos.stay, stayPhotos.furniture, stayPhotos.wellness, stayPhotos.homeBanner],
+        fields: {
+          room_type: "Family Room",
+          occupancy_adults: 3,
+          occupancy_children: 2,
+          bed_type: "Multiple",
+          room_size_sqft: 340,
+          room_count: 1,
+          room_facilities: ["TV", "WiFi", "Hot water", "Toiletries", "Work Desk", "Mountain view"],
+          rate_weekday: 4600,
+          rate_weekend: 5400,
+          rate_extra_bed: 800,
+        },
+      },
+    ],
+  },
 ];
 
 function jsonField(value: Prisma.InputJsonValue | object | undefined) {
@@ -507,6 +722,14 @@ async function main() {
   if (healthId) await upsertFields(healthId, healthWellnessFields);
   const rentalHireId = categoryIds.get("rental-hire");
   if (rentalHireId) await upsertFields(rentalHireId, rentalHireListingFields);
+  const stayId = categoryIds.get("hotels-resorts-stays");
+  if (stayId) {
+    await upsertFields(stayId, [...stayPropertyFields, ...stayRoomFields]);
+    await prisma.categoryField.updateMany({
+      where: { categoryId: stayId, key: "facilities" },
+      data: { isActive: false },
+    });
+  }
   for (const [slug, fields] of Object.entries(exampleSubcategoryFields)) {
     const id = categoryIds.get(slug);
     if (id) await upsertFields(id, fields);
@@ -546,6 +769,7 @@ async function main() {
         verified: true,
         status: BusinessStatus.active,
         coverUrl,
+        phone: item.whatsapp ?? "+1 212 555 0100",
         socialLinks: {
           instagram: `https://instagram.com/${item.slug}`,
         },
@@ -555,7 +779,7 @@ async function main() {
         name: item.name,
         slug: item.slug,
         email: `hello@${item.slug}.example`,
-        phone: "+1 212 555 0100",
+        phone: item.whatsapp ?? "+1 212 555 0100",
         verified: true,
         status: BusinessStatus.active,
         coverUrl,
@@ -648,6 +872,34 @@ async function main() {
       });
     }
 
+    if (item.stayFields) {
+      const stayCategory = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { id: true, parentId: true },
+      });
+      const stayFieldRows = await prisma.categoryField.findMany({
+        where: {
+          key: { in: Object.keys(item.stayFields) },
+          categoryId: { in: [categoryId, stayCategory?.parentId, platform.id].filter(Boolean) as string[] },
+        },
+        select: { id: true, key: true, categoryId: true },
+      });
+      const preferredStay = new Map<string, { id: string; key: string }>();
+      for (const field of stayFieldRows) {
+        if (field.categoryId === platform.id && preferredStay.has(field.key)) continue;
+        preferredStay.set(field.key, field);
+      }
+      for (const field of preferredStay.values()) {
+        const value = item.stayFields[field.key];
+        if (value === undefined) continue;
+        await prisma.listingFieldValue.upsert({
+          where: { listingId_fieldId: { listingId: listing.id, fieldId: field.id } },
+          update: seedFieldData(value),
+          create: { listingId: listing.id, fieldId: field.id, ...seedFieldData(value) },
+        });
+      }
+    }
+
     const catalog = item.catalog ?? [
       {
         name: "Design consultation",
@@ -677,10 +929,16 @@ async function main() {
         },
       });
       if (entry.fields) {
+        const listingCategory = await prisma.category.findUnique({
+          where: { id: categoryId },
+          select: { parentId: true },
+        });
         const categoryFields = await prisma.categoryField.findMany({
           where: {
             key: { in: Object.keys(entry.fields) },
-            categoryId: { in: [categoryId, platform.id] },
+            categoryId: {
+              in: [categoryId, listingCategory?.parentId, platform.id].filter(Boolean) as string[],
+            },
           },
           select: { id: true, key: true, categoryId: true },
         });
@@ -711,12 +969,14 @@ async function main() {
     [5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
     [5, 5, 5, 5, 5, 5, 5, 4, 4, 4],
     [5, 5, 5, 5, 5, 5, 4, 4, 4, 4],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 4],
+    [5, 5, 5, 5, 5, 5, 5, 4, 4, 4],
   ];
 
   for (const [businessIndex, businessId] of businessIds.entries()) {
     for (const [reviewerIndex, email] of reviewerEmails.entries()) {
       const userId = users.get(email)!.id;
-      const rating = scoreSets[businessIndex][reviewerIndex];
+      const rating = (scoreSets[businessIndex] ?? scoreSets[0])[reviewerIndex];
       await prisma.review.upsert({
         where: { userId_businessId: { userId, businessId } },
         update: { rating, comment: "Exceptional service, thoughtful communication, and outstanding craftsmanship." },

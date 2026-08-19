@@ -357,7 +357,8 @@ export const categoriesRepository = {
         ]),
       );
     }
-    return fieldsForCategoryKind(composed, category.kind);
+    const rootSlug = ancestors[0]?.slug ?? category.slug;
+    return fieldsForCategoryKind(composed, category.kind, rootSlug);
   },
 
   async listFormLayers(categoryId: string, kind: FormKind) {

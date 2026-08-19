@@ -83,4 +83,19 @@ describe("composed forms", () => {
     expect(fieldsForCategoryKind(rows, "supplier").map((row) => row.key)).toEqual(["order_modes", "business_type"]);
     expect(fieldsForCategoryKind(rows, "service").map((row) => row.key)).toEqual(["emergency_service", "business_type"]);
   });
+
+  it("drops trade and wholesale fields on stay category forms", () => {
+    const rows = [
+      field({ id: "1", key: "order_modes" }),
+      field({ id: "2", key: "emergency_service" }),
+      field({ id: "3", key: "business_type" }),
+      field({ id: "4", key: "amenities_highlighted" }),
+      field({ id: "5", key: "whatsapp" }),
+    ];
+    expect(fieldsForCategoryKind(rows, "service", "hotels-resorts-stays").map((row) => row.key)).toEqual([
+      "business_type",
+      "amenities_highlighted",
+      "whatsapp",
+    ]);
+  });
 });

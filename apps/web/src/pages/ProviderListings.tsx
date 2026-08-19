@@ -12,11 +12,13 @@ import {
 } from "../components/CategoryFieldsEditor";
 import { EmptyList } from "../components/EmptyList";
 import { ProviderListingsTable } from "../components/ProviderListingsTable";
+import { GalleryUpload, MAX_GALLERY_IMAGES } from "../components/GalleryUpload";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { ApiError, api, type Business, type Service } from "../lib/api";
 import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/category-tree";
 import { listingKind as marketplaceKindOf } from "../lib/listing-kind";
+import { isStayListing } from "../lib/stays";
 import { isProvider } from "../lib/provider";
 import { businessStatus, canAddItems, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
@@ -77,12 +79,14 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     price: "100",
     pricingType: "fixed",
   });
+  const [images, setImages] = useState<string[]>([]);
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const seededFor = useRef("");
 
   const listingCategoryId = assignedCategoryId(mainId, subId, categories.data ?? []);
   const shopKind = marketplaceKindOf(selected?.listing);
+  const stayListing = isStayListing(selected?.listing);
   const selectedMain = (categories.data ?? []).find((category) => category.id === mainId);
   const subcategoryOptions = selectedMain
     ? flattenDescendants(selectedMain).filter((entry) => entry.category.kind === shopKind)
@@ -99,6 +103,15 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     const seedKey = editing ? `edit:${editingService?.id}` : `create:${selected?.id}`;
     if (seededFor.current === seedKey) return;
     seededFor.current = seedKey;
+    if (!editing) {
+      setForm({
+        name: "",
+        description: "",
+        price: stayListing ? "0" : "100",
+        pricingType: stayListing ? "daily" : "fixed",
+      });
+      setImages([]);
+    }
     const defaultId = editing
       ? editingService?.categoryId ?? selected?.listing?.category?.id
       : selected?.listing?.category?.id;
@@ -113,8 +126,9 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
       name: editingService.name,
       description: editingService.description,
       price: String(editingService.price),
-      pricingType: editingService.pricingType || "fixed",
+      pricingType: editingService.pricingType || (stayListing ? "daily" : "fixed"),
     });
+    setImages(editingService.images ?? []);
   }, [editingService]);
 
   useEffect(() => {
@@ -125,6 +139,24 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     setFieldValues(valuesFromFieldValues(listingForm.data.fields, editingService?.fieldValues));
   }, [listingForm.data, editingService?.fieldValues]);
 
+  const uploadImage = useMutation({
+    mutationFn: async (files: File[]) => {
+      const remaining = Math.max(0, MAX_GALLERY_IMAGES - images.length);
+      const toUpload = files.slice(0, remaining);
+      if (!toUpload.length) {
+        throw new ApiError("You can add up to 20 photos for this room.", 400);
+      }
+      const uploaded = await Promise.all(toUpload.map((file) => api.upload(file, { visibility: "public" })));
+      setImages((current) => [...current, ...uploaded.map((file) => file.url)].slice(0, MAX_GALLERY_IMAGES));
+      if (files.length > toUpload.length) {
+        toast.error(`Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added.`);
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof ApiError ? error.message : "Unable to upload photos.");
+    },
+  });
+
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -133,6 +165,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
         price: Number(form.price),
         currency: "USD",
         pricingType: form.pricingType,
+        images,
         categoryId: listingCategoryId || undefined,
         fieldValues: listingForm.data?.fields?.length
           ? toFieldValuePayload(listingForm.data.fields, fieldValues)
@@ -212,12 +245,16 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
         to={selected ? `/provider/listings?business=${selected.id}` : "/provider"}
         className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-navy"
       >
-        <ArrowLeft className="size-4" /> Back to items
+        <ArrowLeft className="size-4" /> Back to {stayListing ? "rooms" : "items"}
       </Link>
-      <p className="label-caps mt-5 text-gold-dark">{shopKind === "supplier" ? "Seller" : "Provider"}</p>
-      <h1 className="mt-3 text-4xl font-bold tracking-tight">{editing ? "Edit item" : "Add item"}</h1>
+      <p className="label-caps mt-5 text-gold-dark">{stayListing ? "Stay" : shopKind === "supplier" ? "Seller" : "Provider"}</p>
+      <h1 className="mt-3 text-4xl font-bold tracking-tight">
+        {editing ? (stayListing ? "Edit room" : "Edit item") : stayListing ? "Add room / cottage" : "Add item"}
+      </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-ink-soft">
-        Fill in the item details, then submit for review.
+        {stayListing
+          ? "Add this room or cottage with photos, occupancy, and nightly rates."
+          : "Fill in the item details, then submit for review."}
       </p>
 
       {selected?.status === "pending" ? (
@@ -331,7 +368,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 </Select>
               </Field>
             ) : null}
-            <Field label="Listing name" error={errors.listingName} required={isFieldRequired("listingName")}>
+            <Field label={stayListing ? "Room / cottage name" : "Listing name"} error={errors.listingName} required={isFieldRequired("listingName")}>
               <Input
                 value={form.name}
                 onChange={(event) => {
@@ -341,7 +378,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 aria-invalid={Boolean(errors.listingName)}
               />
             </Field>
-            <Field label="Starting price" error={errors.price} required={isFieldRequired("price")}>
+            <Field label={stayListing ? "Starting nightly rate" : "Starting price"} error={errors.price} required={isFieldRequired("price")}>
               <Input
                 type="number"
                 min="0"
@@ -379,6 +416,18 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 />
               </Field>
             </div>
+            <GalleryUpload
+              label={stayListing ? "Room photos" : "Item photos"}
+              hint={
+                stayListing
+                  ? "Add several photos of this room type. Guests see them as a gallery when they open the room."
+                  : "Add several photos of this item."
+              }
+              values={images}
+              uploading={uploadImage.isPending}
+              onSelect={(files) => uploadImage.mutate(files)}
+              onRemove={(url) => setImages((current) => current.filter((item) => item !== url))}
+            />
             {listingCategoryId && listingForm.isLoading ? (
               <p className="text-sm text-ink-soft md:col-span-2">Loading listing fields…</p>
             ) : null}
@@ -432,7 +481,7 @@ function BusinessItemsPage({
       </Link>
       <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label-caps text-gold-dark">Items</p>
+          <p className="label-caps text-gold-dark">{isStayListing(business.listing) ? "Rooms" : "Items"}</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight">{business.name}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
             <StatusBadge label={status.label} tone={status.tone} />
@@ -440,10 +489,21 @@ function BusinessItemsPage({
           </div>
         </div>
         {canAdd ? (
-          <Link to={`/provider/listings/create?business=${business.id}`}>
-            <Button>
-              <Plus className="size-4" /> Add item
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            {isStayListing(business.listing) ? (
+              <Link to={`/provider/enquiries?business=${business.id}`}>
+                <Button variant="outline">Stay enquiries</Button>
+              </Link>
+            ) : null}
+            <Link to={`/provider/listings/create?business=${business.id}`}>
+              <Button>
+                <Plus className="size-4" /> {isStayListing(business.listing) ? "Add room" : "Add item"}
+              </Button>
+            </Link>
+          </div>
+        ) : isStayListing(business.listing) ? (
+          <Link to={`/provider/enquiries?business=${business.id}`}>
+            <Button variant="outline">Stay enquiries</Button>
           </Link>
         ) : null}
       </div>

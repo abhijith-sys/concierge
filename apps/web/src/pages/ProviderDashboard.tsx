@@ -7,6 +7,7 @@ import { SafeImage } from "../components/SafeImage";
 import { Button, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Business } from "../lib/api";
+import { isStayListing } from "../lib/stays";
 import { businessStatus, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
 
@@ -137,6 +138,11 @@ function BusinessesTable({ businesses }: { businesses: Business[] }) {
                       <Link to={`/provider/listings?business=${business.id}`}>
                         <Button>Open</Button>
                       </Link>
+                      {isStayListing(business.listing) ? (
+                        <Link to={`/provider/enquiries?business=${business.id}`}>
+                          <Button variant="outline">Enquiries</Button>
+                        </Link>
+                      ) : null}
                       <Link to={`/business/${business.slug}/edit`}>
                         <Button variant="ghost">Edit profile</Button>
                       </Link>
