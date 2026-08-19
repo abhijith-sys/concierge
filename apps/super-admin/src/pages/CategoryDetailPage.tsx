@@ -111,6 +111,13 @@ export function CategoryDetailPage() {
                 : "Supplier / shop · "}
             {active ? "Enabled" : "Disabled"}
           </p>
+          {!isPlatform(category) ? (
+            <p className="muted" style={{ margin: "0.75rem 0 0", maxWidth: "42rem" }}>
+              Provider form fields appear on the shop profile. Listing form fields appear as extra details on each
+              catalog item / offering page. Configure both under{" "}
+              <Link to={`/categories/${category.id}/forms`}>forms</Link>.
+            </p>
+          ) : null}
         </div>
         <div className="actions">
           <Link className="btn" to={`/categories/${category.id}/forms`}>

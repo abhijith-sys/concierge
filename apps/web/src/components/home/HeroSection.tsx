@@ -59,7 +59,7 @@ export function HeroSection({
           <PopularSearches categories={popularSearches} />
         </div>
 
-        <div className="relative min-h-[260px] overflow-hidden rounded-[1.75rem] border border-line bg-white lg:min-h-[340px]">
+        <div className="relative min-h-[200px] overflow-hidden rounded-[1.75rem] border border-line bg-white lg:min-h-[260px]">
           <ThemeBackdrop className="pointer-events-none absolute inset-0 h-full w-full" />
           <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-2.5 p-3 md:p-4">
             {categoriesLoading

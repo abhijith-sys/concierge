@@ -1,6 +1,6 @@
 import { BusinessStatus, Role, ServiceApprovalStatus } from "@prisma/client";
 import { ApiError } from "../../shared/errors/index.js";
-import type { AuthUser } from "../../shared/domain/business.js";
+import { assertCanViewBusiness, type AuthUser } from "../../shared/domain/business.js";
 import {
   normalizeAndValidateFieldValues,
   serializeFieldValue,
@@ -57,6 +57,20 @@ export const servicesService = {
     const publicOnly = !(user && (user.role === Role.admin || user.id === business.ownerId));
     const services = await servicesRepository.listByBusiness(businessId, { publicOnly });
     return withFieldValues(services);
+  },
+
+  async getById(id: string, user?: AuthUser) {
+    const existing = await servicesRepository.findById(id);
+    if (!existing) throw new ApiError(404, "SERVICE_NOT_FOUND", "Service not found");
+    assertCanViewBusiness(existing.business, user);
+    const isOwnerOrAdmin = Boolean(user && (user.role === Role.admin || user.id === existing.business.ownerId));
+    const isPublic =
+      existing.isActive && existing.approvalStatus === ServiceApprovalStatus.approved;
+    if (!isPublic && !isOwnerOrAdmin) {
+      throw new ApiError(404, "SERVICE_NOT_FOUND", "Service not found");
+    }
+    const [hydrated] = await withFieldValues([existing]);
+    return hydrated;
   },
 
   async create(input: CreateServiceInput, user: AuthUser) {

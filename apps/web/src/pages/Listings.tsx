@@ -219,15 +219,15 @@ export function Listings() {
           })}
         </div>
       ) : null}
-      <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] bg-navy">
+      <section className="relative overflow-hidden rounded-[1.75rem] bg-navy">
         <SafeImage src={heroSrc} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
-        <div className="relative z-10 flex min-h-[340px] max-w-2xl flex-col justify-center p-8 text-white md:p-12">
+        <div className="relative z-10 flex max-w-2xl flex-col justify-center p-5 text-white md:p-7">
           <p className="label-caps text-gold-light">{tradesView ? "Need a technician?" : "Supplier network"}</p>
-          <h1 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
             {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : tradesView ? "Find a professional" : "Find shops at the best rate")}
           </h1>
-          <p className="mt-4 leading-7 text-white/75">{heroCopy}</p>
-          <form onSubmit={submit} className="mt-7 flex rounded-xl bg-white p-1.5">
+          <p className="mt-2 text-sm leading-6 text-white/75">{heroCopy}</p>
+          <form onSubmit={submit} className="mt-4 flex rounded-xl bg-white p-1.5">
             <label className="flex flex-1 items-center gap-2 px-3 text-black">
               <Search className="size-5" /><span className="sr-only">Search listings</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder={tradesView ? "Search technicians or services" : "Search shops or items"} />
@@ -323,14 +323,14 @@ export function Listings() {
             {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
           </div>
           {results.isLoading ? (
-            <div className="grid gap-6 md:grid-cols-2">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-[430px] animate-pulse rounded-2xl bg-surface-high" />)}</div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <div key={index} className="h-72 animate-pulse rounded-2xl bg-surface-high" />)}</div>
           ) : results.isError ? (
             <PageState title="We couldn't load listings" description="Check that the API is running, then try again." action={<Button onClick={() => void results.refetch()}>Try again</Button>} />
           ) : results.data?.items.length === 0 ? (
             <EmptyList title="No matches yet" description="Try broadening your filters or searching another city." action={<Button onClick={() => setParams(new URLSearchParams())}>Clear filters</Button>} />
           ) : (
             <>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {results.data?.items.map((listing) => (
                   <ListingCard key={listing.id} listing={listing} />
                 ))}

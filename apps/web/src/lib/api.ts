@@ -153,6 +153,25 @@ export interface Service {
   categoryId?: string | null;
   category?: Category;
   fieldValues?: FieldValue[];
+  business?: {
+    id: string;
+    name: string;
+    slug: string;
+    verified?: boolean;
+    phone?: string;
+    email?: string;
+    coverUrl?: string | null;
+    ownerId?: string;
+    status?: "pending" | "active" | "rejected" | "suspended" | "deleted";
+    listing?: {
+      id: string;
+      avgRating: number;
+      reviewCount: number;
+      city?: string;
+      listingKind?: "supplier" | "service";
+      category?: Category;
+    };
+  };
 }
 
 export interface SocialLinks {
@@ -545,6 +564,12 @@ export const api = {
   services: async (businessId: string) => {
     const value = await request<unknown>(`/api/services/business/${encodeURIComponent(businessId)}`);
     return unwrapArray<Service>(value, ["services", "items", "data"]);
+  },
+  service: async (id: string): Promise<Service> => {
+    const value = await request<Service | { service: Service }>(
+      `/api/services/${encodeURIComponent(id)}`,
+    );
+    return "service" in value ? value.service : value;
   },
   createService: async (input: Record<string, unknown>) => {
     const value = await request<{ service: Service }>("/api/services", {
