@@ -12,14 +12,16 @@ export function ListingsPage() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState(searchParams.get("status") ?? "pending");
+  const [status, setStatus] = useState(searchParams.get("status") ?? (searchParams.get("businessId") ? "" : "pending"));
   const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const businessId = searchParams.get("businessId") ?? "";
 
   const params = new URLSearchParams({ pageSize: "50" });
   if (q.trim()) params.set("q", q.trim());
   if (status) params.set("status", status);
   if (categoryId) params.set("categoryId", categoryId);
+  if (businessId) params.set("businessId", businessId);
 
   const list = useQuery({
     queryKey: ["admin", "listings", params.toString()],
@@ -59,6 +61,12 @@ export function ListingsPage() {
       <div>
         <h2 style={{ margin: 0 }}>Catalog items</h2>
         <p className="muted">Moderate shop catalog items and service offerings before they appear on public profiles</p>
+        {businessId ? (
+          <p className="muted" style={{ margin: "0.5rem 0 0" }}>
+            Showing items for one seller.{" "}
+            <Link to="/listings">View all catalog items</Link>
+          </p>
+        ) : null}
       </div>
       <div className="row">
         <input className="input" placeholder="Search listing or provider" value={q} onChange={(e) => setQ(e.target.value)} />

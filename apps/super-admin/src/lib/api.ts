@@ -20,6 +20,7 @@ export type Business = {
     title?: string;
     category?: { id: string; name: string; slug: string } | null;
   };
+  _count?: { services?: number; reviews?: number };
 };
 
 export type AdminListing = {

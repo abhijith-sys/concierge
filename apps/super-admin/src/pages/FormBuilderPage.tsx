@@ -220,6 +220,11 @@ export function FormBuilderPage() {
               : "Main category form = common + these fields"}
           {form.data ? ` · version ${form.data.formSchemaVersion}` : ""}
         </p>
+        <p className="muted" style={{ margin: "0.5rem 0 0", maxWidth: "42rem" }}>
+          {kind === "listing"
+            ? "Listing form fields are the extra details shown on public catalog item / offering pages (unit, MOQ, bulk price, duration, and anything else you add)."
+            : "Provider form fields appear on the public shop profile when a seller registers or edits their business."}
+        </p>
       </div>
 
       <div className="row">

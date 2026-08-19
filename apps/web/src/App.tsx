@@ -12,6 +12,10 @@ const BusinessDetail = lazyWithReload(
   () => import("./pages/BusinessDetail"),
   (module) => module.BusinessDetail,
 );
+const ServiceDetail = lazyWithReload(
+  () => import("./pages/ServiceDetail"),
+  (module) => module.ServiceDetail,
+);
 const Login = lazyWithReload(() => import("./pages/Auth"), (module) => module.Login);
 const Register = lazyWithReload(() => import("./pages/Auth"), (module) => module.Register);
 const VerifyEmail = lazyWithReload(
@@ -70,6 +74,7 @@ function AppRoutes() {
           <Route path="listings" element={<Listings />} />
           <Route path="listings/:categorySlug" element={<Listings />} />
           <Route path="business/:slug" element={<BusinessDetail />} />
+          <Route path="business/:slug/items/:itemId" element={<ServiceDetail />} />
           <Route path="business/:slug/edit" element={<EditBusiness />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { RejectPanel } from "../components/RejectPanel";
 import { EmptyList } from "../components/EmptyList";
 import { useAuth } from "../context/auth";
@@ -95,6 +95,7 @@ export function BusinessesPage() {
             <tr>
               <th>Business</th>
               <th>Category</th>
+              <th>Catalog</th>
               <th>Status</th>
               <th>Verified</th>
               <th>Actions</th>
@@ -111,6 +112,11 @@ export function BusinessesPage() {
                   ) : null}
                 </td>
                 <td>{business.listing?.category?.name ?? "—"}</td>
+                <td>
+                  <Link to={`/listings?businessId=${encodeURIComponent(business.id)}`}>
+                    {business._count?.services ?? 0} items
+                  </Link>
+                </td>
                 <td>{business.status}</td>
                 <td>{business.verified ? "Yes" : "No"}</td>
                 <td>

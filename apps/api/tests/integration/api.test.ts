@@ -274,6 +274,7 @@ describe.skipIf(!hasDb)("API integration", () => {
 
     const hidden = await request(app).get(`/api/services/business/${businessId}`).expect(200);
     expect(hidden.body.services).toHaveLength(0);
+    await request(app).get(`/api/services/${created.body.service.id}`).expect(404);
 
     await adminAgent
       .post(`/api/admin/listings/${created.body.service.id}/reject`)
@@ -284,6 +285,12 @@ describe.skipIf(!hasDb)("API integration", () => {
 
     const publicServices = await request(app).get(`/api/services/business/${businessId}`).expect(200);
     expect(publicServices.body.services).toHaveLength(1);
+
+    const publicItem = await request(app).get(`/api/services/${created.body.service.id}`).expect(200);
+    expect(publicItem.body.service.name).toBe("Consultation");
+    expect(publicItem.body.service.business?.id).toBe(businessId);
+    expect(publicItem.body.service.business?.listing?.avgRating).toBeDefined();
+    expect(Array.isArray(publicItem.body.service.fieldValues)).toBe(true);
 
     const patched = await businessAgent
       .patch(`/api/services/${created.body.service.id}`)
