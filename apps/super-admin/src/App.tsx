@@ -13,6 +13,16 @@ import { ListingsPage } from "./pages/ListingsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RolesPage } from "./pages/RolesPage";
 import { StayEnquiriesPage } from "./pages/StayEnquiriesPage";
+import { RentalEnquiriesPage } from "./pages/RentalEnquiriesPage";
+import { TravelEnquiriesPage } from "./pages/TravelEnquiriesPage";
+import { EventEnquiriesPage } from "./pages/EventEnquiriesPage";
+import { LogisticsEnquiriesPage } from "./pages/LogisticsEnquiriesPage";
+import { EducationEnquiriesPage } from "./pages/EducationEnquiriesPage";
+import { HealthEnquiriesPage } from "./pages/HealthEnquiriesPage";
+import { ProfessionalEnquiriesPage } from "./pages/ProfessionalEnquiriesPage";
+import { HomeTradeEnquiriesPage } from "./pages/HomeTradeEnquiriesPage";
+import { AutomotiveEnquiriesPage } from "./pages/AutomotiveEnquiriesPage";
+import { ElectronicsEnquiriesPage } from "./pages/ElectronicsEnquiriesPage";
 import { UsersPage } from "./pages/UsersPage";
 import { VerificationPage } from "./pages/VerificationPage";
 
@@ -36,6 +46,16 @@ export default function App() {
           <Route path="businesses" element={<BusinessesPage />} />
           <Route path="listings" element={<ListingsPage />} />
           <Route path="stay-enquiries" element={<StayEnquiriesPage />} />
+          <Route path="rental-enquiries" element={<RentalEnquiriesPage />} />
+          <Route path="travel-enquiries" element={<TravelEnquiriesPage />} />
+          <Route path="event-enquiries" element={<EventEnquiriesPage />} />
+          <Route path="logistics-enquiries" element={<LogisticsEnquiriesPage />} />
+          <Route path="education-enquiries" element={<EducationEnquiriesPage />} />
+          <Route path="health-enquiries" element={<HealthEnquiriesPage />} />
+          <Route path="professional-enquiries" element={<ProfessionalEnquiriesPage />} />
+          <Route path="home-trade-enquiries" element={<HomeTradeEnquiriesPage />} />
+          <Route path="automotive-enquiries" element={<AutomotiveEnquiriesPage />} />
+          <Route path="electronics-enquiries" element={<ElectronicsEnquiriesPage />} />
           <Route path="verification" element={<VerificationPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="categories/:id" element={<CategoryDetailPage />} />

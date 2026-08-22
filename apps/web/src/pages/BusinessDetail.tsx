@@ -14,9 +14,29 @@ import { fieldByKey, displayValue } from "../lib/field-values";
 import { theme } from "../lib/theme";
 import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
 import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
 import { isSupplierListing } from "../lib/listing-kind";
 import { lazyWithReload } from "../lib/lazyWithReload";
 import { StayPropertyView } from "../components/stay/StayPropertyView";
+import { RentalShopView } from "../components/rental/RentalShopView";
+import { TravelOperatorView } from "../components/travel/TravelOperatorView";
+import { EventCrewView } from "../components/event/EventCrewView";
+import { LogisticsOperatorView } from "../components/logistics/LogisticsOperatorView";
+import { EducationInstituteView } from "../components/education/EducationInstituteView";
+import { HealthPracticeView } from "../components/health/HealthPracticeView";
+import { ProfessionalFirmView } from "../components/professional/ProfessionalFirmView";
+import { HomeTradeView } from "../components/home/HomeTradeView";
+import { AutomotiveWorkshopView } from "../components/automotive/AutomotiveWorkshopView";
+import { ElectronicsRepairView } from "../components/electronics/ElectronicsRepairView";
 
 const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
 const fallbackHero = theme.assets.banner;
@@ -133,6 +153,16 @@ export function BusinessDetail() {
   const offerings = services.data ?? [];
   const isMaterialsCatalog = isSupplierListing(listing);
   const stayProperty = isStayListing(listing);
+  const rentalShop = isRentalListing(listing);
+  const travelOperator = isTravelListing(listing);
+  const eventCrew = isEventListing(listing);
+  const logisticsOperator = isLogisticsListing(listing);
+  const educationInstitute = isEducationListing(listing);
+  const healthPractice = isHealthListing(listing);
+  const professionalFirm = isProfessionalListing(listing);
+  const homeTrade = isHomeListing(listing);
+  const automotiveWorkshop = isAutomotiveListing(listing);
+  const electronicsRepair = isElectronicsListing(listing);
   const whatsapp = displayValue(fieldByKey(profile.fieldValues, "whatsapp")?.value);
 
   function submitReview(event: FormEvent) {
@@ -164,6 +194,266 @@ export function BusinessDetail() {
         listing={listing}
         rooms={offerings}
         roomsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (rentalShop) {
+    return (
+      <RentalShopView
+        profile={profile}
+        listing={listing}
+        items={offerings}
+        itemsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (travelOperator) {
+    return (
+      <TravelOperatorView
+        profile={profile}
+        listing={listing}
+        vehicles={offerings}
+        vehiclesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (eventCrew) {
+    return (
+      <EventCrewView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (logisticsOperator) {
+    return (
+      <LogisticsOperatorView
+        profile={profile}
+        listing={listing}
+        offerings={offerings}
+        offeringsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (educationInstitute) {
+    return (
+      <EducationInstituteView
+        profile={profile}
+        listing={listing}
+        courses={offerings}
+        coursesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (healthPractice) {
+    return (
+      <HealthPracticeView
+        profile={profile}
+        listing={listing}
+        treatments={offerings}
+        treatmentsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (professionalFirm) {
+    return (
+      <ProfessionalFirmView
+        profile={profile}
+        listing={listing}
+        services={offerings}
+        servicesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (homeTrade) {
+    return (
+      <HomeTradeView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (automotiveWorkshop) {
+    return (
+      <AutomotiveWorkshopView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (electronicsRepair) {
+    return (
+      <ElectronicsRepairView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
         reviews={allReviews}
         reviewsLoading={reviews.isLoading}
         reviewsError={reviews.isError}

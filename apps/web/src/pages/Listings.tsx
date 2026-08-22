@@ -10,8 +10,18 @@ import { Button, Input, PageState, Select } from "../components/ui";
 import { api } from "../lib/api";
 import { theme } from "../lib/theme";
 import { iconForCategory } from "../lib/category-icon";
-import { getSavedCity, recordExploredCategory, setSavedCity, setSavedCoords } from "../lib/discovery";
+import { recordExploredCategory, setSavedCity, setSavedCoords } from "../lib/discovery";
 import { isStayCategory } from "../lib/stays";
+import { isRentalCategory } from "../lib/rentals";
+import { isTravelCategory } from "../lib/travel";
+import { isEventsRoot } from "../lib/events";
+import { isLogisticsRoot } from "../lib/logistics";
+import { isEducationRoot } from "../lib/education";
+import { isHealthRoot } from "../lib/health";
+import { isProfessionalRoot } from "../lib/professional";
+import { isHomeRoot } from "../lib/home";
+import { isAutomotiveRoot } from "../lib/automotive";
+import { isElectronicsRoot } from "../lib/electronics";
 import {
   categoryKind,
   mixedKindChildren,
@@ -26,7 +36,7 @@ export function Listings() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [city, setCity] = useState(() => params.get("city") ?? getSavedCity());
+  const [city, setCity] = useState(() => params.get("city") ?? "");
   const requestParams = new URLSearchParams(params);
 
   const category = useQuery({
@@ -53,7 +63,17 @@ export function Listings() {
   const leafKind = category.data?.parent ? categoryKind(category.data) : undefined;
   const mixedMain = Boolean(browseMain && mixedKindChildren(browseMain));
   const mainKind = browseMain && !mixedMain ? categoryKind(browseMain) : undefined;
-  const defaultKind: MarketplaceKind = leafKind ?? (mixedMain ? "supplier" : mainKind) ?? "supplier";
+  const serviceFirstRoot =
+    isEventsRoot(browseMain) ||
+    isLogisticsRoot(browseMain) ||
+    isEducationRoot(browseMain) ||
+    isHealthRoot(browseMain) ||
+    isProfessionalRoot(browseMain) ||
+    isHomeRoot(browseMain) ||
+    isAutomotiveRoot(browseMain) ||
+    isElectronicsRoot(browseMain);
+  const defaultKind: MarketplaceKind =
+    leafKind ?? (mixedMain ? (serviceFirstRoot ? "service" : "supplier") : mainKind) ?? "supplier";
   const selectedKind = leafKind ?? (params.get("kind") as MarketplaceKind | null) ?? defaultKind;
   const showKindTabs = Boolean(mixedMain || !categorySlug);
   requestParams.set("kind", selectedKind);
@@ -64,7 +84,7 @@ export function Listings() {
   }
 
   useEffect(() => setQuery(params.get("q") ?? ""), [params]);
-  useEffect(() => setCity(params.get("city") ?? getSavedCity()), [params]);
+  useEffect(() => setCity(params.get("city") ?? ""), [params]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setParams((current) => {
@@ -86,7 +106,7 @@ export function Listings() {
   }, [category.data?.slug, category.data?.name]);
 
   useEffect(() => {
-    setSavedCity(city);
+    if (city.trim()) setSavedCity(city);
   }, [city]);
 
   const results = useQuery({
@@ -102,6 +122,54 @@ export function Listings() {
     isStayCategory(category.data) ||
     isStayCategory(browseMain) ||
     isStayCategory(categorySlug ? { slug: categorySlug } : null);
+  const rentalView =
+    isRentalCategory(category.data) ||
+    isRentalCategory(browseMain) ||
+    isRentalCategory(categorySlug ? { slug: categorySlug } : null);
+  const travelView =
+    isTravelCategory(category.data) ||
+    isTravelCategory(browseMain) ||
+    isTravelCategory(categorySlug ? { slug: categorySlug } : null);
+  const eventView =
+    selectedKind === "service" &&
+    (isEventsRoot(category.data) ||
+      isEventsRoot(browseMain) ||
+      isEventsRoot(categorySlug ? { slug: categorySlug } : null));
+  const logisticsView =
+    selectedKind === "service" &&
+    (isLogisticsRoot(category.data) ||
+      isLogisticsRoot(browseMain) ||
+      isLogisticsRoot(categorySlug ? { slug: categorySlug } : null));
+  const educationView =
+    selectedKind === "service" &&
+    (isEducationRoot(category.data) ||
+      isEducationRoot(browseMain) ||
+      isEducationRoot(categorySlug ? { slug: categorySlug } : null));
+  const healthView =
+    selectedKind === "service" &&
+    (isHealthRoot(category.data) ||
+      isHealthRoot(browseMain) ||
+      isHealthRoot(categorySlug ? { slug: categorySlug } : null));
+  const professionalView =
+    selectedKind === "service" &&
+    (isProfessionalRoot(category.data) ||
+      isProfessionalRoot(browseMain) ||
+      isProfessionalRoot(categorySlug ? { slug: categorySlug } : null));
+  const homeView =
+    selectedKind === "service" &&
+    (isHomeRoot(category.data) ||
+      isHomeRoot(browseMain) ||
+      isHomeRoot(categorySlug ? { slug: categorySlug } : null));
+  const automotiveView =
+    selectedKind === "service" &&
+    (isAutomotiveRoot(category.data) ||
+      isAutomotiveRoot(browseMain) ||
+      isAutomotiveRoot(categorySlug ? { slug: categorySlug } : null));
+  const electronicsView =
+    selectedKind === "service" &&
+    (isElectronicsRoot(category.data) ||
+      isElectronicsRoot(browseMain) ||
+      isElectronicsRoot(categorySlug ? { slug: categorySlug } : null));
   const heroSrc =
     category.data?.bannerUrl?.trim() ||
     category.data?.imageUrl?.trim() ||
@@ -113,6 +181,26 @@ export function Listings() {
     parentCategory.data?.description?.trim() ||
     (stayView
       ? "Compare hotels, resorts, and homestays — rooms, rates, facilities, and guest reviews."
+      : rentalView
+      ? "Hire vehicles, cameras, event gear, and tools by the hour or day — rates, deposits, and availability."
+      : travelView
+      ? "Compare taxis, airport transfers, tours, and chauffeur trips — fleet, rates, and trip enquiries."
+      : eventView
+      ? "Compare event crews, photographers, caterers, and wedding teams — packages, rates, and event enquiries."
+      : logisticsView
+      ? "Compare couriers, movers, transporters, and security — vehicles, rates, and move enquiries."
+      : educationView
+      ? "Compare coaching, tuition, and training institutes — courses, rates, and learning enquiries."
+      : healthView
+      ? "Compare clinics, dentists, physio, and wellness — treatments, rates, and appointment enquiries."
+      : professionalView
+      ? "Compare CA, lawyers, tax, and consultants — services, rates, and professional enquiries."
+      : homeView
+      ? "Compare electricians, plumbers, and home trades — packages, rates, and job enquiries."
+      : automotiveView
+      ? "Compare car and bike repair, wash, and tow — packages, rates, and workshop enquiries."
+      : electronicsView
+      ? "Compare laptop, phone, CCTV, and IT repair — packages, rates, and repair enquiries."
       : tradesView
       ? "Licensed tradespeople ready to take the job."
       : "Shops and wholesalers selling bulk, by order, or single piece at trade rates.");
@@ -248,13 +336,74 @@ export function Listings() {
         <SafeImage src={heroSrc} alt="" width={1200} height={600} loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="relative z-10 flex max-w-3xl flex-col justify-center p-5 text-white md:p-7">
           <p className="label-caps text-gold-light">
-            {stayView ? "Places to stay" : tradesView ? "Need a technician?" : "Supplier network"}
+            {stayView
+              ? "Places to stay"
+              : rentalView
+                ? "Hire by the day"
+                : travelView
+                  ? "Need a ride?"
+                  : eventView
+                    ? "Planning an event?"
+                    : logisticsView
+                      ? "Need to move it?"
+                      : educationView
+                        ? "Looking to learn?"
+                        : healthView
+                          ? "Need care?"
+                          : professionalView
+                            ? "Need advice?"
+                            : homeView
+                              ? "Need a home trade?"
+                              : automotiveView
+                                ? "Need a workshop?"
+                                : electronicsView
+                                  ? "Need a repair?"
+                                  : tradesView
+                              ? "Need a technician?"
+                              : "Supplier network"}
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
-            {category.data?.name ?? (categorySlug ? categorySlug.replaceAll("-", " ") : stayView ? "Find a stay" : tradesView ? "Find a professional" : "Find shops at the best rate")}
+            {category.data?.name ??
+              (categorySlug
+                ? categorySlug.replaceAll("-", " ")
+                : stayView
+                  ? "Find a stay"
+                  : rentalView
+                    ? "Find hire gear"
+                    : travelView
+                      ? "Find a taxi or tour"
+                      : eventView
+                        ? "Find an event crew"
+                        : logisticsView
+                          ? "Find movers or courier"
+                          : educationView
+                            ? "Find coaching or tuition"
+                            : healthView
+                              ? "Find a clinic or spa"
+                              : professionalView
+                                ? "Find a consultant"
+                                : homeView
+                                  ? "Find a home trade"
+                                  : automotiveView
+                                    ? "Find a workshop"
+                                    : electronicsView
+                                      ? "Find a repair shop"
+                                      : tradesView
+                                  ? "Find a professional"
+                                  : "Find shops at the best rate")}
           </h1>
           <p className="mt-2 text-sm leading-6 text-white/75">{heroCopy}</p>
-          {stayView ? (
+          {stayView ||
+          rentalView ||
+          travelView ||
+          eventView ||
+          logisticsView ||
+          educationView ||
+          healthView ||
+          professionalView ||
+          homeView ||
+          automotiveView ||
+          electronicsView ? (
             <SearchBar
               city={city}
               query={query}
@@ -262,7 +411,29 @@ export function Listings() {
               onQueryChange={setQuery}
               onSubmit={submit}
               onUseLocation={useLocation}
-              queryPlaceholder="Search hotels, resorts, or homestays"
+              queryPlaceholder={
+                stayView
+                  ? "Search hotels, resorts, or homestays"
+                  : rentalView
+                    ? "Search cars, cameras, or event gear"
+                    : travelView
+                      ? "Search taxis, airport cars, or tours"
+                      : eventView
+                        ? "Search photographers, caterers, or planners"
+                        : logisticsView
+                          ? "Search couriers, movers, or security"
+                          : educationView
+                            ? "Search coaching, tuition, or training"
+                            : healthView
+                              ? "Search dentists, clinics, or spa"
+                              : professionalView
+                                ? "Search CA, lawyers, or consultants"
+                                : homeView
+                                  ? "Search electricians, plumbers, or painters"
+                                  : automotiveView
+                                    ? "Search car repair, wash, or tow"
+                                    : "Search laptop, phone, or IT repair"
+              }
               className="mt-4 text-navy"
             />
           ) : (
@@ -359,7 +530,62 @@ export function Listings() {
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
-            <div><p className="label-caps text-gold-dark">{stayView ? "Stays" : tradesView ? "Technicians" : "Directory"}</p><h2 className="mt-2 text-3xl font-semibold">{stayView ? "Hotels, resorts & stays" : tradesView ? "Service professionals" : "Shops & sellers"}</h2></div>
+            <div>
+              <p className="label-caps text-gold-dark">
+                {stayView
+                  ? "Stays"
+                  : rentalView
+                    ? "Hire"
+                    : travelView
+                      ? "Transport"
+                      : eventView
+                        ? "Events"
+                        : logisticsView
+                          ? "Logistics"
+                          : educationView
+                            ? "Education"
+                            : healthView
+                              ? "Health"
+                              : professionalView
+                                ? "Professional"
+                                : homeView
+                                  ? "Home trades"
+                                  : automotiveView
+                                    ? "Automotive"
+                                    : electronicsView
+                                      ? "Electronics"
+                                      : tradesView
+                                  ? "Technicians"
+                                  : "Directory"}
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">
+                {stayView
+                  ? "Hotels, resorts & stays"
+                  : rentalView
+                    ? "Rental & hire"
+                    : travelView
+                      ? "Travel, taxi & transport"
+                      : eventView
+                        ? "Events & lifestyle"
+                        : logisticsView
+                          ? "Logistics & other services"
+                          : educationView
+                            ? "Education & training"
+                            : healthView
+                              ? "Health & wellness"
+                              : professionalView
+                                ? "Professional & business"
+                                : homeView
+                                  ? "Home & property trades"
+                                  : automotiveView
+                                    ? "Automotive services"
+                                    : electronicsView
+                                      ? "Electronics & IT repair"
+                                      : tradesView
+                                  ? "Service professionals"
+                                  : "Shops & sellers"}
+              </h2>
+            </div>
             {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
           </div>
           {results.isLoading ? (

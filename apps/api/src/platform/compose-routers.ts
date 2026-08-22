@@ -11,7 +11,19 @@ import { verificationRouter } from "../modules/verification/index.js";
 import { uploadsRouter } from "../modules/uploads/index.js";
 import { assetsRouter } from "../modules/assets/index.js";
 import { wishlistRouter } from "../modules/wishlist/index.js";
-import { stayEnquiriesRouter } from "../modules/bookings/index.js";
+import {
+  automotiveEnquiriesRouter,
+  educationEnquiriesRouter,
+  electronicsEnquiriesRouter,
+  eventEnquiriesRouter,
+  healthEnquiriesRouter,
+  homeTradeEnquiriesRouter,
+  logisticsEnquiriesRouter,
+  professionalEnquiriesRouter,
+  rentalEnquiriesRouter,
+  stayEnquiriesRouter,
+  travelEnquiriesRouter,
+} from "../modules/bookings/index.js";
 
 /**
  * Mounts active domain routers under /api.
@@ -29,6 +41,16 @@ export function composeApiRouter() {
   apiRouter.use("/services", servicesRouter);
   apiRouter.use("/wishlist", wishlistRouter);
   apiRouter.use("/stay-enquiries", stayEnquiriesRouter);
+  apiRouter.use("/rental-enquiries", rentalEnquiriesRouter);
+  apiRouter.use("/travel-enquiries", travelEnquiriesRouter);
+  apiRouter.use("/event-enquiries", eventEnquiriesRouter);
+  apiRouter.use("/logistics-enquiries", logisticsEnquiriesRouter);
+  apiRouter.use("/education-enquiries", educationEnquiriesRouter);
+  apiRouter.use("/health-enquiries", healthEnquiriesRouter);
+  apiRouter.use("/professional-enquiries", professionalEnquiriesRouter);
+  apiRouter.use("/home-trade-enquiries", homeTradeEnquiriesRouter);
+  apiRouter.use("/automotive-enquiries", automotiveEnquiriesRouter);
+  apiRouter.use("/electronics-enquiries", electronicsEnquiriesRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/verification", verificationRouter);
   apiRouter.use("/uploads", uploadsRouter);

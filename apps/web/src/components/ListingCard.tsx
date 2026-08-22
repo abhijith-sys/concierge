@@ -4,6 +4,17 @@ import { twMerge } from "tailwind-merge";
 import type { FieldValue, Listing } from "../lib/api";
 import { formatDistanceKm } from "../lib/discovery";
 import { isStayListing } from "../lib/stays";
+import { formatRentalFrom, isRentalListing, rentalPreviewTags } from "../lib/rentals";
+import { formatTravelFrom, isTravelListing, travelPreviewTags } from "../lib/travel";
+import { formatEventFrom, isEventListing, eventPreviewTags } from "../lib/events";
+import { formatLogisticsFrom, isLogisticsListing, logisticsPreviewTags } from "../lib/logistics";
+import { formatEducationFrom, isEducationListing, educationPreviewTags } from "../lib/education";
+import { formatHealthFrom, isHealthListing, healthPreviewTags } from "../lib/health";
+import { formatProfessionalFrom, isProfessionalListing, professionalPreviewTags } from "../lib/professional";
+import { formatHomeFrom, isHomeListing, homePreviewTags } from "../lib/home";
+import { formatAutomotiveFrom, isAutomotiveListing, automotivePreviewTags } from "../lib/automotive";
+import { formatElectronicsFrom, isElectronicsListing, electronicsPreviewTags } from "../lib/electronics";
+import { catalogOfferBrand } from "../lib/shop";
 import { stayAmenityPreview } from "../lib/stay-amenities";
 import { isSupplierListing } from "../lib/listing-kind";
 import { formatListingPrice } from "../lib/pricing";
@@ -42,9 +53,54 @@ export function ProviderCard({
   const place = [listing.city, distance].filter(Boolean).join(" · ");
   const shop = isSupplierListing(listing);
   const stay = isStayListing(listing);
+  const rental = isRentalListing(listing);
+  const travel = isTravelListing(listing);
+  const eventCrew = isEventListing(listing);
+  const logistics = isLogisticsListing(listing);
+  const education = isEducationListing(listing);
+  const health = isHealthListing(listing);
+  const professional = isProfessionalListing(listing);
+  const homeTrade = isHomeListing(listing);
+  const automotive = isAutomotiveListing(listing);
+  const electronics = isElectronicsListing(listing);
   const orderModes = displayValue(fieldValue(listing.fieldValues, "order_modes"));
   const moq = displayValue(fieldValue(listing.fieldValues, "min_order_qty"));
-  const amenities = stay ? stayAmenityPreview(listing.fieldValues) : [];
+  const brand = shop ? catalogOfferBrand(offer, listing.fieldValues) : "";
+  const amenities = stay
+    ? stayAmenityPreview(listing.fieldValues)
+    : rental
+      ? rentalPreviewTags(listing.fieldValues)
+      : travel
+        ? travelPreviewTags(listing.fieldValues)
+        : eventCrew
+          ? eventPreviewTags(listing.fieldValues)
+          : logistics
+            ? logisticsPreviewTags(listing.fieldValues)
+            : education
+              ? educationPreviewTags(listing.fieldValues)
+              : health
+                ? healthPreviewTags(listing.fieldValues)
+                : professional
+                  ? professionalPreviewTags(listing.fieldValues)
+                  : homeTrade
+                    ? homePreviewTags(listing.fieldValues)
+                    : automotive
+                      ? automotivePreviewTags(listing.fieldValues)
+                      : electronics
+                        ? electronicsPreviewTags(listing.fieldValues)
+                        : [];
+  const vertical =
+    stay ||
+    rental ||
+    travel ||
+    eventCrew ||
+    logistics ||
+    education ||
+    health ||
+    professional ||
+    homeTrade ||
+    automotive ||
+    electronics;
 
   return (
     <article
@@ -87,19 +143,49 @@ export function ProviderCard({
             {place}
           </p>
         ) : null}
-        {shop && (orderModes || moq) ? (
+        {shop && !rental && (orderModes || moq || brand) ? (
           <p className="mt-2 text-xs font-semibold text-ink-soft">
-            {[orderModes, moq ? `MOQ ${moq}` : null].filter(Boolean).join(" · ")}
+            {[brand, orderModes, moq ? `MOQ ${moq}` : null].filter(Boolean).join(" · ")}
           </p>
         ) : null}
-        {stay && amenities.length ? (
+        {vertical && amenities.length ? (
           <p className="mt-2 truncate text-xs font-semibold text-ink-soft">{amenities.join(" · ")}</p>
         ) : null}
-        {offer && !stay ? (
+        {offer && !vertical ? (
           <p className="mt-2 text-sm font-extrabold text-navy">{formatListingPrice(offer)}</p>
         ) : null}
         {stay && offer ? (
           <p className="mt-2 text-sm font-extrabold text-navy">From {formatListingPrice(offer)}</p>
+        ) : null}
+        {rental && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatRentalFrom(offer)}</p>
+        ) : null}
+        {travel && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatTravelFrom(offer)}</p>
+        ) : null}
+        {eventCrew && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatEventFrom(offer)}</p>
+        ) : null}
+        {logistics && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatLogisticsFrom(offer)}</p>
+        ) : null}
+        {education && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatEducationFrom(offer)}</p>
+        ) : null}
+        {health && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatHealthFrom(offer)}</p>
+        ) : null}
+        {professional && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatProfessionalFrom(offer)}</p>
+        ) : null}
+        {homeTrade && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatHomeFrom(offer)}</p>
+        ) : null}
+        {automotive && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatAutomotiveFrom(offer)}</p>
+        ) : null}
+        {electronics && offer ? (
+          <p className="mt-2 text-sm font-extrabold text-navy">{formatElectronicsFrom(offer)}</p>
         ) : null}
       </div>
     </article>
