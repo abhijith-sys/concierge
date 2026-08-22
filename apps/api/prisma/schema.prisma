@@ -119,6 +119,76 @@ enum StayEnquiryStatus {
   closed
 }
 
+enum RentalEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum TravelEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum EventEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum LogisticsEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum EducationEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum HealthEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum ProfessionalEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum HomeTradeEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum AutomotiveEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
+enum ElectronicsEnquiryStatus {
+  new
+  viewed
+  responded
+  closed
+}
+
 /// Supplier shops/wholesalers vs individual tradespeople.
 enum CategoryKind {
   supplier
@@ -151,6 +221,16 @@ model User {
   uploadedAssets            Asset[]                 @relation("AssetUploader")
   wishlistItems             WishlistItem[]
   stayEnquiries             StayEnquiry[]
+  rentalEnquiries           RentalEnquiry[]
+  travelEnquiries           TravelEnquiry[]
+  eventEnquiries            EventEnquiry[]
+  logisticsEnquiries        LogisticsEnquiry[]
+  educationEnquiries        EducationEnquiry[]
+  healthEnquiries           HealthEnquiry[]
+  professionalEnquiries     ProfessionalEnquiry[]
+  homeTradeEnquiries        HomeTradeEnquiry[]
+  automotiveEnquiries       AutomotiveEnquiry[]
+  electronicsEnquiries      ElectronicsEnquiry[]
 
   @@index([role])
   @@index([recoveryEmail])
@@ -281,6 +361,16 @@ model Business {
   services       Service[]
   verifications  VerificationSubmission[]
   stayEnquiries  StayEnquiry[]
+  rentalEnquiries RentalEnquiry[]
+  travelEnquiries TravelEnquiry[]
+  eventEnquiries EventEnquiry[]
+  logisticsEnquiries LogisticsEnquiry[]
+  educationEnquiries EducationEnquiry[]
+  healthEnquiries HealthEnquiry[]
+  professionalEnquiries ProfessionalEnquiry[]
+  homeTradeEnquiries HomeTradeEnquiry[]
+  automotiveEnquiries AutomotiveEnquiry[]
+  electronicsEnquiries ElectronicsEnquiry[]
 
   @@index([ownerId])
   @@index([status, verified])
@@ -311,6 +401,16 @@ model Listing {
   fieldValues   ListingFieldValue[]
   wishlistItems WishlistItem[]
   stayEnquiries StayEnquiry[]
+  rentalEnquiries RentalEnquiry[]
+  travelEnquiries TravelEnquiry[]
+  eventEnquiries EventEnquiry[]
+  logisticsEnquiries LogisticsEnquiry[]
+  educationEnquiries EducationEnquiry[]
+  healthEnquiries HealthEnquiry[]
+  professionalEnquiries ProfessionalEnquiry[]
+  homeTradeEnquiries HomeTradeEnquiry[]
+  automotiveEnquiries AutomotiveEnquiry[]
+  electronicsEnquiries ElectronicsEnquiry[]
 
   @@index([categoryId])
   @@index([city])
@@ -468,6 +568,284 @@ model StayEnquiry {
   business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   listing         Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model RentalEnquiry {
+  id                String              @id @default(uuid()) @db.Uuid
+  businessId        String              @db.Uuid
+  listingId         String              @db.Uuid
+  userId            String?             @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  hireFrom          DateTime            @db.Date
+  hireTo            DateTime            @db.Date
+  deliveryRequested Boolean             @default(false)
+  notes             String?
+  itemSelections    Json
+  status            RentalEnquiryStatus @default(new)
+  ownerNote         String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model TravelEnquiry {
+  id                String              @id @default(uuid()) @db.Uuid
+  businessId        String              @db.Uuid
+  listingId         String              @db.Uuid
+  userId            String?             @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  pickupDate        DateTime            @db.Date
+  pickupTime        String?
+  pickupLocation    String
+  dropoffLocation   String
+  passengers        Int                 @default(1)
+  roundTrip         Boolean             @default(false)
+  notes             String?
+  vehicleSelections Json
+  status            TravelEnquiryStatus @default(new)
+  ownerNote         String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model EventEnquiry {
+  id                 String             @id @default(uuid()) @db.Uuid
+  businessId         String             @db.Uuid
+  listingId          String             @db.Uuid
+  userId             String?            @db.Uuid
+  guestName          String
+  guestEmail         String
+  guestPhone         String?
+  eventDate          DateTime           @db.Date
+  eventTime          String?
+  venue              String
+  guests             Int                @default(1)
+  notes              String?
+  packageSelections  Json
+  status             EventEnquiryStatus @default(new)
+  ownerNote          String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing            Listing            @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model LogisticsEnquiry {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  businessId         String                 @db.Uuid
+  listingId          String                 @db.Uuid
+  userId             String?                @db.Uuid
+  guestName          String
+  guestEmail         String
+  guestPhone         String?
+  pickupDate         DateTime               @db.Date
+  pickupTime         String?
+  pickupLocation     String
+  dropoffLocation    String
+  packingRequired    Boolean                @default(false)
+  notes              String?
+  serviceSelections  Json
+  status             LogisticsEnquiryStatus @default(new)
+  ownerNote          String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  business           Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing            Listing                @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user               User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model EducationEnquiry {
+  id               String                  @id @default(uuid()) @db.Uuid
+  businessId       String                  @db.Uuid
+  listingId        String                  @db.Uuid
+  userId           String?                 @db.Uuid
+  guestName        String
+  guestEmail       String
+  guestPhone       String?
+  startDate        DateTime                @db.Date
+  preferredTime    String?
+  learningMode     String?
+  learners         Int                     @default(1)
+  notes            String?
+  courseSelections Json
+  status           EducationEnquiryStatus  @default(new)
+  ownerNote        String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  business         Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing          Listing                 @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user             User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model HealthEnquiry {
+  id                String              @id @default(uuid()) @db.Uuid
+  businessId        String              @db.Uuid
+  listingId         String              @db.Uuid
+  userId            String?             @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  appointmentDate   DateTime            @db.Date
+  appointmentTime   String?
+  patients          Int                 @default(1)
+  concern           String?
+  notes             String?
+  serviceSelections Json
+  status            HealthEnquiryStatus @default(new)
+  ownerNote         String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model ProfessionalEnquiry {
+  id                String                     @id @default(uuid()) @db.Uuid
+  businessId        String                     @db.Uuid
+  listingId         String                     @db.Uuid
+  userId            String?                    @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  preferredDate     DateTime                   @db.Date
+  preferredTime     String?
+  topic             String?
+  notes             String?
+  serviceSelections Json
+  status            ProfessionalEnquiryStatus  @default(new)
+  ownerNote         String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  business          Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing                    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model HomeTradeEnquiry {
+  id                String                 @id @default(uuid()) @db.Uuid
+  businessId        String                 @db.Uuid
+  listingId         String                 @db.Uuid
+  userId            String?                @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  preferredDate     DateTime               @db.Date
+  preferredTime     String?
+  jobLocation       String
+  notes             String?
+  serviceSelections Json
+  status            HomeTradeEnquiryStatus @default(new)
+  ownerNote         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  business          Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing                @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model AutomotiveEnquiry {
+  id                String                   @id @default(uuid()) @db.Uuid
+  businessId        String                   @db.Uuid
+  listingId         String                   @db.Uuid
+  userId            String?                  @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  preferredDate     DateTime                 @db.Date
+  preferredTime     String?
+  vehicleInfo       String?
+  notes             String?
+  serviceSelections Json
+  status            AutomotiveEnquiryStatus  @default(new)
+  ownerNote         String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  business          Business                 @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing                  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model ElectronicsEnquiry {
+  id                String                    @id @default(uuid()) @db.Uuid
+  businessId        String                    @db.Uuid
+  listingId         String                    @db.Uuid
+  userId            String?                   @db.Uuid
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  preferredDate     DateTime                  @db.Date
+  preferredTime     String?
+  deviceInfo        String?
+  notes             String?
+  serviceSelections Json
+  status            ElectronicsEnquiryStatus  @default(new)
+  ownerNote         String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  business          Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  listing           Listing                   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user              User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([businessId, createdAt])
   @@index([listingId, createdAt])

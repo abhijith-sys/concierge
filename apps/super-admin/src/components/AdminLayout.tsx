@@ -33,6 +33,24 @@ export function AdminLayout() {
           {hasPermission(user, "businesses.read") ? <NavLink to="/businesses">Businesses</NavLink> : null}
           {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Catalog items</NavLink> : null}
           {hasPermission(user, "businesses.read") ? <NavLink to="/stay-enquiries">Stay enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/rental-enquiries">Rental enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/travel-enquiries">Travel enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/event-enquiries">Event enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/logistics-enquiries">Logistics enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/education-enquiries">Education enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/health-enquiries">Health enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/professional-enquiries">Professional enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/home-trade-enquiries">Home trade enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/automotive-enquiries">Automotive enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/electronics-enquiries">Electronics enquiries</NavLink>
+          ) : null}
           {hasPermission(user, "verification.review") ? <NavLink to="/verification">KYC</NavLink> : null}
         </NavGroup>
         <NavGroup label="Catalog">

@@ -19,6 +19,16 @@ import { ApiError, api, type Business, type Service } from "../lib/api";
 import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/category-tree";
 import { listingKind as marketplaceKindOf } from "../lib/listing-kind";
 import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
 import { isProvider } from "../lib/provider";
 import { businessStatus, canAddItems, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
@@ -87,6 +97,36 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   const listingCategoryId = assignedCategoryId(mainId, subId, categories.data ?? []);
   const shopKind = marketplaceKindOf(selected?.listing);
   const stayListing = isStayListing(selected?.listing);
+  const rentalListing = isRentalListing(selected?.listing);
+  const travelListing = isTravelListing(selected?.listing);
+  const eventListing = isEventListing(selected?.listing);
+  const logisticsListing = isLogisticsListing(selected?.listing);
+  const educationListing = isEducationListing(selected?.listing);
+  const healthListing = isHealthListing(selected?.listing);
+  const professionalListing = isProfessionalListing(selected?.listing);
+  const homeListing = isHomeListing(selected?.listing);
+  const automotiveListing = isAutomotiveListing(selected?.listing);
+  const electronicsListing = isElectronicsListing(selected?.listing);
+  const hireListing =
+    stayListing ||
+    rentalListing ||
+    travelListing ||
+    eventListing ||
+    logisticsListing ||
+    educationListing ||
+    healthListing ||
+    professionalListing ||
+    homeListing ||
+    automotiveListing ||
+    electronicsListing;
+  const hourlyDefault =
+    travelListing ||
+    logisticsListing ||
+    healthListing ||
+    professionalListing ||
+    homeListing ||
+    automotiveListing ||
+    electronicsListing;
   const selectedMain = (categories.data ?? []).find((category) => category.id === mainId);
   const subcategoryOptions = selectedMain
     ? flattenDescendants(selectedMain).filter((entry) => entry.category.kind === shopKind)
@@ -107,8 +147,8 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
       setForm({
         name: "",
         description: "",
-        price: stayListing ? "0" : "100",
-        pricingType: stayListing ? "daily" : "fixed",
+        price: hireListing ? "0" : "100",
+        pricingType: hourlyDefault ? "hourly" : hireListing ? "daily" : "fixed",
       });
       setImages([]);
     }
@@ -126,7 +166,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
       name: editingService.name,
       description: editingService.description,
       price: String(editingService.price),
-      pricingType: editingService.pricingType || (stayListing ? "daily" : "fixed"),
+      pricingType: editingService.pricingType || (hourlyDefault ? "hourly" : hireListing ? "daily" : "fixed"),
     });
     setImages(editingService.images ?? []);
   }, [editingService]);
@@ -245,16 +285,97 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
         to={selected ? `/provider/listings?business=${selected.id}` : "/provider"}
         className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-navy"
       >
-        <ArrowLeft className="size-4" /> Back to {stayListing ? "rooms" : "items"}
+        <ArrowLeft className="size-4" /> Back to{" "}
+        {stayListing
+          ? "rooms"
+          : travelListing
+            ? "fleet"
+            : eventListing
+              ? "packages"
+              : logisticsListing
+                ? "services"
+                : educationListing
+                  ? "courses"
+                  : healthListing
+                    ? "treatments"
+                    : professionalListing
+                      ? "services"
+                      : "items"}
       </Link>
-      <p className="label-caps mt-5 text-gold-dark">{stayListing ? "Stay" : shopKind === "supplier" ? "Seller" : "Provider"}</p>
+      <p className="label-caps mt-5 text-gold-dark">
+        {stayListing
+          ? "Stay"
+          : rentalListing
+            ? "Hire"
+            : travelListing
+              ? "Transport"
+              : eventListing
+                ? "Events"
+                : logisticsListing
+                  ? "Logistics"
+                  : educationListing
+                    ? "Education"
+                    : healthListing
+                      ? "Health"
+                      : professionalListing
+                        ? "Professional"
+                        : shopKind === "supplier"
+                          ? "Seller"
+                          : "Provider"}
+      </p>
       <h1 className="mt-3 text-4xl font-bold tracking-tight">
-        {editing ? (stayListing ? "Edit room" : "Edit item") : stayListing ? "Add room / cottage" : "Add item"}
+        {editing
+          ? stayListing
+            ? "Edit room"
+            : travelListing
+              ? "Edit vehicle"
+              : eventListing
+                ? "Edit package"
+                : logisticsListing
+                  ? "Edit service"
+                  : educationListing
+                    ? "Edit course"
+                    : healthListing
+                      ? "Edit treatment"
+                      : professionalListing
+                        ? "Edit service"
+                        : "Edit item"
+          : stayListing
+            ? "Add room / cottage"
+            : rentalListing
+              ? "Add hire item"
+              : travelListing
+                ? "Add vehicle / trip"
+                : eventListing
+                  ? "Add package"
+                  : logisticsListing
+                    ? "Add service"
+                    : educationListing
+                      ? "Add course"
+                      : healthListing
+                        ? "Add treatment"
+                        : professionalListing
+                          ? "Add service"
+                          : "Add item"}
       </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-ink-soft">
         {stayListing
           ? "Add this room or cottage with photos, occupancy, and nightly rates."
-          : "Fill in the item details, then submit for review."}
+          : rentalListing
+            ? "Add this hire item with photos, stock, deposits, and daily rates."
+            : travelListing
+              ? "Add this vehicle or trip with photos, seats, and hourly or airport rates."
+              : eventListing
+                ? "Add this package with photos, guest capacity, and hourly or day rates."
+                : logisticsListing
+                  ? "Add this offering with photos, capacity, and hourly or job rates."
+                  : educationListing
+                    ? "Add this course with photos, batch size, and hourly, session, or course rates."
+                    : healthListing
+                      ? "Add this treatment with photos, duration, and session or package rates."
+                      : professionalListing
+                        ? "Add this service with photos, duration, and hourly, retainer, or project rates."
+                        : "Fill in the item details, then submit for review."}
       </p>
 
       {selected?.status === "pending" ? (
@@ -368,7 +489,29 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 </Select>
               </Field>
             ) : null}
-            <Field label={stayListing ? "Room / cottage name" : "Listing name"} error={errors.listingName} required={isFieldRequired("listingName")}>
+            <Field
+              label={
+                stayListing
+                  ? "Room / cottage name"
+                  : rentalListing
+                    ? "Item name"
+                    : travelListing
+                      ? "Vehicle / trip name"
+                      : eventListing
+                        ? "Package name"
+                        : logisticsListing
+                          ? "Service name"
+                          : educationListing
+                            ? "Course name"
+                            : healthListing
+                              ? "Treatment name"
+                              : professionalListing
+                                ? "Service name"
+                                : "Listing name"
+              }
+              error={errors.listingName}
+              required={isFieldRequired("listingName")}
+            >
               <Input
                 value={form.name}
                 onChange={(event) => {
@@ -378,7 +521,21 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
                 aria-invalid={Boolean(errors.listingName)}
               />
             </Field>
-            <Field label={stayListing ? "Starting nightly rate" : "Starting price"} error={errors.price} required={isFieldRequired("price")}>
+            <Field
+              label={
+                stayListing
+                  ? "Starting nightly rate"
+                  : rentalListing
+                    ? "Starting daily rate"
+                    : hourlyDefault
+                      ? "Starting hourly rate"
+                      : eventListing || educationListing
+                        ? "Starting day rate"
+                        : "Starting price"
+              }
+              error={errors.price}
+              required={isFieldRequired("price")}
+            >
               <Input
                 type="number"
                 min="0"
@@ -417,11 +574,41 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
               </Field>
             </div>
             <GalleryUpload
-              label={stayListing ? "Room photos" : "Item photos"}
+              label={
+                stayListing
+                  ? "Room photos"
+                  : travelListing
+                    ? "Vehicle photos"
+                    : eventListing
+                      ? "Package photos"
+                      : logisticsListing
+                        ? "Service photos"
+                        : educationListing
+                          ? "Course photos"
+                          : healthListing
+                            ? "Treatment photos"
+                            : professionalListing
+                              ? "Service photos"
+                              : "Item photos"
+              }
               hint={
                 stayListing
                   ? "Add several photos of this room type. Guests see them as a gallery when they open the room."
-                  : "Add several photos of this item."
+                  : rentalListing
+                    ? "Add several photos of this hire item. Customers see them as a gallery."
+                    : travelListing
+                      ? "Add several photos of this vehicle. Customers see them as a gallery."
+                      : eventListing
+                        ? "Add several photos of this package. Customers see them as a gallery."
+                        : logisticsListing
+                          ? "Add several photos of this service. Customers see them as a gallery."
+                          : educationListing
+                            ? "Add several photos of this course. Customers see them as a gallery."
+                            : healthListing
+                              ? "Add several photos of this treatment. Customers see them as a gallery."
+                              : professionalListing
+                                ? "Add several photos of this service. Customers see them as a gallery."
+                                : "Add several photos of this item."
               }
               values={images}
               uploading={uploadImage.isPending}
@@ -481,7 +668,29 @@ function BusinessItemsPage({
       </Link>
       <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label-caps text-gold-dark">{isStayListing(business.listing) ? "Rooms" : "Items"}</p>
+          <p className="label-caps text-gold-dark">
+            {isStayListing(business.listing)
+              ? "Rooms"
+              : isRentalListing(business.listing)
+                ? "Hire"
+                : isTravelListing(business.listing)
+                  ? "Fleet"
+                  : isEventListing(business.listing)
+                    ? "Packages"
+                    : isLogisticsListing(business.listing)
+                      ? "Services"
+                      : isEducationListing(business.listing)
+                        ? "Courses"
+                        : isHealthListing(business.listing)
+                          ? "Treatments"
+                          : isProfessionalListing(business.listing)
+                            ? "Services"
+                            : isHomeListing(business.listing) ||
+                                isAutomotiveListing(business.listing) ||
+                                isElectronicsListing(business.listing)
+                              ? "Packages"
+                              : "Items"}
+          </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight">{business.name}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
             <StatusBadge label={status.label} tone={status.tone} />
@@ -490,20 +699,105 @@ function BusinessItemsPage({
         </div>
         {canAdd ? (
           <div className="flex flex-wrap gap-2">
-            {isStayListing(business.listing) ? (
+            {isStayListing(business.listing) ||
+            isRentalListing(business.listing) ||
+            isTravelListing(business.listing) ||
+            isEventListing(business.listing) ||
+            isLogisticsListing(business.listing) ||
+            isEducationListing(business.listing) ||
+            isHealthListing(business.listing) ||
+            isProfessionalListing(business.listing) ||
+            isHomeListing(business.listing) ||
+            isAutomotiveListing(business.listing) ||
+            isElectronicsListing(business.listing) ? (
               <Link to={`/provider/enquiries?business=${business.id}`}>
-                <Button variant="outline">Stay enquiries</Button>
+                <Button variant="outline">
+                  {isStayListing(business.listing)
+                    ? "Stay enquiries"
+                    : isRentalListing(business.listing)
+                      ? "Hire enquiries"
+                      : isTravelListing(business.listing)
+                        ? "Trip enquiries"
+                        : isEventListing(business.listing)
+                          ? "Event enquiries"
+                          : isLogisticsListing(business.listing)
+                            ? "Move enquiries"
+                            : isEducationListing(business.listing)
+                              ? "Learning enquiries"
+                              : isHealthListing(business.listing)
+                                ? "Health enquiries"
+                                : isProfessionalListing(business.listing)
+                                  ? "Professional enquiries"
+                                  : isHomeListing(business.listing)
+                                    ? "Job enquiries"
+                                    : isAutomotiveListing(business.listing)
+                                      ? "Workshop enquiries"
+                                      : "Repair enquiries"}
+                </Button>
               </Link>
             ) : null}
             <Link to={`/provider/listings/create?business=${business.id}`}>
               <Button>
-                <Plus className="size-4" /> {isStayListing(business.listing) ? "Add room" : "Add item"}
+                <Plus className="size-4" />{" "}
+                {isStayListing(business.listing)
+                  ? "Add room"
+                  : isRentalListing(business.listing)
+                    ? "Add hire item"
+                    : isTravelListing(business.listing)
+                      ? "Add vehicle"
+                      : isEventListing(business.listing)
+                        ? "Add package"
+                        : isLogisticsListing(business.listing)
+                          ? "Add service"
+                          : isEducationListing(business.listing)
+                            ? "Add course"
+                            : isHealthListing(business.listing)
+                              ? "Add treatment"
+                              : isProfessionalListing(business.listing)
+                                ? "Add service"
+                                : isHomeListing(business.listing) ||
+                                    isAutomotiveListing(business.listing) ||
+                                    isElectronicsListing(business.listing)
+                                  ? "Add package"
+                                  : "Add item"}
               </Button>
             </Link>
           </div>
-        ) : isStayListing(business.listing) ? (
+        ) : isStayListing(business.listing) ||
+          isRentalListing(business.listing) ||
+          isTravelListing(business.listing) ||
+          isEventListing(business.listing) ||
+          isLogisticsListing(business.listing) ||
+          isEducationListing(business.listing) ||
+          isHealthListing(business.listing) ||
+          isProfessionalListing(business.listing) ||
+          isHomeListing(business.listing) ||
+          isAutomotiveListing(business.listing) ||
+          isElectronicsListing(business.listing) ? (
           <Link to={`/provider/enquiries?business=${business.id}`}>
-            <Button variant="outline">Stay enquiries</Button>
+            <Button variant="outline">
+              {isStayListing(business.listing)
+                ? "Stay enquiries"
+                : isRentalListing(business.listing)
+                  ? "Hire enquiries"
+                  : isTravelListing(business.listing)
+                    ? "Trip enquiries"
+                    : isEventListing(business.listing)
+                      ? "Event enquiries"
+                      : isLogisticsListing(business.listing)
+                        ? "Move enquiries"
+                        : isEducationListing(business.listing)
+                          ? "Learning enquiries"
+                          : isHealthListing(business.listing)
+                            ? "Health enquiries"
+                            : isProfessionalListing(business.listing)
+                              ? "Professional enquiries"
+                              : isHomeListing(business.listing)
+                                ? "Job enquiries"
+                                : isAutomotiveListing(business.listing)
+                                  ? "Workshop enquiries"
+                                  : "Repair enquiries"}
+            </Button>
           </Link>
         ) : null}
       </div>

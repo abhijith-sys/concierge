@@ -17,6 +17,16 @@ import { ApiError, api, type Business } from "../lib/api";
 import { assignedCategoryId, flattenDescendants } from "../lib/category-tree";
 import { mainsForKind, type MarketplaceKind } from "../lib/listing-kind";
 import { isStayCategory } from "../lib/stays";
+import { isRentalCategory } from "../lib/rentals";
+import { isTravelCategory } from "../lib/travel";
+import { isEventsRoot } from "../lib/events";
+import { isLogisticsRoot } from "../lib/logistics";
+import { isEducationRoot } from "../lib/education";
+import { isHealthRoot } from "../lib/health";
+import { isProfessionalRoot } from "../lib/professional";
+import { isHomeRoot } from "../lib/home";
+import { isAutomotiveRoot } from "../lib/automotive";
+import { isElectronicsRoot } from "../lib/electronics";
 import { firstFormError, isFieldRequired, validateForm, type FieldKey } from "../lib/validation";
 
 interface BusinessForm {
@@ -75,6 +85,26 @@ export function ListBusiness() {
     : [];
   const listingCategoryId = assignedCategoryId(form.mainCategoryId, subId, categories.data ?? []);
   const stayForm = isStayCategory(selectedMain);
+  const rentalForm = isRentalCategory(selectedMain);
+  const travelForm = isTravelCategory(selectedMain);
+  const eventForm = isEventsRoot(selectedMain) && intent === "service";
+  const logisticsForm = isLogisticsRoot(selectedMain) && intent === "service";
+  const educationForm = isEducationRoot(selectedMain) && intent === "service";
+  const healthForm = isHealthRoot(selectedMain) && intent === "service";
+  const professionalForm = isProfessionalRoot(selectedMain) && intent === "service";
+  const homeForm = isHomeRoot(selectedMain) && intent === "service";
+  const automotiveForm = isAutomotiveRoot(selectedMain) && intent === "service";
+  const electronicsForm = isElectronicsRoot(selectedMain) && intent === "service";
+  const operatorForm =
+    travelForm ||
+    eventForm ||
+    logisticsForm ||
+    educationForm ||
+    healthForm ||
+    professionalForm ||
+    homeForm ||
+    automotiveForm ||
+    electronicsForm;
   const providerForm = useQuery({
     queryKey: ["category-form", listingCategoryId || form.mainCategoryId, "provider"],
     queryFn: () => api.categoryForm(listingCategoryId || form.mainCategoryId, "provider"),
@@ -253,11 +283,35 @@ export function ListBusiness() {
           <Field label="Business name" error={errors.businessName} required={isFieldRequired("businessName")}>
             <Input value={form.name} onChange={(event) => update("name", event.target.value)} aria-invalid={Boolean(errors.businessName)} />
           </Field>
-          <Field label={stayForm ? "Property title" : "Profile title"} error={errors.businessTitle} required={isFieldRequired("businessTitle")}>
+          <Field label={stayForm ? "Property title" : rentalForm ? "Shop title" : operatorForm ? "Operator title" : "Profile title"} error={errors.businessTitle} required={isFieldRequired("businessTitle")}>
             <Input
               value={form.title}
               onChange={(event) => update("title", event.target.value)}
-              placeholder={stayForm ? "e.g. Valley View Resort" : "e.g. Bespoke Interior Studio"}
+              placeholder={
+                stayForm
+                  ? "e.g. Valley View Resort"
+                  : rentalForm
+                    ? "e.g. Coastal Wheels"
+                    : travelForm
+                      ? "e.g. Metro Yellow Cabs"
+                      : eventForm
+                        ? "e.g. Atlas Event Studio"
+                        : logisticsForm
+                          ? "e.g. Harborline Courier"
+                          : educationForm
+                            ? "e.g. Apex Coaching Centre"
+                            : healthForm
+                              ? "e.g. Greenleaf Clinic"
+                              : professionalForm
+                                ? "e.g. Northside Advisors"
+                                : homeForm
+                                  ? "e.g. Apex Electrical"
+                                  : automotiveForm
+                                    ? "e.g. Metro Auto Care"
+                                    : electronicsForm
+                                      ? "e.g. Pixel Fix Lab"
+                                      : "e.g. Bespoke Interior Studio"
+              }
               aria-invalid={Boolean(errors.businessTitle)}
             />
           </Field>
@@ -319,7 +373,35 @@ export function ListBusiness() {
             </Select>
           </Field>
           {subcategoryOptions.length ? (
-            <Field label={stayForm ? "Stay type" : "Subcategory"} error={errors.subcategoryId} required>
+            <Field
+              label={
+                stayForm
+                  ? "Stay type"
+                  : rentalForm
+                    ? "Hire type"
+                    : travelForm
+                      ? "Transport type"
+                      : eventForm
+                        ? "Event type"
+                        : logisticsForm
+                          ? "Logistics type"
+                          : educationForm
+                            ? "Education type"
+                            : healthForm
+                              ? "Health type"
+                              : professionalForm
+                                ? "Practice type"
+                                : homeForm
+                                  ? "Trade type"
+                                  : automotiveForm
+                                    ? "Workshop type"
+                                    : electronicsForm
+                                      ? "Repair type"
+                                      : "Subcategory"
+              }
+              error={errors.subcategoryId}
+              required
+            >
               <Select
                 value={subId}
                 onChange={(event) => {
@@ -328,7 +410,31 @@ export function ListBusiness() {
                 }}
                 aria-invalid={Boolean(errors.subcategoryId)}
               >
-                <option value="">{stayForm ? "Select hotel, resort, homestay…" : "Select subcategory"}</option>
+                <option value="">
+                  {stayForm
+                    ? "Select hotel, resort, homestay…"
+                    : rentalForm
+                      ? "Select vehicles, cameras, event gear…"
+                      : travelForm
+                        ? "Select taxi, airport, tour…"
+                        : eventForm
+                          ? "Select photographer, caterer, planner…"
+                          : logisticsForm
+                            ? "Select courier, movers, security…"
+                            : educationForm
+                              ? "Select coaching, tuition, training…"
+                              : healthForm
+                                ? "Select dentist, clinic, spa…"
+                                : professionalForm
+                                  ? "Select CA, lawyer, consultant…"
+                                  : homeForm
+                                    ? "Select electrician, plumber, painter…"
+                                    : automotiveForm
+                                      ? "Select car repair, wash, tow…"
+                                      : electronicsForm
+                                        ? "Select laptop, phone, IT repair…"
+                                        : "Select subcategory"}
+                </option>
                 {subcategoryOptions.map(({ category, label }) => (
                   <option key={category.id} value={category.id}>
                     {label}
@@ -354,10 +460,32 @@ export function ListBusiness() {
           ) : null}
           {providerForm.data?.fields?.length ? (
             <div className="rounded-2xl border border-line bg-surface-low/60 p-4 md:col-span-2 md:p-5">
-              <p className="text-sm font-semibold">{stayForm ? "Property details" : "Category details"}</p>
+              <p className="text-sm font-semibold">
+                {stayForm ? "Property details" : rentalForm ? "Shop details" : operatorForm ? "Operator details" : "Category details"}
+              </p>
               <p className="mt-1 text-xs font-normal text-ink-soft">
                 {stayForm
                   ? "Amenities, house rules, meals, and check-in times for this stay. Guests see these grouped like Breakfast included and Couple friendly."
+                  : rentalForm
+                  ? "Pickup hours, delivery, ID, and deposit policy for this hire shop. Customers see these on the shop page."
+                  : travelForm
+                  ? "Hours, airports, fleet, and trip policy for this operator. Customers see these on the operator page."
+                  : eventForm
+                  ? "Hours, event types, team size, and cancellation for this crew. Customers see these on the crew page."
+                  : logisticsForm
+                  ? "Hours, coverage, packing, and insurance for this operator. Customers see these on the operator page."
+                  : educationForm
+                  ? "Hours, subjects, modes, and cancellation for this institute. Customers see these on the institute page."
+                  : healthForm
+                  ? "Hours, specialties, home visit, and cancellation for this practice. Customers see these on the practice page."
+                  : professionalForm
+                  ? "Hours, practice areas, remote options, and cancellation for this firm. Customers see these on the firm page."
+                  : homeForm
+                  ? "Hours, job types, service radius, and cancellation for this trade. Customers see these on the trade page."
+                  : automotiveForm
+                  ? "Hours, vehicle types, and cancellation for this workshop. Customers see these on the workshop page."
+                  : electronicsForm
+                  ? "Hours, device types, and cancellation for this repair shop. Customers see these on the shop page."
                   : "Extra fields for this category, including license number when it applies."}
               </p>
               <div className="mt-4">

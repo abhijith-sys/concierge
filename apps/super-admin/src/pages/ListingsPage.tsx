@@ -60,7 +60,7 @@ export function ListingsPage() {
     <div className="stack">
       <div>
         <h2 style={{ margin: 0 }}>Catalog items</h2>
-        <p className="muted">Moderate shop catalog items, service offerings, and stay rooms before they appear on public profiles</p>
+        <p className="muted">Moderate shop catalog items, stay rooms, hire items, travel vehicles, event packages, logistics services, education courses, health treatments, and professional services before they appear on public profiles</p>
         {businessId ? (
           <p className="muted" style={{ margin: "0.5rem 0 0" }}>
             Showing items for one seller.{" "}

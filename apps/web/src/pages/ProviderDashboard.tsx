@@ -8,6 +8,16 @@ import { Button, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api, type Business } from "../lib/api";
 import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
 import { businessStatus, StatusBadge } from "../lib/status";
 import { theme } from "../lib/theme";
 
@@ -138,7 +148,17 @@ function BusinessesTable({ businesses }: { businesses: Business[] }) {
                       <Link to={`/provider/listings?business=${business.id}`}>
                         <Button>Open</Button>
                       </Link>
-                      {isStayListing(business.listing) ? (
+                      {isStayListing(business.listing) ||
+                      isRentalListing(business.listing) ||
+                      isTravelListing(business.listing) ||
+                      isEventListing(business.listing) ||
+                      isLogisticsListing(business.listing) ||
+                      isEducationListing(business.listing) ||
+                      isHealthListing(business.listing) ||
+                      isProfessionalListing(business.listing) ||
+                      isHomeListing(business.listing) ||
+                      isAutomotiveListing(business.listing) ||
+                      isElectronicsListing(business.listing) ? (
                         <Link to={`/provider/enquiries?business=${business.id}`}>
                           <Button variant="outline">Enquiries</Button>
                         </Link>

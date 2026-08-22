@@ -13,6 +13,16 @@ import { Button, Field, Input, PageState, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
 import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
 import { theme } from "../lib/theme";
 
 const defaultHours = {
@@ -181,19 +191,113 @@ export function EditBusiness() {
       </form>
 
       <div className="rounded-3xl border border-line p-6 md:p-9">
-        <h2 className="text-2xl font-semibold">{isStayListing(listing) ? "Rooms & cottages" : "Listings"}</h2>
+        <h2 className="text-2xl font-semibold">
+          {isStayListing(listing)
+            ? "Rooms & cottages"
+            : isRentalListing(listing)
+              ? "Hire items"
+              : isTravelListing(listing)
+                ? "Fleet & trips"
+                : isEventListing(listing)
+                  ? "Packages"
+                  : isLogisticsListing(listing)
+                    ? "Services"
+                    : isEducationListing(listing)
+                      ? "Courses"
+                      : isHealthListing(listing)
+                        ? "Treatments"
+                        : isProfessionalListing(listing)
+                          ? "Services"
+                          : isHomeListing(listing) || isAutomotiveListing(listing) || isElectronicsListing(listing)
+                            ? "Packages"
+                            : "Listings"}
+        </h2>
         <p className="mt-2 text-sm text-ink-soft">
           {isStayListing(listing)
             ? "Add rooms, cottages, and stay options with photos and nightly rates."
+            : isRentalListing(listing)
+            ? "Add vehicles, cameras, or equipment with photos, stock, and hire rates."
+            : isTravelListing(listing)
+            ? "Add taxis, airport cars, or tour packages with photos, seats, and trip rates."
+            : isEventListing(listing)
+            ? "Add photography, catering, or wedding packages with photos, guests, and day rates."
+            : isLogisticsListing(listing)
+            ? "Add courier, move, or security offerings with photos, capacity, and job rates."
+            : isEducationListing(listing)
+            ? "Add coaching, tuition, or training courses with photos, batch size, and course rates."
+            : isHealthListing(listing)
+            ? "Add consultations or treatments with photos, duration, and session rates."
+            : isProfessionalListing(listing)
+            ? "Add advisory or consulting services with photos, duration, and engagement rates."
+            : isHomeListing(listing)
+            ? "Add electrical, plumbing, or home job packages with photos, duration, and job rates."
+            : isAutomotiveListing(listing)
+            ? "Add repair, wash, or tow packages with photos, duration, and job rates."
+            : isElectronicsListing(listing)
+            ? "Add device or IT repair packages with photos, duration, and job rates."
             : "Open the listings table to add or edit items for this business."}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link to={`/provider/listings?business=${profile.id}`}>
-            <Button>{isStayListing(listing) ? "Manage rooms" : "View listings"}</Button>
+            <Button>
+              {isStayListing(listing)
+                ? "Manage rooms"
+                : isRentalListing(listing)
+                  ? "Manage items"
+                  : isTravelListing(listing)
+                    ? "Manage fleet"
+                    : isEventListing(listing)
+                      ? "Manage packages"
+                      : isLogisticsListing(listing)
+                        ? "Manage services"
+                        : isEducationListing(listing)
+                          ? "Manage courses"
+                          : isHealthListing(listing)
+                            ? "Manage treatments"
+                            : isProfessionalListing(listing)
+                              ? "Manage services"
+                              : isHomeListing(listing) ||
+                                  isAutomotiveListing(listing) ||
+                                  isElectronicsListing(listing)
+                                ? "Manage packages"
+                                : "View listings"}
+            </Button>
           </Link>
-          {isStayListing(listing) ? (
+          {isStayListing(listing) ||
+          isRentalListing(listing) ||
+          isTravelListing(listing) ||
+          isEventListing(listing) ||
+          isLogisticsListing(listing) ||
+          isEducationListing(listing) ||
+          isHealthListing(listing) ||
+          isProfessionalListing(listing) ||
+          isHomeListing(listing) ||
+          isAutomotiveListing(listing) ||
+          isElectronicsListing(listing) ? (
             <Link to={`/provider/enquiries?business=${profile.id}`}>
-              <Button variant="outline">Stay enquiries</Button>
+              <Button variant="outline">
+                {isStayListing(listing)
+                  ? "Stay enquiries"
+                  : isRentalListing(listing)
+                    ? "Hire enquiries"
+                    : isTravelListing(listing)
+                      ? "Trip enquiries"
+                      : isEventListing(listing)
+                        ? "Event enquiries"
+                        : isLogisticsListing(listing)
+                          ? "Move enquiries"
+                          : isEducationListing(listing)
+                            ? "Learning enquiries"
+                            : isHealthListing(listing)
+                              ? "Health enquiries"
+                              : isProfessionalListing(listing)
+                                ? "Professional enquiries"
+                                : isHomeListing(listing)
+                                  ? "Job enquiries"
+                                  : isAutomotiveListing(listing)
+                                    ? "Workshop enquiries"
+                                    : "Repair enquiries"}
+              </Button>
             </Link>
           ) : null}
         </div>
