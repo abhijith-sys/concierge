@@ -1532,4 +1532,12 @@ Phase 4 — Growth (Module H)
 
 ---
 
+**Date:** 24 August 2026 (seed data pass)
+
+| ID | Item | Files / notes |
+|----|------|----------------|
+| — | Richer seed data for UI demo | `apps/api/prisma/seed.ts` — ~87 demo businesses (+40), varied cities/lat/lng, 2–4 catalog items per new listing, mixed verified/unverified, varied review ratings/comments; re-seed via `docker compose down -v` or `RUN_SEED=true` |
+
+---
+
 *Last audited against codebase: August 2026. Update this doc when adding routes, pages, or modules.*
