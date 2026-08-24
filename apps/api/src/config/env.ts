@@ -26,6 +26,10 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  SKIP_OTP_VERIFICATION: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   UPLOAD_ROOT: z.string().optional(),
   SMTP_HOST: z.preprocess(

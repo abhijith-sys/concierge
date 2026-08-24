@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import type { Business, Listing, Review, Service, User } from "../../lib/api";
 import { displayValue, fieldByKey } from "../../lib/field-values";
 import { lazyWithReload } from "../../lib/lazyWithReload";
-import { fieldNumber } from "../../lib/professional";
 import { theme } from "../../lib/theme";
 import { ApprovalBanner } from "../ApprovalBanner";
 import { EmptyList } from "../EmptyList";

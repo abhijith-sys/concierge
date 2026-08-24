@@ -36,7 +36,7 @@ export function logisticsOfferingRates(service: Pick<Service, "price" | "currenc
   const perKm = fieldNumber(service.fieldValues, "price_per_km");
   const day = fieldNumber(service.fieldValues, "price_day");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, day, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, day, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     perKm,

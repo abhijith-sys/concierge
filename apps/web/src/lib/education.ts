@@ -36,7 +36,7 @@ export function educationCourseRates(service: Pick<Service, "price" | "currency"
   const session = fieldNumber(service.fieldValues, "price_session");
   const course = fieldNumber(service.fieldValues, "price_course");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, session, course, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, session, course, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     session,

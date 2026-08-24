@@ -38,7 +38,7 @@ export function eventPackageRates(service: Pick<Service, "price" | "currency" | 
   const hourly = fieldNumber(service.fieldValues, "price_hourly");
   const day = fieldNumber(service.fieldValues, "price_day");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, day, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, day, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     day,

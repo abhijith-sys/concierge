@@ -37,7 +37,7 @@ export function homePackageRates(service: Pick<Service, "price" | "currency" | "
   const hourly = fieldNumber(service.fieldValues, "price_hourly");
   const job = fieldNumber(service.fieldValues, "price_job");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, job, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, job, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     job,
