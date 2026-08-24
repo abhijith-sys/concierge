@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrandHead } from "./components/BrandHead";
 import { Layout } from "./components/Layout";
 import { PageState } from "./components/ui";
 import { lazyWithReload } from "./lib/lazyWithReload";
@@ -11,8 +12,20 @@ const BusinessDetail = lazyWithReload(
   () => import("./pages/BusinessDetail"),
   (module) => module.BusinessDetail,
 );
+const ServiceDetail = lazyWithReload(
+  () => import("./pages/ServiceDetail"),
+  (module) => module.ServiceDetail,
+);
 const Login = lazyWithReload(() => import("./pages/Auth"), (module) => module.Login);
 const Register = lazyWithReload(() => import("./pages/Auth"), (module) => module.Register);
+const VerifyEmail = lazyWithReload(
+  () => import("./pages/VerifyEmail"),
+  (module) => module.VerifyEmail,
+);
+const ForgotPassword = lazyWithReload(
+  () => import("./pages/ForgotPassword"),
+  (module) => module.ForgotPassword,
+);
 const ListBusiness = lazyWithReload(
   () => import("./pages/ListBusiness"),
   (module) => module.ListBusiness,
@@ -41,6 +54,10 @@ const ProviderListings = lazyWithReload(
   () => import("./pages/ProviderListings"),
   (module) => module.ProviderListings,
 );
+const ProviderEnquiries = lazyWithReload(
+  () => import("./pages/ProviderEnquiries"),
+  (module) => module.ProviderEnquiries,
+);
 const Content = lazyWithReload(() => import("./pages/Content"), (module) => module.Content);
 
 function ScrollToTop() {
@@ -61,9 +78,12 @@ function AppRoutes() {
           <Route path="listings" element={<Listings />} />
           <Route path="listings/:categorySlug" element={<Listings />} />
           <Route path="business/:slug" element={<BusinessDetail />} />
+          <Route path="business/:slug/items/:itemId" element={<ServiceDetail />} />
           <Route path="business/:slug/edit" element={<EditBusiness />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
+          <Route path="verify-email" element={<VerifyEmail />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="account" element={<Account />} />
           <Route path="wishlist" element={<Wishlist />} />
           <Route path="list-business" element={<ListBusiness />} />
@@ -71,6 +91,7 @@ function AppRoutes() {
           <Route path="provider/listings" element={<ProviderListings />} />
           <Route path="provider/listings/create" element={<ProviderListings mode="create" />} />
           <Route path="provider/listings/:serviceId/edit" element={<ProviderListings mode="edit" />} />
+          <Route path="provider/enquiries" element={<ProviderEnquiries />} />
           <Route path="admin" element={<AdminRedirect />} />
           <Route path="verification" element={<Verification />} />
           <Route path="about" element={<Content />} />
@@ -96,6 +117,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <BrandHead />
       <AppRoutes />
     </BrowserRouter>
   );

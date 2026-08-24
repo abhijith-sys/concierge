@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button, PageState } from "./ui";
+import { theme } from "../lib/theme";
 
 export class RouteErrorBoundary extends Component<
   { children: ReactNode },
@@ -24,7 +25,7 @@ export class RouteErrorBoundary extends Component<
         );
       return (
         <PageState
-          title={isChunkError ? "This page needs a quick refresh" : "Concierge could not open this page"}
+          title={isChunkError ? "This page needs a quick refresh" : `${theme.name} could not open this page`}
           description={
             isChunkError
               ? "The app was updated while this tab was open. Reload once to continue."

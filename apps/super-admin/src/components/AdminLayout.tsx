@@ -1,29 +1,73 @@
+import { Children, type ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/auth";
 import { hasPermission } from "../lib/api";
+import { useBrand } from "../lib/theme";
+
+function NavGroup({ label, children }: { label: string; children: ReactNode }) {
+  const items = Children.toArray(children).filter(Boolean);
+  if (items.length === 0) return null;
+  return (
+    <div className="nav-group">
+      <p className="nav-group-label">{label}</p>
+      {items}
+    </div>
+  );
+}
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
+  const brand = useBrand();
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <h1>Concierge Admin</h1>
+        <h1>
+          <img src="/theme/logo-mark.svg" alt="" width={22} height={22} style={{ marginRight: "0.45rem", verticalAlign: "middle" }} />
+          {brand.name} Admin
+        </h1>
         <NavLink to="/" end>
           Dashboard
         </NavLink>
-        {hasPermission(user, "businesses.read") ? <NavLink to="/businesses">Businesses</NavLink> : null}
-        {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Listings</NavLink> : null}
-        {hasPermission(user, "verification.review") ? <NavLink to="/verification">KYC</NavLink> : null}
-        {hasPermission(user, "categories.write") || hasPermission(user, "category_fields.write") ? (
-          <NavLink to="/categories">Categories</NavLink>
-        ) : null}
-        {hasPermission(user, "users.read") ? <NavLink to="/users">Users</NavLink> : null}
-        {hasPermission(user, "roles.manage") ? <NavLink to="/roles">Roles</NavLink> : null}
-        {hasPermission(user, "assets.read_private") || hasPermission(user, "businesses.read") ? (
-          <NavLink to="/assets">Assets</NavLink>
-        ) : null}
-        {hasPermission(user, "audit.read") ? <NavLink to="/audit">Audit</NavLink> : null}
+        <NavGroup label="Marketplace">
+          {hasPermission(user, "businesses.read") ? <NavLink to="/businesses">Businesses</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/listings">Catalog items</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/stay-enquiries">Stay enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/rental-enquiries">Rental enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/travel-enquiries">Travel enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/event-enquiries">Event enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/logistics-enquiries">Logistics enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/education-enquiries">Education enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? <NavLink to="/health-enquiries">Health enquiries</NavLink> : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/professional-enquiries">Professional enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/home-trade-enquiries">Home trade enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/automotive-enquiries">Automotive enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "businesses.read") ? (
+            <NavLink to="/electronics-enquiries">Electronics enquiries</NavLink>
+          ) : null}
+          {hasPermission(user, "verification.review") ? <NavLink to="/verification">KYC</NavLink> : null}
+        </NavGroup>
+        <NavGroup label="Catalog">
+          {hasPermission(user, "categories.write") || hasPermission(user, "category_fields.write") ? (
+            <NavLink to="/categories">Categories</NavLink>
+          ) : null}
+        </NavGroup>
+        <NavGroup label="Access">
+          {hasPermission(user, "users.read") ? <NavLink to="/users">Users</NavLink> : null}
+          {hasPermission(user, "roles.manage") ? <NavLink to="/roles">Roles</NavLink> : null}
+        </NavGroup>
+        <NavGroup label="System">
+          {hasPermission(user, "assets.read_private") || hasPermission(user, "businesses.read") ? (
+            <NavLink to="/assets">Assets</NavLink>
+          ) : null}
+          {hasPermission(user, "audit.read") ? <NavLink to="/audit">Audit</NavLink> : null}
+        </NavGroup>
         <div style={{ flex: 1 }} />
         <p className="muted" style={{ color: "#9aa3b2", fontSize: "0.8rem", margin: "0.5rem 0" }}>
           {user?.email}

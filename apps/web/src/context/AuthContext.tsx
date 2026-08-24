@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const logoutMutation = useMutation({
     mutationFn: api.logout,
-    onSuccess: () => queryClient.setQueryData(["auth", "me"], null),
+    onSettled: () => queryClient.setQueryData(["auth", "me"], null),
   });
 
   return (
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user: me.data ?? null,
         isLoading: me.isLoading,
+        setUser: (user) => queryClient.setQueryData(["auth", "me"], user),
         login: loginMutation.mutateAsync,
         register: registerMutation.mutateAsync,
         logout: logoutMutation.mutateAsync,

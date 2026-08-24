@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Category } from "../../lib/api";
 import { iconForCategory } from "../../lib/category-icon";
+import { EmptyList } from "../EmptyList";
 import { SafeImage } from "../SafeImage";
 
 export function IndustryCard({ category }: { category: Category }) {
@@ -10,7 +11,7 @@ export function IndustryCard({ category }: { category: Category }) {
   return (
     <Link
       to={`/listings/${category.slug}`}
-      className="group relative h-28 overflow-hidden rounded-2xl md:h-32"
+      className="group relative h-32 overflow-hidden rounded-2xl md:h-36"
     >
       <SafeImage
         src={category.imageUrl || undefined}
@@ -23,7 +24,12 @@ export function IndustryCard({ category }: { category: Category }) {
       <span className="absolute left-3 top-3 grid size-8 place-items-center rounded-full bg-white/15 text-white backdrop-blur">
         <Icon className="size-4" />
       </span>
-      <span className="absolute inset-x-0 bottom-0 p-3 text-sm font-bold text-white">{category.name}</span>
+      <span className="absolute inset-x-0 bottom-0 p-3">
+        <span className="block text-sm font-bold text-white">{category.name}</span>
+        {category.description ? (
+          <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-white/80">{category.description}</span>
+        ) : null}
+      </span>
     </Link>
   );
 }
@@ -39,17 +45,23 @@ export function IndustryGrid({
     <section className="py-6 md:py-8">
       <div className="page-shell">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-[1.75rem]">Explore by industry</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight text-navy md:text-[1.75rem]">Explore by category</h2>
           <Link to="/listings" className="inline-flex items-center gap-1 text-sm font-bold text-navy">
-            View all industries <ArrowRight className="size-4" />
+            View all categories <ArrowRight className="size-4" />
           </Link>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {loading
             ? Array.from({ length: 8 }, (_, index) => (
-                <div key={index} className="h-28 animate-pulse rounded-2xl bg-surface-high md:h-32" />
+                <div key={index} className="h-32 animate-pulse rounded-2xl bg-surface-high md:h-36" />
               ))
-            : categories.map((category) => <IndustryCard key={category.id} category={category} />)}
+            : categories.length
+              ? categories.map((category) => <IndustryCard key={category.id} category={category} />)
+              : (
+                  <div className="col-span-full">
+                    <EmptyList compact title="No categories yet" description="Explore the directory to get started." />
+                  </div>
+                )}
         </div>
       </div>
     </section>

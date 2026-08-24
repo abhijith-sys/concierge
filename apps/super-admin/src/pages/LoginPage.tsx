@@ -2,9 +2,11 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/auth";
+import { useBrand } from "../lib/theme";
 
 export function LoginPage() {
   const { user, loading, login } = useAuth();
+  const brand = useBrand();
   const location = useLocation();
   const [email, setEmail] = useState("admin@demo.com");
   const [password, setPassword] = useState("");
@@ -33,7 +35,7 @@ export function LoginPage() {
     <div className="login-page">
       <form className="login-card stack" onSubmit={onSubmit}>
         <div>
-          <h1 style={{ margin: 0 }}>Super Admin</h1>
+          <h1 style={{ margin: 0 }}>{brand.name} Super Admin</h1>
           <p className="muted">Staff access only. No public registration.</p>
         </div>
         <label className="stack">

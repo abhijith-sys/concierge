@@ -54,6 +54,22 @@ describe("category field validation", () => {
     ).toThrow(/required/i);
   });
 
+  it("does not apply minLength to a blank optional license_number", () => {
+    const values = normalizeAndValidateFieldValues(
+      [
+        field({
+          id: "1",
+          key: "license_number",
+          fieldType: "text",
+          required: false,
+          validation: { minLength: 3, maxLength: 64 },
+        }),
+      ],
+      [{ key: "license_number", value: "" }],
+    );
+    expect(values[0].valueText).toBeNull();
+  });
+
   it("accepts multiselect arrays", () => {
     const values = normalizeAndValidateFieldValues(
       [

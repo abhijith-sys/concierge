@@ -18,7 +18,32 @@ export const servicesRepository = {
   findById(id: string) {
     return prisma.service.findUnique({
       where: { id },
-      include: { business: { select: { id: true, ownerId: true } }, category: true },
+      include: {
+        category: true,
+        business: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            verified: true,
+            status: true,
+            ownerId: true,
+            phone: true,
+            email: true,
+            coverUrl: true,
+            listing: {
+              select: {
+                id: true,
+                avgRating: true,
+                reviewCount: true,
+                city: true,
+                listingKind: true,
+                category: true,
+              },
+            },
+          },
+        },
+      },
     });
   },
 

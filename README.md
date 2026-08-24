@@ -225,18 +225,9 @@ curl -f -b cookies.txt http://localhost:8080/api/auth/me
 
 ## Design assets, motion, and accessibility
 
-The React application uses local copies of the retrievable Google/Stitch design-reference images under `apps/web/public/assets`. Runtime UI and seeded records reference `/assets/...`; they do not depend on the expiring `lh3.googleusercontent.com/aida-public` URLs. `SafeImage` supplies a neutral local fallback when an image is missing or fails to decode. Hero/LCP images load eagerly with high fetch priority; card, gallery, and editorial images are lazy-loaded in fixed-aspect containers.
+The public site and Super Admin share category card and banner photos under `apps/web/public/assets/categories` (copied to Super Admin `public` for local previews). Seeded records use `/assets/categories/{slug}.jpg` and `/assets/categories/{slug}-banner.jpg`. Super Admin can replace any of these from **Categories → Edit** (card image + listings banner); uploads go to `/uploads/public/...` and are not overwritten on re-seed. Demo listing photos live under `apps/web/public/assets/listings`. `SafeImage` supplies a neutral local fallback when an image is missing or fails to decode. Hero/LCP images load eagerly with high fetch priority; card, gallery, and editorial images are lazy-loaded in fixed-aspect containers.
 
-Source-to-app mapping:
-
-- Home/Elite architectural hero → `concierge-architectural-hero.jpg`
-- Builders listing hero → `builders-hero.jpg`
-- Aura showroom hero → `aura-showroom.jpg`
-- Listing cards → `brett-villa.jpg`, `terra-stone.jpg`, `arcadian-desert.jpg`, `heritage-estate.jpg`
-- Elite editorial sections → `elite-plans.jpg`, `elite-slab.jpg`
-- Aura editorial sections → `aura-chair.jpg`, `aura-craft.jpg`
-
-The source `stitch-placeholder-300x300.svg` entries were not real artwork and are intentionally not preserved; the closest relevant local design image is used instead. Remaining source-only testimonial portraits and decorative project shots are not required by the API-driven unified profile and are not loaded at runtime.
+The old Stitch/Google design-reference JPEGs (`heritage-estate.jpg`, `builders-hero.jpg`, and the recycled luxury-architecture set) were dummy placeholders and have been removed.
 
 Motion is limited to a short content entrance, mobile-navigation transition, and card/image hover feedback. `prefers-reduced-motion` disables animation and smooth scrolling. Interactive controls have visible keyboard focus, the mobile menu closes on Escape, images have contextual alternative text (or intentionally empty alt text when decorative), and form fields use associated labels.
 

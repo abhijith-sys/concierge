@@ -1,4 +1,31 @@
-import { CategoryFieldScope, type CategoryField } from "@prisma/client";
+import { CategoryFieldScope, type CategoryField, type CategoryKind } from "@prisma/client";
+import {
+  EDUCATION_HIDDEN_PLATFORM_KEYS,
+  EDUCATION_VERTICAL_FIELD_KEYS,
+  isEducationRootSlug,
+} from "./education.js";
+import {
+  ELECTRONICS_HIDDEN_PLATFORM_KEYS,
+  ELECTRONICS_VERTICAL_FIELD_KEYS,
+  isElectronicsRootSlug,
+} from "./electronics.js";
+import { EVENT_HIDDEN_PLATFORM_KEYS, EVENT_VERTICAL_FIELD_KEYS, isEventsRootSlug } from "./events.js";
+import { HEALTH_HIDDEN_PLATFORM_KEYS, HEALTH_VERTICAL_FIELD_KEYS, isHealthRootSlug } from "./health.js";
+import {
+  AUTOMOTIVE_HIDDEN_PLATFORM_KEYS,
+  AUTOMOTIVE_VERTICAL_FIELD_KEYS,
+  isAutomotiveRootSlug,
+} from "./automotive.js";
+import { HOME_HIDDEN_PLATFORM_KEYS, HOME_VERTICAL_FIELD_KEYS, isHomeRootSlug } from "./home.js";
+import { LOGISTICS_HIDDEN_PLATFORM_KEYS, LOGISTICS_VERTICAL_FIELD_KEYS, isLogisticsRootSlug } from "./logistics.js";
+import {
+  PROFESSIONAL_HIDDEN_PLATFORM_KEYS,
+  PROFESSIONAL_VERTICAL_FIELD_KEYS,
+  isProfessionalRootSlug,
+} from "./professional.js";
+import { RENTAL_HIDDEN_PLATFORM_KEYS, isRentalRootSlug } from "./rentals.js";
+import { STAY_HIDDEN_PLATFORM_KEYS, isStayRootSlug } from "./stays.js";
+import { TRAVEL_HIDDEN_PLATFORM_KEYS, isTravelRootSlug } from "./travel.js";
 
 export const FORM_KINDS = ["provider", "listing"] as const;
 export type FormKind = (typeof FORM_KINDS)[number];
@@ -42,6 +69,130 @@ export function mergeFieldLayers(
 export function formSchemaVersion(fields: Array<{ schemaVersion: number }>): number {
   if (!fields.length) return 1;
   return Math.max(1, ...fields.map((field) => field.schemaVersion));
+}
+
+/** Platform fields that only belong on service-professional categories. */
+export const SERVICE_ONLY_FIELD_KEYS = new Set([
+  "emergency_service",
+  "emergency_timing",
+  "home_visit",
+  "service_radius_km",
+  "availability",
+]);
+
+/** Platform fields that only belong on supplier / shop categories. */
+export const SUPPLIER_ONLY_FIELD_KEYS = new Set([
+  "order_modes",
+  "min_order_qty",
+  "sells_single_piece",
+  "wholesale_available",
+  "sample_available",
+  "service_area",
+  "whatsapp",
+  "unit",
+  "moq",
+  "price_bulk",
+  "price_piece",
+  "lead_time_days",
+  "custom_order",
+]);
+
+export function fieldsForCategoryKind<T extends { key: string }>(
+  fields: T[],
+  kind: CategoryKind | null | undefined,
+  rootSlug?: string | null,
+): T[] {
+  if (isStayRootSlug(rootSlug)) {
+    return fields.filter((field) => !STAY_HIDDEN_PLATFORM_KEYS.has(field.key));
+  }
+  if (isRentalRootSlug(rootSlug)) {
+    return fields.filter((field) => !RENTAL_HIDDEN_PLATFORM_KEYS.has(field.key));
+  }
+  if (isTravelRootSlug(rootSlug)) {
+    return fields.filter((field) => !TRAVEL_HIDDEN_PLATFORM_KEYS.has(field.key));
+  }
+  if (isEventsRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !EVENT_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !EVENT_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isLogisticsRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !LOGISTICS_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !LOGISTICS_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isEducationRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !EDUCATION_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !EDUCATION_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isHealthRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !HEALTH_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !HEALTH_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isProfessionalRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !PROFESSIONAL_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !PROFESSIONAL_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isHomeRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !HOME_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !HOME_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isAutomotiveRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !AUTOMOTIVE_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !AUTOMOTIVE_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  if (isElectronicsRootSlug(rootSlug)) {
+    if (kind === "service") {
+      return fields.filter((field) => !ELECTRONICS_HIDDEN_PLATFORM_KEYS.has(field.key));
+    }
+    return applyKindFieldFilter(
+      fields.filter((field) => !ELECTRONICS_VERTICAL_FIELD_KEYS.has(field.key)),
+      kind,
+    );
+  }
+  return applyKindFieldFilter(fields, kind);
+}
+
+function applyKindFieldFilter<T extends { key: string }>(fields: T[], kind: CategoryKind | null | undefined): T[] {
+  if (!kind) return fields;
+  return fields.filter((field) => {
+    if (kind === "supplier" && SERVICE_ONLY_FIELD_KEYS.has(field.key)) return false;
+    if (kind === "service" && SUPPLIER_ONLY_FIELD_KEYS.has(field.key)) return false;
+    return true;
+  });
 }
 
 export type ConditionalRule = {

@@ -138,6 +138,45 @@ describe.skipIf(!hasDb)("API integration", () => {
     expect(verified.body.user.emailVerifiedAt).toBeTruthy();
   });
 
+  it("refreshes an authenticated session", async () => {
+    const refreshed = await userAgent.post("/api/auth/refresh").expect(200);
+    expect(refreshed.body.user.email).toBe(`user-${suffix}@test.local`);
+    await userAgent.get("/api/auth/me").expect(200);
+  });
+
+  it("resets a password with email OTP", async () => {
+    const email = `reset-${suffix}@test.local`;
+    await request(app)
+      .post("/api/auth/register")
+      .send({ name: "Reset User", email, password: "Concierge123!" })
+      .expect(201);
+    await request(app).post("/api/auth/forgot-password").send({ email, method: "account" }).expect(200);
+    const user = await prisma.user.findUnique({ where: { email } });
+    const challenge = await prisma.verificationChallenge.findFirst({
+      where: { userId: user!.id, purpose: "reset", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    await prisma.verificationChallenge.update({
+      where: { id: challenge!.id },
+      data: { codeHash: hashOtp("424242") },
+    });
+    const verified = await request(app)
+      .post("/api/auth/verify-reset-otp")
+      .send({ email, method: "account", code: "424242" })
+      .expect(200);
+    expect(verified.body.resetToken).toBeTruthy();
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({
+        email,
+        method: "account",
+        newPassword: "NewPass123!",
+        resetToken: verified.body.resetToken,
+      })
+      .expect(200);
+    await request(app).post("/api/auth/login").send({ email, password: "NewPass123!" }).expect(200);
+  });
+
   it("creates business with hours and lists for owner", async () => {
     const fieldsRes = await request(app).get(`/api/categories/${categoryId}/fields`).expect(200);
     const required = (fieldsRes.body.fields as { key: string; required: boolean }[]).filter((f) => f.required);
@@ -167,6 +206,18 @@ describe.skipIf(!hasDb)("API integration", () => {
       .expect(201);
     businessId = created.body.business.id;
     expect(created.body.business.status).toBe("pending");
+
+    const pendingItem = await businessAgent
+      .post("/api/services")
+      .send({
+        businessId,
+        name: "Pending catalog item",
+        description: "Submitted while the business profile is still pending review.",
+        price: 80,
+        currency: "USD",
+      })
+      .expect(201);
+    expect(pendingItem.body.service.approvalStatus).toBe("pending");
 
     const mine = await businessAgent.get("/api/businesses/mine").expect(200);
     expect(mine.body.businesses.some((b: { id: string }) => b.id === businessId)).toBe(true);
@@ -223,6 +274,7 @@ describe.skipIf(!hasDb)("API integration", () => {
 
     const hidden = await request(app).get(`/api/services/business/${businessId}`).expect(200);
     expect(hidden.body.services).toHaveLength(0);
+    await request(app).get(`/api/services/${created.body.service.id}`).expect(404);
 
     await adminAgent
       .post(`/api/admin/listings/${created.body.service.id}/reject`)
@@ -233,6 +285,12 @@ describe.skipIf(!hasDb)("API integration", () => {
 
     const publicServices = await request(app).get(`/api/services/business/${businessId}`).expect(200);
     expect(publicServices.body.services).toHaveLength(1);
+
+    const publicItem = await request(app).get(`/api/services/${created.body.service.id}`).expect(200);
+    expect(publicItem.body.service.name).toBe("Consultation");
+    expect(publicItem.body.service.business?.id).toBe(businessId);
+    expect(publicItem.body.service.business?.listing?.avgRating).toBeDefined();
+    expect(Array.isArray(publicItem.body.service.fieldValues)).toBe(true);
 
     const patched = await businessAgent
       .patch(`/api/services/${created.body.service.id}`)
@@ -456,8 +514,12 @@ describe.skipIf(!hasDb)("API integration", () => {
         slug: `home-contract-${suffix}`,
         description: "Main category for Phase 1 contract tests.",
         icon: "home_repair_service",
+        imageUrl: "/assets/categories/home-property.jpg",
+        bannerUrl: "/assets/categories/home-property-banner.jpg",
       })
       .expect(201);
+    expect(main.body.category.imageUrl).toBe("/assets/categories/home-property.jpg");
+    expect(main.body.category.bannerUrl).toBe("/assets/categories/home-property-banner.jpg");
 
     const sub = await adminAgent
       .post("/api/admin/categories")
@@ -466,16 +528,23 @@ describe.skipIf(!hasDb)("API integration", () => {
         slug: `electricians-contract-${suffix}`,
         parentId: main.body.category.id,
         icon: "electrical_services",
+        description: "Verified electricians for residential and commercial work.",
+        imageUrl: "/assets/listings/electrical-shop.jpg",
+        bannerUrl: "/assets/categories/electronics-technology-banner.jpg",
       })
       .expect(201);
 
     const tree = await request(app).get("/api/categories").expect(200);
     const publicMain = tree.body.categories.find((row: { id: string }) => row.id === main.body.category.id);
     expect(publicMain?.name).toBe(`Home Contract ${suffix}`);
+    expect(publicMain?.imageUrl).toBe("/assets/categories/home-property.jpg");
+    expect(publicMain?.bannerUrl).toBe("/assets/categories/home-property-banner.jpg");
     expect(publicMain?.children?.some((row: { id: string }) => row.id === sub.body.category.id)).toBe(true);
 
     const detail = await request(app).get(`/api/categories/${sub.body.category.slug}`).expect(200);
     expect(detail.body.category.parent.id).toBe(main.body.category.id);
+    expect(detail.body.category.bannerUrl).toBe("/assets/categories/electronics-technology-banner.jpg");
+    expect(detail.body.category.description).toContain("electricians");
     expect(detail.body.category.children ?? []).toEqual([]);
 
     await adminAgent
@@ -520,6 +589,22 @@ describe.skipIf(!hasDb)("API integration", () => {
         field.key.startsWith("callout_fee_") && field.scope === "service",
       ),
     ).toBe(true);
+
+    await adminAgent
+      .patch(`/api/admin/categories/${main.body.category.id}`)
+      .send({ isActive: false })
+      .expect(200);
+    await adminAgent
+      .patch(`/api/admin/categories/${main.body.category.id}`)
+      .send({ isActive: true })
+      .expect(200);
+
+    const unused = await adminAgent
+      .post("/api/admin/categories")
+      .send({ name: `Unused ${suffix}`, slug: `unused-cat-${suffix}` })
+      .expect(201);
+    await adminAgent.delete(`/api/admin/categories/${unused.body.category.id}?hard=true`).expect(200);
+    await request(app).get(`/api/categories/${unused.body.category.slug}`).expect(404);
   });
 
   it("covers consumer onboarding, listing approval, and inactive categories", async () => {
@@ -546,6 +631,16 @@ describe.skipIf(!hasDb)("API integration", () => {
       .expect(201);
     const agent = request.agent(app);
     await agent.post("/api/auth/login").send({ email, password: "Concierge123!" }).expect(200);
+    const onboardUser = await prisma.user.findUnique({ where: { email } });
+    const onboardOtp = await prisma.verificationChallenge.findFirst({
+      where: { userId: onboardUser!.id, purpose: "register", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    await prisma.verificationChallenge.update({
+      where: { id: onboardOtp!.id },
+      data: { codeHash: hashOtp("424242") },
+    });
+    await agent.post("/api/auth/verify-signup-otp").send({ code: "424242" }).expect(200);
 
     const fieldsRes = await request(app).get(`/api/categories/${sub.body.category.id}/forms/provider`).expect(200);
     const fieldValues = (fieldsRes.body.fields as {

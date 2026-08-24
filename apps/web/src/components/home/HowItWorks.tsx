@@ -3,20 +3,20 @@ import { ClipboardList, Search, Send } from "lucide-react";
 const steps = [
   {
     n: "01",
-    title: "Search",
-    copy: "Find the right service or professional for your need.",
+    title: "Discover",
+    copy: "Browse categories and find shops that sell bulk, by order, or single piece.",
     Icon: Search,
   },
   {
     n: "02",
-    title: "Explore",
-    copy: "Compare providers, check reviews and ratings.",
+    title: "Compare",
+    copy: "Check catalogs, rates, and reviews side by side.",
     Icon: ClipboardList,
   },
   {
     n: "03",
     title: "Connect",
-    copy: "Contact, book or request services with confidence.",
+    copy: "Call, WhatsApp, or send an inquiry — buy from the best option.",
     Icon: Send,
   },
 ];

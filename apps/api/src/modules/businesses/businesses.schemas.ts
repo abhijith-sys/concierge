@@ -2,14 +2,14 @@ import { BusinessStatus } from "@prisma/client";
 import { z } from "zod";
 
 const mediaUrl = z.string().min(1).max(500).refine((value) => {
-  if (value.startsWith("/uploads/")) return true;
+  if (value.startsWith("/uploads/") || value.startsWith("/assets/")) return true;
   try {
     const protocol = new URL(value).protocol;
     return protocol === "http:" || protocol === "https:";
   } catch {
     return false;
   }
-}, "Only HTTP(S) or /uploads paths are allowed");
+}, "Only HTTP(S), /uploads, or /assets paths are allowed");
 
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm time format");
 export const hoursSchema = z.record(z.string(), z.tuple([time, time]).nullable());

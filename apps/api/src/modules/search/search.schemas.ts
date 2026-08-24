@@ -15,6 +15,7 @@ export const searchQuerySchema = z.object({
   radiusKm: z.coerce.number().min(0.5).max(50).default(10).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(12),
+  kind: z.enum(["supplier", "service"]).optional(),
 }).refine(
   (value) => (value.lat === undefined) === (value.lng === undefined),
   "lat and lng must be provided together",

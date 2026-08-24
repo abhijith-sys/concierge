@@ -1,4 +1,5 @@
 import { haversineKm } from "../../shared/domain/business.js";
+import { serializeFieldValue } from "../../shared/domain/category-fields.js";
 import { paginate } from "../../shared/utils/index.js";
 import { searchRepository } from "./search.repository.js";
 import type { SearchQuery } from "./search.schemas.js";
@@ -58,7 +59,15 @@ export const searchService = {
     }
 
     return {
-      items,
+      items: items.map((business) => ({
+        ...business,
+        listing: business.listing
+          ? {
+              ...business.listing,
+              fieldValues: business.listing.fieldValues.map(serializeFieldValue),
+            }
+          : business.listing,
+      })),
       pagination: paginate(total, query.page, query.pageSize),
       filters: {
         q: query.q ?? null,
@@ -70,6 +79,7 @@ export const searchService = {
         lat: query.lat ?? null,
         lng: query.lng ?? null,
         radiusKm: query.lat !== undefined ? (query.radiusKm ?? 10) : null,
+        kind: query.kind ?? null,
       },
     };
   },

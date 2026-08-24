@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { EmptyList } from "../components/EmptyList";
 import { ApiError, api, hasPermission, type Category, type CategoryField } from "../lib/api";
-import { isPlatform, keyFromLabel } from "../lib/taxonomy";
+import { findCategory, isPlatform, keyFromLabel } from "../lib/taxonomy";
 import { useAuth } from "../context/auth";
 
 const FIELD_TYPES = [
@@ -219,6 +220,11 @@ export function FormBuilderPage() {
               : "Main category form = common + these fields"}
           {form.data ? ` · version ${form.data.formSchemaVersion}` : ""}
         </p>
+        <p className="muted" style={{ margin: "0.5rem 0 0", maxWidth: "42rem" }}>
+          {kind === "listing"
+            ? "Listing form fields are the extra details shown on public catalog item / offering pages (unit, MOQ, bulk price, duration, and anything else you add)."
+            : "Provider form fields appear on the public shop profile when a seller registers or edits their business."}
+        </p>
       </div>
 
       <div className="row">
@@ -418,7 +424,7 @@ function LayerTable({
           ))}
         </tbody>
       </table>
-      {fields.length === 0 ? <p className="muted">No fields in this layer.</p> : null}
+      {fields.length === 0 ? <EmptyList compact title="No fields in this layer." /> : null}
     </div>
   );
 }
@@ -565,12 +571,3 @@ function FieldEditor({
   );
 }
 
-function findCategory(roots: Category[], id?: string): Category | undefined {
-  if (!id) return undefined;
-  for (const root of roots) {
-    if (root.id === id) return root;
-    const child = root.children?.find((item) => item.id === id);
-    if (child) return { ...child, parentId: child.parentId ?? root.id };
-  }
-  return undefined;
-}

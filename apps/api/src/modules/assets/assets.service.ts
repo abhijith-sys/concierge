@@ -144,6 +144,10 @@ export const assetsService = {
     }
   },
 
+  async detach(entityType: AttachmentEntityType, entityId: string, purpose: AttachmentPurpose) {
+    return prisma.attachment.deleteMany({ where: { entityType, entityId, purpose } });
+  },
+
   async urlsFor(entityType: AttachmentEntityType, entityId: string, purpose?: AttachmentPurpose) {
     const rows = await assetsRepository.listAttachments(entityType, entityId, purpose);
     return attachmentUrls(rows);

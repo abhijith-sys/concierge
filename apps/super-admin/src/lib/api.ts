@@ -20,6 +20,7 @@ export type Business = {
     title?: string;
     category?: { id: string; name: string; slug: string } | null;
   };
+  _count?: { services?: number; reviews?: number };
 };
 
 export type AdminListing = {
@@ -50,6 +51,8 @@ export type Category = {
   description?: string | null;
   icon?: string | null;
   imageUrl?: string | null;
+  bannerUrl?: string | null;
+  kind?: "supplier" | "service";
   sortOrder?: number;
   isActive?: boolean;
   createdAt?: string;
@@ -99,6 +102,7 @@ export type AdminStats = {
   pendingListings?: number;
   categories?: number;
   subcategories?: number;
+  categoryKinds?: { supplier: number; service: number };
   kycQueue: number;
   assets: number;
 };
@@ -150,6 +154,15 @@ export type AssetItem = {
   url: string;
   uploadedBy?: { id: string; name: string; email: string } | null;
   attachments: Array<{ id: string; entityType: string; entityId: string; purpose: string }>;
+};
+
+export type UploadedFile = {
+  url: string;
+  key: string;
+  mime: string;
+  bytes: number;
+  visibility: "public" | "private";
+  assetId: string;
 };
 
 class ApiError extends Error {
@@ -268,6 +281,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  deleteListing: (id: string) =>
+    request(`/api/admin/listings/${id}`, { method: "DELETE" }),
   verificationQueue: async () => {
     const value = await request<{ items: VerificationItem[] }>("/api/verification/queue");
     return value.items;
@@ -295,6 +310,24 @@ export const api = {
     request<{ category: Category }>(`/api/admin/categories/${id}${hard ? "?hard=true" : ""}`, {
       method: "DELETE",
     }),
+  upload: async (file: File) => {
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    const value = await request<{ file: UploadedFile }>("/api/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        data,
+        mime: file.type || "application/octet-stream",
+        fileName: file.name,
+        visibility: "public",
+      }),
+    });
+    return value.file;
+  },
   categoryFields: async (categoryId: string) => {
     const value = await request<{ fields: CategoryField[] }>(
       `/api/admin/categories/${categoryId}/fields`,
@@ -357,6 +390,235 @@ export const api = {
     request<{ items: AssetItem[]; pagination: { total: number } }>(
       `/api/admin/assets?${params.toString()}`,
     ),
+  stayEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        checkIn: string;
+        checkOut: string;
+        adults: number;
+        children: number;
+        notes?: string | null;
+        roomSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/stay-enquiries?${params.toString()}`),
+  updateStayEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/stay-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  rentalEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        hireFrom: string;
+        hireTo: string;
+        deliveryRequested: boolean;
+        notes?: string | null;
+        itemSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/rental-enquiries?${params.toString()}`),
+  updateRentalEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/rental-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  travelEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        pickupDate: string;
+        pickupTime?: string | null;
+        pickupLocation: string;
+        dropoffLocation: string;
+        passengers: number;
+        roundTrip: boolean;
+        notes?: string | null;
+        vehicleSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/travel-enquiries?${params.toString()}`),
+  updateTravelEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/travel-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  eventEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        eventDate: string;
+        eventTime?: string | null;
+        venue: string;
+        guests: number;
+        notes?: string | null;
+        packageSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/event-enquiries?${params.toString()}`),
+  updateEventEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/event-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  logisticsEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        pickupDate: string;
+        pickupTime?: string | null;
+        pickupLocation: string;
+        dropoffLocation: string;
+        packingRequired: boolean;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/logistics-enquiries?${params.toString()}`),
+  updateLogisticsEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/logistics-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  educationEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        startDate: string;
+        preferredTime?: string | null;
+        learningMode?: string | null;
+        learners: number;
+        notes?: string | null;
+        courseSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/education-enquiries?${params.toString()}`),
+  updateEducationEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/education-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  healthEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        appointmentDate: string;
+        appointmentTime?: string | null;
+        patients: number;
+        concern?: string | null;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/health-enquiries?${params.toString()}`),
+  updateHealthEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/health-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  professionalEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        preferredDate: string;
+        preferredTime?: string | null;
+        topic?: string | null;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/professional-enquiries?${params.toString()}`),
+  updateProfessionalEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/professional-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  homeTradeEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        preferredDate: string;
+        preferredTime?: string | null;
+        jobLocation: string;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/home-trade-enquiries?${params.toString()}`),
+  updateHomeTradeEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/home-trade-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  automotiveEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        preferredDate: string;
+        preferredTime?: string | null;
+        vehicleInfo?: string | null;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/automotive-enquiries?${params.toString()}`),
+  updateAutomotiveEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/automotive-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  electronicsEnquiries: (params: URLSearchParams) =>
+    request<{
+      items: Array<{
+        id: string;
+        guestName: string;
+        guestEmail: string;
+        guestPhone?: string | null;
+        preferredDate: string;
+        preferredTime?: string | null;
+        deviceInfo?: string | null;
+        notes?: string | null;
+        serviceSelections: Array<{ serviceId: string; name?: string; quantity: number }>;
+        status: string;
+        createdAt: string;
+        business?: { id: string; name: string; slug: string };
+      }>;
+      pagination: { total: number };
+    }>(`/api/electronics-enquiries?${params.toString()}`),
+  updateElectronicsEnquiry: (id: string, input: { status?: string; ownerNote?: string | null }) =>
+    request(`/api/electronics-enquiries/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
 };
 
 export { ApiError };

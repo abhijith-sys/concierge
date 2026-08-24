@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { EmptyList } from "../components/EmptyList";
 import { api, hasPermission } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -73,6 +74,9 @@ export function AssetsPage() {
             ))}
           </tbody>
         </table>
+        {!list.isLoading && !(list.data?.items.length ?? 0) ? (
+          <EmptyList compact title="No assets match these filters." />
+        ) : null}
       </div>
     </div>
   );

@@ -18,7 +18,11 @@ export const adminRepository = {
         ? {
             listing: {
               category: {
-                OR: [{ id: input.categoryId }, { parentId: input.categoryId }],
+                OR: [
+                  { id: input.categoryId },
+                  { parentId: input.categoryId },
+                  { parent: { parentId: input.categoryId } },
+                ],
               },
             },
           }
@@ -244,7 +248,7 @@ export const adminRepository = {
   },
 
   async stats() {
-    const [businesses, services, users, kycQueue, assets, categories, subcategories] = await Promise.all([
+    const [businesses, services, users, kycQueue, assets, categories, subcategories, categoryKinds] = await Promise.all([
       prisma.business.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.service.groupBy({ by: ["approvalStatus"], _count: { _all: true } }),
       prisma.user.count(),
@@ -252,11 +256,17 @@ export const adminRepository = {
       prisma.asset.count({ where: { status: { not: "deleted" } } }),
       prisma.category.count({ where: { parentId: null, ...excludeInternalCategoryWhere } }),
       prisma.category.count({ where: { parentId: { not: null } } }),
+      prisma.category.groupBy({
+        by: ["kind"],
+        where: excludeInternalCategoryWhere,
+        _count: { _all: true },
+      }),
     ]);
     const byStatus = Object.fromEntries(businesses.map((row) => [row.status, row._count._all]));
     const byApproval = Object.fromEntries(services.map((row) => [row.approvalStatus, row._count._all]));
     const listingTotal = services.reduce((sum, row) => sum + row._count._all, 0);
     const providerTotal = businesses.reduce((sum, row) => sum + row._count._all, 0);
+    const byKind = Object.fromEntries(categoryKinds.map((row) => [row.kind, row._count._all]));
     return {
       businesses: {
         pending: byStatus.pending ?? 0,
@@ -278,6 +288,10 @@ export const adminRepository = {
       pendingListings: byApproval.pending ?? 0,
       categories,
       subcategories,
+      categoryKinds: {
+        supplier: byKind.supplier ?? 0,
+        service: byKind.service ?? 0,
+      },
       kycQueue,
       assets,
     };
@@ -299,6 +313,7 @@ export const adminRepository = {
             OR: [
               { categoryId: input.categoryId },
               { category: { parentId: input.categoryId } },
+              { category: { parent: { parentId: input.categoryId } } },
             ],
           }
         : {}),
@@ -345,6 +360,10 @@ export const adminRepository = {
         },
       },
     });
+  },
+
+  removeListing(id: string) {
+    return prisma.service.delete({ where: { id } });
   },
 
   updateListing(id: string, data: Prisma.ServiceUpdateInput) {

@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { api } from "../lib/api";
 import { isProvider } from "../lib/provider";
+import { theme } from "../lib/theme";
 import { AuthIntentHandler } from "./AuthIntentHandler";
 import { Logo } from "./Logo";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
@@ -34,15 +35,30 @@ function IconPath({ d, ...props }: SVGProps<SVGSVGElement> & { d: string }) {
   );
 }
 
+function isMyBusinessPath(pathname: string) {
+  return (
+    pathname.startsWith("/provider") ||
+    pathname === "/list-business" ||
+    /^\/business\/[^/]+\/edit$/.test(pathname)
+  );
+}
+
 export function TopNav() {
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const location = useLocation();
+  const inMyBusiness = isMyBusinessPath(location.pathname);
   const provider = isProvider(user);
+  const showBusinessCta = Boolean(user) && !isLoading && !inMyBusiness;
+  const businessCta = provider
+    ? { to: "/provider", label: "My Business" }
+    : { to: "/list-business", label: "List your business" };
+  const businessId = new URLSearchParams(location.search).get("business");
+  const onItemsPage = location.pathname === "/provider/listings" && Boolean(businessId);
   const wishlist = useQuery({
     queryKey: ["wishlist"],
     queryFn: api.wishlist,
-    enabled: Boolean(user),
+    enabled: Boolean(user) && !inMyBusiness,
   });
   const savedCount = wishlist.data?.length ?? 0;
 
@@ -62,51 +78,50 @@ export function TopNav() {
         <div className="flex items-center gap-10">
           <Logo onClick={() => setOpen(false)} />
           <div className="hidden items-center gap-7 md:flex">
-            <NavLink to="/listings" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
-              Explore
-            </NavLink>
-            <NavLink to="/wishlist" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
-              <span className="relative inline-flex items-center">
-                Wishlist
-                {savedCount > 0 ? (
-                  <span className="absolute -right-3.5 -top-2 grid min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] font-extrabold leading-4 text-navy">
-                    {savedCount > 9 ? "9+" : savedCount}
-                  </span>
-                ) : null}
-              </span>
-            </NavLink>
-            {provider ? (
+            {inMyBusiness ? (
               <>
-                <NavLink to="/provider" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
-                  My Business
+                <NavLink to="/provider" end className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
+                  My businesses
                 </NavLink>
-                <NavLink
-                  to="/provider/listings"
-                  className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}
-                >
-                  My Listings
+                <NavLink to="/list-business" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
+                  Add business
+                </NavLink>
+                {onItemsPage ? (
+                  <NavLink
+                    to={`/provider/listings/create?business=${businessId}`}
+                    className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}
+                  >
+                    Add item
+                  </NavLink>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <NavLink to="/listings" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
+                  Explore
+                </NavLink>
+                <NavLink to="/wishlist" className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`}>
+                  <span className="relative inline-flex items-center">
+                    Wishlist
+                    {savedCount > 0 ? (
+                      <span className="absolute -right-3.5 -top-2 grid min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] font-extrabold leading-4 text-navy">
+                        {savedCount > 9 ? "9+" : savedCount}
+                      </span>
+                    ) : null}
+                  </span>
                 </NavLink>
               </>
-            ) : null}
+            )}
           </div>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
-          {provider ? (
-            <Link to="/provider/listings/create">
-              <Button>Create listing</Button>
+          {showBusinessCta ? (
+            <Link to={businessCta.to}>
+              <Button>{businessCta.label}</Button>
             </Link>
-          ) : (
-            <Link to="/list-business">
-              <Button>Become a provider</Button>
-            </Link>
-          )}
-          {user ? (
+          ) : null}
+          {isLoading ? null : user ? (
             <>
-              {user.role === "admin" ? (
-                <a href={import.meta.env.VITE_ADMIN_URL || "http://localhost:8081"}>
-                  <Button variant="outline">Admin</Button>
-                </a>
-              ) : null}
               <Link to="/account" className="icon-button" aria-label="Account">
                 <UserRound />
               </Link>
@@ -135,34 +150,46 @@ export function TopNav() {
       {open ? (
         <div className="animate-fade-in border-t border-line bg-white p-5 sm:hidden" aria-label="Mobile navigation">
           <div className="grid gap-2">
-            <Link to="/listings" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
-              Explore
-            </Link>
-            <Link to="/wishlist" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
-              Wishlist{savedCount > 0 ? ` (${savedCount})` : ""}
-            </Link>
-            {provider ? (
+            {inMyBusiness ? (
               <>
                 <Link to="/provider" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
-                  My Business
+                  My businesses
                 </Link>
-                <Link
-                  to="/provider/listings"
-                  className="rounded-lg p-3 font-semibold hover:bg-surface-low"
-                  onClick={() => setOpen(false)}
-                >
-                  My Listings
+                <Link to="/list-business" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
+                  Add business
                 </Link>
+                {onItemsPage ? (
+                  <Link
+                    to={`/provider/listings/create?business=${businessId}`}
+                    className="rounded-lg p-3 font-semibold hover:bg-surface-low"
+                    onClick={() => setOpen(false)}
+                  >
+                    Add item
+                  </Link>
+                ) : null}
               </>
-            ) : null}
-            <Link to={provider ? "/provider/listings/create" : "/list-business"} onClick={() => setOpen(false)}>
-              <Button className="mt-2 w-full">{provider ? "Create listing" : "Become a provider"}</Button>
-            </Link>
+            ) : (
+              <>
+                <Link to="/listings" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
+                  Explore
+                </Link>
+                <Link to="/wishlist" className="rounded-lg p-3 font-semibold hover:bg-surface-low" onClick={() => setOpen(false)}>
+                  Wishlist{savedCount > 0 ? ` (${savedCount})` : ""}
+                </Link>
+                {showBusinessCta ? (
+                  <Link to={businessCta.to} onClick={() => setOpen(false)}>
+                    <Button className="mt-2 w-full">{businessCta.label}</Button>
+                  </Link>
+                ) : null}
+              </>
+            )}
+            {isLoading ? null : (
             <Link to={user ? "/account" : "/login"} onClick={() => setOpen(false)}>
               <Button variant="outline" className="w-full">
                 {user ? "My account" : "Sign in"}
               </Button>
             </Link>
+            )}
           </div>
         </div>
       ) : null}
@@ -171,6 +198,7 @@ export function TopNav() {
 }
 
 export function Footer() {
+  const { user, isLoading } = useAuth();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const featured = categories.data?.slice(0, 3) ?? [];
 
@@ -180,7 +208,7 @@ export function Footer() {
         <div>
           <Logo />
           <p className="mt-4 max-w-xs text-sm leading-6 text-ink-soft">
-            Redefining professional and lifestyle discovery. Quality curated, expertly delivered.
+            Redefining supplier discovery. Compare rates, then connect directly.
           </p>
           <div className="mt-6 flex items-center gap-1 text-navy">
             <SocialIcon label="Facebook" href="https://facebook.com">
@@ -207,15 +235,17 @@ export function Footer() {
                 {category.name}
               </Link>
             ))}
-            <Link to="/listings">View all industries</Link>
+            <Link to="/listings">View all categories</Link>
           </div>
         </div>
         <div>
           <p className="label-caps text-ink-soft">For providers</p>
           <div className="mt-5 grid gap-3 text-sm text-ink-soft [&_a]:transition hover:[&_a]:text-navy">
-            <Link to="/list-business">Become a provider</Link>
-            <Link to="/provider">My Business</Link>
-            <Link to="/list-business">Provider Resources</Link>
+            {isLoading ? null : user ? (
+              isProvider(user) ? <Link to="/provider">My Business</Link> : <Link to="/list-business">List your business</Link>
+            ) : (
+              <Link to="/list-business">List your business</Link>
+            )}
             <Link to="/contact">Help & Support</Link>
           </div>
         </div>
@@ -231,7 +261,7 @@ export function Footer() {
         </div>
       </div>
       <div className="page-shell flex flex-wrap items-center justify-between gap-3 border-t border-line py-6 text-xs text-ink-soft">
-        <p>© 2026 Concierge Digital Services. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} {theme.legalName}. All rights reserved.</p>
         <p className="inline-flex items-center gap-2 font-semibold text-navy">
           <span aria-hidden="true">🇮🇳</span> India
         </p>

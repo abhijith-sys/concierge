@@ -7,6 +7,8 @@ export const publicUserSelect = {
   avatarUrl: true,
   emailVerifiedAt: true,
   phoneVerifiedAt: true,
+  recoveryEmail: true,
+  recoveryEmailVerifiedAt: true,
   mfaEnabled: true,
   disabledAt: true,
   createdAt: true,

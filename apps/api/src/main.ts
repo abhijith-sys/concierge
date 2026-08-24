@@ -1,9 +1,11 @@
 import dotenv from "dotenv";
+import path from "node:path";
 import { createApp } from "./app.js";
 import { loadEnv } from "./config/env.js";
 import { prisma } from "./shared/db/prisma.js";
 import { logger } from "./shared/logging/logger.js";
 
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
 dotenv.config();
 const env = loadEnv();
 const app = createApp();

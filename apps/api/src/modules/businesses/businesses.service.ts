@@ -16,6 +16,7 @@ import { formSchemaVersion } from "../../shared/domain/composed-forms.js";
 import { slugify } from "../../shared/utils/index.js";
 import { assetsService } from "../assets/assets.service.js";
 import { authRepository } from "../auth/auth.repository.js";
+import { authService } from "../auth/auth.service.js";
 import { categoriesRepository } from "../categories/categories.repository.js";
 import { businessesRepository } from "./businesses.repository.js";
 import type { CreateBusinessInput, UpdateBusinessInput } from "./businesses.schemas.js";
@@ -57,10 +58,17 @@ export const businessesService = {
     if (!hours || Object.keys(hours).length === 0) {
       throw new ApiError(400, "HOURS_REQUIRED", "Business hours are required to submit a listing");
     }
+    if (user.role !== Role.admin) {
+      const owner = await authRepository.findPublicById(user.id);
+      authService.assertEmailVerified(owner ?? {});
+    }
 
     if (!(await categoriesRepository.categoryIsAssignable(categoryId))) {
       throw new ApiError(400, "INVALID_CATEGORY", "Category does not exist or is not available");
     }
+
+    const listingCategory = await categoriesRepository.findById(categoryId);
+    const listingKind = listingCategory?.kind ?? "supplier";
 
     const listingFields = await categoriesRepository.listComposedFields(categoryId, {
       kind: "provider",
@@ -76,11 +84,12 @@ export const businessesService = {
       ...businessData,
       slug,
       ownerId: user.id,
-      status: user.role === Role.admin ? BusinessStatus.active : BusinessStatus.pending,
+      status: BusinessStatus.pending,
       formSchemaVersion: schemaVersion,
       listing: {
         create: {
           categoryId,
+          listingKind,
           title,
           description,
           address,
@@ -166,7 +175,12 @@ export const businessesService = {
     ] as const;
     const listingData = Object.fromEntries(
       listingKeys.filter((key) => input[key] !== undefined).map((key) => [key, input[key]]),
-    );
+    ) as Record<string, unknown>;
+
+    if (input.categoryId) {
+      const nextCategory = await categoriesRepository.findById(input.categoryId);
+      if (nextCategory) listingData.listingKind = nextCategory.kind;
+    }
 
     const business = await businessesRepository.update(id, {
       ...businessData,

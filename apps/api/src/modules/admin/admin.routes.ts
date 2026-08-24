@@ -317,6 +317,20 @@ adminRouter.post(
   },
 );
 
+adminRouter.delete(
+  "/listings/:id",
+  requirePermission(PERMISSIONS.BUSINESSES_DELETE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    await adminService.removeListing(id, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.status(204).send();
+  },
+);
+
 adminRouter.get("/stats", requireAnyPermission(PERMISSIONS.BUSINESSES_READ, PERMISSIONS.AUDIT_READ), async (_req, res) => {
   const stats = await adminService.stats();
   res.json({ stats });

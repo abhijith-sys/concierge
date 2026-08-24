@@ -125,6 +125,8 @@ export const assetsRepository = {
       "avatar",
       "logo",
       "cover",
+      "background",
+      "banner",
       "kyc_owner",
       "kyc_location",
       "kyc_storefront",

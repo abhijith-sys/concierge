@@ -34,7 +34,7 @@ export function DashboardPage() {
           <strong>{s?.providers ?? s?.businesses.active ?? "—"}</strong>
         </div>
         <div className="stat">
-          <span className="muted">Listings</span>
+          <span className="muted">Catalog items</span>
           <strong>{s?.listings?.total ?? "—"}</strong>
         </div>
         <Link to="/businesses?status=pending" className="stat">
@@ -42,17 +42,25 @@ export function DashboardPage() {
           <strong>{s?.pendingProviders ?? s?.businesses.pending ?? "—"}</strong>
         </Link>
         <Link to="/listings?status=pending" className="stat">
-          <span className="muted">Pending listings</span>
+          <span className="muted">Pending catalog items</span>
           <strong>{s?.pendingListings ?? s?.listings?.pending ?? "—"}</strong>
         </Link>
-        <div className="stat">
+        <Link to="/categories" className="stat">
           <span className="muted">Categories</span>
           <strong>{s?.categories ?? "—"}</strong>
-        </div>
-        <div className="stat">
+        </Link>
+        <Link to="/categories" className="stat">
+          <span className="muted">Supplier categories</span>
+          <strong>{s?.categoryKinds?.supplier ?? "—"}</strong>
+        </Link>
+        <Link to="/categories" className="stat">
+          <span className="muted">Service categories</span>
+          <strong>{s?.categoryKinds?.service ?? "—"}</strong>
+        </Link>
+        <Link to="/categories" className="stat">
           <span className="muted">Subcategories</span>
           <strong>{s?.subcategories ?? "—"}</strong>
-        </div>
+        </Link>
         <div className="stat">
           <span className="muted">KYC queue</span>
           <strong>{s?.kycQueue ?? "—"}</strong>

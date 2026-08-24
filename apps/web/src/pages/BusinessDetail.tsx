@@ -1,37 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Check, MapPin, Star, Trash2 } from "lucide-react";
+import { BadgeCheck, Check, MapPin, Star, Trash2 } from "lucide-react";
 import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApprovalBanner } from "../components/ApprovalBanner";
+import { CatalogItemCard } from "../components/CatalogItemCard";
+import { EmptyList } from "../components/EmptyList";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
 import { WishlistButton } from "../components/WishlistButton";
 import { useAuth } from "../context/useAuth";
-import { api, type FieldValue, type Listing, type Service } from "../lib/api";
+import { api, type Listing } from "../lib/api";
+import { fieldByKey, displayValue } from "../lib/field-values";
+import { theme } from "../lib/theme";
 import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
-import { formatListingPrice } from "../lib/pricing";
+import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
+import { isSupplierListing } from "../lib/listing-kind";
 import { lazyWithReload } from "../lib/lazyWithReload";
+import { StayPropertyView } from "../components/stay/StayPropertyView";
+import { RentalShopView } from "../components/rental/RentalShopView";
+import { TravelOperatorView } from "../components/travel/TravelOperatorView";
+import { EventCrewView } from "../components/event/EventCrewView";
+import { LogisticsOperatorView } from "../components/logistics/LogisticsOperatorView";
+import { EducationInstituteView } from "../components/education/EducationInstituteView";
+import { HealthPracticeView } from "../components/health/HealthPracticeView";
+import { ProfessionalFirmView } from "../components/professional/ProfessionalFirmView";
+import { HomeTradeView } from "../components/home/HomeTradeView";
+import { AutomotiveWorkshopView } from "../components/automotive/AutomotiveWorkshopView";
+import { ElectronicsRepairView } from "../components/electronics/ElectronicsRepairView";
 
 const BusinessMap = lazyWithReload(() => import("../components/BusinessMap"), (module) => module.default);
-const fallbackHero = "/assets/concierge-architectural-hero.jpg";
-
-function displayValue(value: unknown) {
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return value.join(", ");
-  if (value == null || value === "") return "";
-  return String(value);
-}
-
-function visibleFields(fields?: FieldValue[]) {
-  return (fields ?? []).filter((item) => {
-    const text = displayValue(item.value);
-    return text.length > 0 && !(Array.isArray(item.value) && !item.value.length);
-  });
-}
-
-function fieldByKey(fields: FieldValue[] | undefined, key: string) {
-  return fields?.find((item) => item.key === key);
-}
+const fallbackHero = theme.assets.banner;
 
 function splitCopy(text: string) {
   const parts = text.split(/\n\n+/).map((part) => part.trim()).filter(Boolean);
@@ -43,12 +51,6 @@ function splitCopy(text: string) {
 function captionFromSrc(src: string) {
   const file = src.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "Project";
   return file.replace(/[-_]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function plusLabel(value: number | string) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) return String(value);
-  return numeric >= 10 ? `${Math.round(numeric)}+` : String(Math.round(numeric));
 }
 
 export function BusinessDetail() {
@@ -146,24 +148,22 @@ export function BusinessDetail() {
   const canReview = Boolean(user && (user.role === "admin" || user.id !== profile.ownerId));
   const canEdit = Boolean(user && (user.role === "admin" || user.id === profile.ownerId));
   const copy = splitCopy(listing.description ?? "");
-  const aboutHeading = listing.title && listing.title !== profile.name ? listing.title : "A standard of lasting work.";
   const heroImage = images[0];
-  const legacyImage = images[1] ?? images[0];
   const projectImages = (images.length > 4 ? images.slice(2, 5) : images.slice(1, 4)).filter(Boolean).slice(0, 3);
   const offerings = services.data ?? [];
-  const isMaterialsCatalog = listing.category?.slug === "fabricators";
-  const featured = offerings[0];
-  const sideOfferings = offerings.slice(1, 4);
-  const featuredFields = visibleFields(featured?.fieldValues)
-    .filter((item) => item.key !== "selection_note")
-    .slice(0, 3);
-  const stats = buildLegacyStats({
-    fields: profile.fieldValues,
-    rating: listing.avgRating,
-    reviewCount: listing.reviewCount ?? allReviews.length,
-    listingsCount: offerings.length,
-    verified: profile.verified,
-  });
+  const isMaterialsCatalog = isSupplierListing(listing);
+  const stayProperty = isStayListing(listing);
+  const rentalShop = isRentalListing(listing);
+  const travelOperator = isTravelListing(listing);
+  const eventCrew = isEventListing(listing);
+  const logisticsOperator = isLogisticsListing(listing);
+  const educationInstitute = isEducationListing(listing);
+  const healthPractice = isHealthListing(listing);
+  const professionalFirm = isProfessionalListing(listing);
+  const homeTrade = isHomeListing(listing);
+  const automotiveWorkshop = isAutomotiveListing(listing);
+  const electronicsRepair = isElectronicsListing(listing);
+  const whatsapp = displayValue(fieldByKey(profile.fieldValues, "whatsapp")?.value);
 
   function submitReview(event: FormEvent) {
     event.preventDefault();
@@ -187,9 +187,295 @@ export function BusinessDetail() {
     setInquirySent(true);
   }
 
+  if (stayProperty) {
+    return (
+      <StayPropertyView
+        profile={profile}
+        listing={listing}
+        rooms={offerings}
+        roomsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (rentalShop) {
+    return (
+      <RentalShopView
+        profile={profile}
+        listing={listing}
+        items={offerings}
+        itemsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (travelOperator) {
+    return (
+      <TravelOperatorView
+        profile={profile}
+        listing={listing}
+        vehicles={offerings}
+        vehiclesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (eventCrew) {
+    return (
+      <EventCrewView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (logisticsOperator) {
+    return (
+      <LogisticsOperatorView
+        profile={profile}
+        listing={listing}
+        offerings={offerings}
+        offeringsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (educationInstitute) {
+    return (
+      <EducationInstituteView
+        profile={profile}
+        listing={listing}
+        courses={offerings}
+        coursesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (healthPractice) {
+    return (
+      <HealthPracticeView
+        profile={profile}
+        listing={listing}
+        treatments={offerings}
+        treatmentsLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (professionalFirm) {
+    return (
+      <ProfessionalFirmView
+        profile={profile}
+        listing={listing}
+        services={offerings}
+        servicesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (homeTrade) {
+    return (
+      <HomeTradeView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (automotiveWorkshop) {
+    return (
+      <AutomotiveWorkshopView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
+  if (electronicsRepair) {
+    return (
+      <ElectronicsRepairView
+        profile={profile}
+        listing={listing}
+        packages={offerings}
+        packagesLoading={services.isLoading}
+        reviews={allReviews}
+        reviewsLoading={reviews.isLoading}
+        reviewsError={reviews.isError}
+        user={user}
+        canEdit={canEdit}
+        canReview={canReview}
+        rating={rating}
+        comment={comment}
+        setRating={setRating}
+        setComment={setComment}
+        onSubmitReview={submitReview}
+        onDeleteReview={(id) => deleteReview.mutate(id)}
+        createReviewPending={createReview.isPending}
+        createReviewError={createReview.isError ? createReview.error.message : undefined}
+        deleteReviewError={deleteReview.isError ? deleteReview.error.message : undefined}
+      />
+    );
+  }
+
   return (
     <>
-      <section className="relative min-h-[72vh] overflow-hidden md:min-h-[82vh]">
+      <section className="relative min-h-[240px] overflow-hidden md:min-h-[280px]">
         <SafeImage
           src={heroImage}
           alt={`${profile.name} signature work`}
@@ -211,7 +497,7 @@ export function BusinessDetail() {
             </Link>
           ) : null}
         </div>
-        <div className="page-shell relative flex min-h-[72vh] items-end pb-12 text-white md:min-h-[82vh] md:pb-16">
+        <div className="page-shell relative flex min-h-[240px] items-end py-8 text-white md:min-h-[280px] md:py-10">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
               {listing.featured ? (
@@ -226,28 +512,38 @@ export function BusinessDetail() {
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-[-0.04em] md:text-6xl">
+            <h1 className="mt-3 text-3xl font-extrabold leading-[1.05] tracking-[-0.04em] md:text-5xl">
               {profile.name}
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/85 md:text-base">{copy.lead}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {offerings.length ? (
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/85">{copy.lead}</p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              {services.isLoading || offerings.length ? (
                 <a
                   href="#collections"
                   className="inline-flex min-h-11 items-center rounded-lg bg-white px-5 text-sm font-extrabold tracking-wide text-black"
                 >
-                  VIEW COLLECTIONS
+                  {isMaterialsCatalog ? "VIEW CATALOG" : "VIEW OFFERINGS"}
                 </a>
               ) : null}
               <a
                 href="#contact"
                 className="inline-flex min-h-11 items-center rounded-lg border border-white/80 px-5 text-sm font-extrabold tracking-wide text-white"
               >
-                CONTACT AGENT
+                {isMaterialsCatalog ? "CONNECT" : "CONTACT"}
               </a>
               {profile.phone ? (
                 <a href={`tel:${profile.phone}`} className="text-sm font-semibold text-white/80 underline-offset-4 hover:underline">
                   {profile.phone}
+                </a>
+              ) : null}
+              {whatsapp ? (
+                <a
+                  href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
+                  className="text-sm font-semibold text-white/80 underline-offset-4 hover:underline"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  WhatsApp
                 </a>
               ) : null}
             </div>
@@ -266,76 +562,51 @@ export function BusinessDetail() {
         </div>
       ) : null}
 
-      <section className="bg-surface-low">
-        <div className="page-shell grid items-center gap-12 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-24">
+      <section id="collections" className="scroll-mt-24 bg-surface-low">
+        <div className="page-shell py-16 lg:py-24">
           <div>
-            <p className="label-caps text-ink-soft/70">Our Legacy</p>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-[-0.03em] text-ink md:text-5xl">{aboutHeading}</h2>
-            <p className="mt-6 max-w-xl text-sm leading-7 text-ink-soft md:text-[15px] md:leading-8">{copy.body}</p>
-            <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
-              {stats.map((stat) => (
-                <div key={stat.label}>
-                  <p className="text-3xl font-extrabold tracking-tight text-ink md:text-4xl">{stat.value}</p>
-                  <p className="mt-1 text-[11px] font-medium text-ink-soft">{stat.label}</p>
-                </div>
+            <p className="label-caps text-ink-soft/70">{profile.name}</p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.03em] text-ink md:text-4xl">
+              {isMaterialsCatalog ? "Catalog" : "Offerings"}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-soft">
+              {isMaterialsCatalog
+                ? "Every item this seller currently lists. Open one for rate, rating, and full details."
+                : "Every offering this provider currently lists. Open one for rate, rating, and full details."}
+            </p>
+          </div>
+
+          {services.isLoading ? (
+            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div key={index} className="h-72 animate-pulse rounded-2xl bg-white/70" />
               ))}
             </div>
-          </div>
-          <div className="overflow-hidden rounded-xl">
-            <SafeImage
-              src={legacyImage}
-              alt={`${profile.name} studio and materials`}
-              width={960}
-              height={720}
-              className="aspect-[5/4] h-full w-full object-cover"
-            />
-          </div>
-        </div>
-
-        {services.isLoading || offerings.length ? (
-          <div id="collections" className="page-shell scroll-mt-24 pb-20 lg:pb-24">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="label-caps text-ink-soft/70">Latest selection</p>
-                <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.03em] text-ink md:text-4xl">
-                  {isMaterialsCatalog ? "Products & Slabs" : "Listings"}
-                </h2>
-              </div>
-              {listing.category ? (
-                <Link
-                  to={`/listings/${listing.category.slug}`}
-                  className="label-caps inline-flex items-center gap-1 text-ink-soft transition hover:text-ink"
-                >
-                  Explore full catalog <ArrowRight className="size-3.5" />
-                </Link>
-              ) : null}
+          ) : offerings.length ? (
+            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {offerings.map((service) => (
+                <CatalogItemCard
+                  key={service.id}
+                  service={service}
+                  slug={profile.slug}
+                  rating={listing.avgRating}
+                  reviewCount={listing.reviewCount ?? allReviews.length}
+                />
+              ))}
             </div>
-
-            {services.isLoading ? (
-              <div className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
-                <div className="h-[28rem] animate-pulse rounded-xl bg-white/70" />
-                <div className="grid gap-4">
-                  {Array.from({ length: 3 }, (_, index) => (
-                    <div key={index} className="h-28 animate-pulse rounded-xl bg-white/70" />
-                  ))}
-                </div>
-              </div>
-            ) : featured ? (
-              <div className={`mt-10 grid gap-6 ${sideOfferings.length ? "lg:grid-cols-[1.35fr_0.65fr]" : ""}`}>
-                <FeaturedOfferingCard service={featured} fields={featuredFields} />
-                {sideOfferings.length ? (
-                  <ul className="grid gap-4">
-                    {sideOfferings.map((service) => (
-                      <li key={service.id}>
-                        <SideOfferingCard service={service} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+          ) : (
+            <EmptyList
+              compact
+              className="mt-10"
+              title={isMaterialsCatalog ? "No catalog items yet" : "No offerings yet"}
+              description={
+                isMaterialsCatalog
+                  ? "This seller has not published items for sale."
+                  : "This provider has not published offerings yet."
+              }
+            />
+          )}
+        </div>
       </section>
 
       {projectImages.length ? (
@@ -379,7 +650,7 @@ export function BusinessDetail() {
             <p className="mt-6 max-w-md text-sm leading-7 text-white/65">
               {isMaterialsCatalog
                 ? "From quarry reservation to climate-controlled delivery, we coordinate procurement for architects, developers, and interior houses that cannot wait on standard lead times."
-                : `Share the scope, timeline, and materials you need. ${profile.name} will follow up directly — Concierge does not sit in the middle of the conversation.`}
+                : `Share the scope, timeline, and materials you need. ${profile.name} will follow up directly — ${theme.name} does not sit in the middle of the conversation.`}
             </p>
             <ul className="mt-10 grid gap-4">
               {(isMaterialsCatalog
@@ -456,7 +727,7 @@ export function BusinessDetail() {
         </div>
       </section>
 
-      <section className="page-shell grid gap-10 py-20 lg:grid-cols-2">
+      <section id="reviews" className="page-shell grid scroll-mt-20 gap-10 py-20 lg:grid-cols-2">
         <div>
           <p className="label-caps text-ink-soft/70">Client perspective</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.03em]">Reviews</h2>
@@ -471,7 +742,7 @@ export function BusinessDetail() {
                   <article key={review.id} className="rounded-xl border border-line p-6">
                     <div className="flex justify-between gap-4">
                       <div>
-                        <strong>{review.user?.name ?? "Concierge member"}</strong>
+                        <strong>{review.user?.name ?? `${theme.name} member`}</strong>
                         <div className="mt-1 flex gap-0.5">
                           {Array.from({ length: 5 }, (_, index) => (
                             <Star
@@ -499,14 +770,19 @@ export function BusinessDetail() {
               {deleteReview.isError ? <p className="mt-4 text-sm text-red-700">{deleteReview.error.message}</p> : null}
             </>
           ) : (
-            <p className="mt-6 text-sm text-ink-soft">No reviews yet. Be the first to share your experience.</p>
+            <EmptyList
+              compact
+              className="mt-2"
+              title="No reviews yet"
+              description="Be the first to share your experience."
+            />
           )}
         </div>
         <div>
           {canReview ? (
             <form onSubmit={submitReview} className="rounded-xl bg-black p-7 text-white md:p-9">
               <h2 className="text-2xl font-semibold">Share your experience</h2>
-              <p className="mt-2 text-sm text-white/65">Your review helps the Concierge community choose confidently.</p>
+              <p className="mt-2 text-sm text-white/65">Your review helps the {theme.name} community choose confidently.</p>
               <div className="mt-6 flex gap-2" aria-label="Rating">
                 {Array.from({ length: 5 }, (_, index) => (
                   <button key={index} type="button" onClick={() => setRating(index + 1)} aria-label={`${index + 1} stars`}>
@@ -552,118 +828,11 @@ export function BusinessDetail() {
   );
 }
 
-function buildLegacyStats({
-  fields,
-  rating,
-  reviewCount,
-  listingsCount,
-  verified,
-}: {
-  fields?: FieldValue[];
-  rating?: number;
-  reviewCount: number;
-  listingsCount: number;
-  verified: boolean;
-}) {
-  const years = fieldByKey(fields, "years_of_experience");
-  const emergency = fieldByKey(fields, "emergency_timing");
-  const stats: Array<{ value: string; label: string }> = [];
-
-  if (years?.value != null && displayValue(years.value)) {
-    stats.push({ value: plusLabel(Number(years.value)), label: "Years Experience" });
-  } else {
-    stats.push({ value: Number(rating ?? 0).toFixed(1), label: "Average rating" });
-  }
-
-  if (listingsCount) stats.push({ value: String(listingsCount), label: "Listings" });
-  stats.push({ value: plusLabel(reviewCount), label: "Client reviews" });
-
-  if (emergency?.value) {
-    stats.push({ value: displayValue(emergency.value), label: "Support Turnaround" });
-  } else if (verified) {
-    stats.push({ value: "Yes", label: "Concierge verified" });
-  } else {
-    stats.push({ value: Number(rating ?? 0).toFixed(1), label: "Average rating" });
-  }
-
-  return stats.slice(0, 4);
-}
-
 function InquiryField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="mb-5 grid gap-2">
       <span className="label-caps text-white/55">{label}</span>
       {children}
     </label>
-  );
-}
-
-function FeaturedOfferingCard({ service, fields }: { service: Service; fields: FieldValue[] }) {
-  const details: Array<{ fieldId: string; label: string; value: unknown }> = fields.length
-    ? fields
-    : [
-        { fieldId: "price", label: "Price", value: formatListingPrice(service) },
-        ...(service.durationMinutes
-          ? [{ fieldId: "duration", label: "Duration", value: `${service.durationMinutes} min` }]
-          : []),
-      ];
-  const image = service.images?.[0];
-  const inStock = service.isActive && service.approvalStatus !== "rejected";
-
-  return (
-    <article>
-      <div className="overflow-hidden rounded-xl">
-        <div className="aspect-[16/11] overflow-hidden rounded-xl bg-white">
-          {image ? (
-            <SafeImage src={image} alt={service.name} width={1200} height={800} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full bg-white" />
-          )}
-        </div>
-      </div>
-      <div className="pt-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-extrabold text-ink md:text-2xl">{service.name}</h3>
-            <p className="mt-1 text-sm text-ink-soft">{service.description}</p>
-          </div>
-          {inStock ? (
-            <span className="rounded-sm bg-emerald-50 px-2 py-1 text-[11px] font-extrabold tracking-wide text-emerald-700">
-              IN STOCK
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-6 grid gap-4 border-t border-line pt-5 sm:grid-cols-3">
-          {details.slice(0, 3).map((item) => (
-            <div key={item.fieldId}>
-              <p className="label-caps text-ink-soft/70">{item.label}</p>
-              <p className="mt-1 text-sm font-semibold text-ink">{displayValue(item.value)}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function SideOfferingCard({ service }: { service: Service }) {
-  const fields = visibleFields(service.fieldValues);
-  const tag = fields.find((item) => item.key === "selection_note") ?? fields[0];
-  const tagText = tag ? displayValue(tag.value) : formatListingPrice(service);
-  const image = service.images?.[0];
-
-  return (
-    <article className="flex gap-4 rounded-xl bg-white p-3.5">
-      <div className="size-24 shrink-0 overflow-hidden rounded-lg bg-surface-high sm:size-28">
-        {image ? (
-          <SafeImage src={image} alt="" width={224} height={224} className="h-full w-full object-cover" />
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <h3 className="font-extrabold text-ink">{service.name}</h3>
-        <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{service.description}</p>
-        <p className="label-caps mt-3 text-ink-soft">{tagText}</p>
-      </div>
-    </article>
   );
 }

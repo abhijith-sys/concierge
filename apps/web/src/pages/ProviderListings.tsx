@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, Plus } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ApprovalBanner } from "../components/ApprovalBanner";
 import {
   DynamicForm,
@@ -8,28 +10,40 @@ import {
   valuesFromFieldValues,
   type FieldValueMap,
 } from "../components/CategoryFieldsEditor";
+import { EmptyList } from "../components/EmptyList";
+import { ProviderListingsTable } from "../components/ProviderListingsTable";
+import { GalleryUpload, MAX_GALLERY_IMAGES } from "../components/GalleryUpload";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { api, type Business, type Service } from "../lib/api";
-import { assignedCategoryId, childrenOf, locateInTree } from "../lib/category-tree";
+import { ApiError, api, type Business, type Service } from "../lib/api";
+import { assignedCategoryId, flattenDescendants, locateInTree } from "../lib/category-tree";
+import { listingKind as marketplaceKindOf } from "../lib/listing-kind";
+import { isStayListing } from "../lib/stays";
+import { isRentalListing } from "../lib/rentals";
+import { isTravelListing } from "../lib/travel";
+import { isEventListing } from "../lib/events";
+import { isLogisticsListing } from "../lib/logistics";
+import { isEducationListing } from "../lib/education";
+import { isHealthListing } from "../lib/health";
+import { isProfessionalListing } from "../lib/professional";
+import { isHomeListing } from "../lib/home";
+import { isAutomotiveListing } from "../lib/automotive";
+import { isElectronicsListing } from "../lib/electronics";
 import { isProvider } from "../lib/provider";
+import { businessStatus, canAddItems, StatusBadge } from "../lib/status";
+import { theme } from "../lib/theme";
+import { firstFormError, isFieldRequired, validateForm, type FieldKey } from "../lib/validation";
 
 const PRICING_TYPES = [
   { value: "fixed", label: "Fixed price" },
   { value: "starting_from", label: "Starting from" },
   { value: "hourly", label: "Hourly" },
   { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
   { value: "contact", label: "Contact for price" },
   { value: "custom", label: "Custom" },
 ];
-
-function approvalLabel(service: Service) {
-  if (service.approvalStatus === "pending") return "pending review";
-  if (service.approvalStatus === "rejected") return "rejected";
-  if (service.approvalStatus === "draft") return "draft";
-  return service.isActive ? "published" : "unpublished";
-}
 
 export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   const { user, isLoading } = useAuth();
@@ -75,11 +89,48 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     price: "100",
     pricingType: "fixed",
   });
+  const [images, setImages] = useState<string[]>([]);
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const seededFor = useRef("");
 
   const listingCategoryId = assignedCategoryId(mainId, subId, categories.data ?? []);
-  const subcategories = childrenOf(categories.data ?? [], mainId);
+  const shopKind = marketplaceKindOf(selected?.listing);
+  const stayListing = isStayListing(selected?.listing);
+  const rentalListing = isRentalListing(selected?.listing);
+  const travelListing = isTravelListing(selected?.listing);
+  const eventListing = isEventListing(selected?.listing);
+  const logisticsListing = isLogisticsListing(selected?.listing);
+  const educationListing = isEducationListing(selected?.listing);
+  const healthListing = isHealthListing(selected?.listing);
+  const professionalListing = isProfessionalListing(selected?.listing);
+  const homeListing = isHomeListing(selected?.listing);
+  const automotiveListing = isAutomotiveListing(selected?.listing);
+  const electronicsListing = isElectronicsListing(selected?.listing);
+  const hireListing =
+    stayListing ||
+    rentalListing ||
+    travelListing ||
+    eventListing ||
+    logisticsListing ||
+    educationListing ||
+    healthListing ||
+    professionalListing ||
+    homeListing ||
+    automotiveListing ||
+    electronicsListing;
+  const hourlyDefault =
+    travelListing ||
+    logisticsListing ||
+    healthListing ||
+    professionalListing ||
+    homeListing ||
+    automotiveListing ||
+    electronicsListing;
+  const selectedMain = (categories.data ?? []).find((category) => category.id === mainId);
+  const subcategoryOptions = selectedMain
+    ? flattenDescendants(selectedMain).filter((entry) => entry.category.kind === shopKind)
+    : [];
   const listingForm = useQuery({
     queryKey: ["category-form", listingCategoryId, "listing"],
     queryFn: () => api.categoryForm(listingCategoryId, "listing"),
@@ -92,6 +143,15 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     const seedKey = editing ? `edit:${editingService?.id}` : `create:${selected?.id}`;
     if (seededFor.current === seedKey) return;
     seededFor.current = seedKey;
+    if (!editing) {
+      setForm({
+        name: "",
+        description: "",
+        price: hireListing ? "0" : "100",
+        pricingType: hourlyDefault ? "hourly" : hireListing ? "daily" : "fixed",
+      });
+      setImages([]);
+    }
     const defaultId = editing
       ? editingService?.categoryId ?? selected?.listing?.category?.id
       : selected?.listing?.category?.id;
@@ -106,8 +166,9 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
       name: editingService.name,
       description: editingService.description,
       price: String(editingService.price),
-      pricingType: editingService.pricingType || "fixed",
+      pricingType: editingService.pricingType || (hourlyDefault ? "hourly" : hireListing ? "daily" : "fixed"),
     });
+    setImages(editingService.images ?? []);
   }, [editingService]);
 
   useEffect(() => {
@@ -118,6 +179,24 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     setFieldValues(valuesFromFieldValues(listingForm.data.fields, editingService?.fieldValues));
   }, [listingForm.data, editingService?.fieldValues]);
 
+  const uploadImage = useMutation({
+    mutationFn: async (files: File[]) => {
+      const remaining = Math.max(0, MAX_GALLERY_IMAGES - images.length);
+      const toUpload = files.slice(0, remaining);
+      if (!toUpload.length) {
+        throw new ApiError("You can add up to 20 photos for this room.", 400);
+      }
+      const uploaded = await Promise.all(toUpload.map((file) => api.upload(file, { visibility: "public" })));
+      setImages((current) => [...current, ...uploaded.map((file) => file.url)].slice(0, MAX_GALLERY_IMAGES));
+      if (files.length > toUpload.length) {
+        toast.error(`Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added.`);
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof ApiError ? error.message : "Unable to upload photos.");
+    },
+  });
+
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -126,6 +205,7 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
         price: Number(form.price),
         currency: "USD",
         pricingType: form.pricingType,
+        images,
         categoryId: listingCategoryId || undefined,
         fieldValues: listingForm.data?.fields?.length
           ? toFieldValuePayload(listingForm.data.fields, fieldValues)
@@ -142,34 +222,34 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["services", selected?.id] });
       await queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
-      navigate(selected ? `/provider/listings?business=${selected.id}` : "/provider/listings");
+      toast.success(editing ? "Listing saved." : "Listing submitted for review.");
+      navigate(selected ? `/provider/listings?business=${selected.id}` : "/provider");
     },
-  });
-  const unpublish = useMutation({
-    mutationFn: api.deleteService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["services", selected?.id] });
-    },
-  });
-  const publish = useMutation({
-    mutationFn: (id: string) => api.updateService(id, { isActive: true }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["services", selected?.id] });
+    onError: (error) => {
+      toast.error(error instanceof ApiError ? error.message : "Unable to save this listing.");
     },
   });
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, { business: Business; services: Service[] }>();
-    if (selected && services.data) {
-      map.set(selected.id, { business: selected, services: services.data });
-    }
-    return [...map.values()];
-  }, [selected, services.data]);
-
-  if (isLoading) return <PageState title="Loading" loading />;
+  if (isLoading || (Boolean(user) && mine.isLoading && !mine.data)) {
+    return <PageState title="Loading" loading />;
+  }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (!isProvider(user) && !businesses.length && !mine.isLoading) {
-    return <Navigate to="/list-business" replace />;
+  if (!isProvider(user) && !businesses.length) {
+    return <Navigate to="/provider" replace />;
+  }
+  if (!formMode) {
+    if (!selected) return <Navigate to="/provider" replace />;
+    return (
+      <BusinessItemsPage
+        business={selected}
+        services={services.data}
+        isLoading={services.isLoading}
+        onChanged={() => {
+          void queryClient.invalidateQueries({ queryKey: ["services", selected.id] });
+          void queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+        }}
+      />
+    );
   }
   if (editing && services.isSuccess && !editingService) {
     return <PageState title="Listing not found" description="This listing is not on the selected business." />;
@@ -178,22 +258,134 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!selected) return;
+    const extra: FieldKey[] = subcategoryOptions.length ? ["subcategoryId"] : [];
+    const nextErrors = validateForm(
+      "listing",
+      {
+        categoryId: mainId,
+        subcategoryId: subId,
+        listingName: form.name,
+        price: form.price,
+        pricingType: form.pricingType,
+        listingDescription: form.description,
+      },
+      extra,
+    );
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      toast.error(firstFormError(nextErrors) ?? "Please fix the highlighted fields.");
+      return;
+    }
     save.mutate();
   }
 
   return (
     <section className="page-shell py-14 md:py-20">
-      <p className="label-caps text-gold-dark">Provider</p>
+      <Link
+        to={selected ? `/provider/listings?business=${selected.id}` : "/provider"}
+        className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-navy"
+      >
+        <ArrowLeft className="size-4" /> Back to{" "}
+        {stayListing
+          ? "rooms"
+          : travelListing
+            ? "fleet"
+            : eventListing
+              ? "packages"
+              : logisticsListing
+                ? "services"
+                : educationListing
+                  ? "courses"
+                  : healthListing
+                    ? "treatments"
+                    : professionalListing
+                      ? "services"
+                      : "items"}
+      </Link>
+      <p className="label-caps mt-5 text-gold-dark">
+        {stayListing
+          ? "Stay"
+          : rentalListing
+            ? "Hire"
+            : travelListing
+              ? "Transport"
+              : eventListing
+                ? "Events"
+                : logisticsListing
+                  ? "Logistics"
+                  : educationListing
+                    ? "Education"
+                    : healthListing
+                      ? "Health"
+                      : professionalListing
+                        ? "Professional"
+                        : shopKind === "supplier"
+                          ? "Seller"
+                          : "Provider"}
+      </p>
       <h1 className="mt-3 text-4xl font-bold tracking-tight">
-        {editing ? "Edit listing" : creating ? "Create listing" : "My listings"}
+        {editing
+          ? stayListing
+            ? "Edit room"
+            : travelListing
+              ? "Edit vehicle"
+              : eventListing
+                ? "Edit package"
+                : logisticsListing
+                  ? "Edit service"
+                  : educationListing
+                    ? "Edit course"
+                    : healthListing
+                      ? "Edit treatment"
+                      : professionalListing
+                        ? "Edit service"
+                        : "Edit item"
+          : stayListing
+            ? "Add room / cottage"
+            : rentalListing
+              ? "Add hire item"
+              : travelListing
+                ? "Add vehicle / trip"
+                : eventListing
+                  ? "Add package"
+                  : logisticsListing
+                    ? "Add service"
+                    : educationListing
+                      ? "Add course"
+                      : healthListing
+                        ? "Add treatment"
+                        : professionalListing
+                          ? "Add service"
+                          : "Add item"}
       </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-ink-soft">
-        Listings are what you offer. Your business profile is who you are.
+        {stayListing
+          ? "Add this room or cottage with photos, occupancy, and nightly rates."
+          : rentalListing
+            ? "Add this hire item with photos, stock, deposits, and daily rates."
+            : travelListing
+              ? "Add this vehicle or trip with photos, seats, and hourly or airport rates."
+              : eventListing
+                ? "Add this package with photos, guest capacity, and hourly or day rates."
+                : logisticsListing
+                  ? "Add this offering with photos, capacity, and hourly or job rates."
+                  : educationListing
+                    ? "Add this course with photos, batch size, and hourly, session, or course rates."
+                    : healthListing
+                      ? "Add this treatment with photos, duration, and session or package rates."
+                      : professionalListing
+                        ? "Add this service with photos, duration, and hourly, retainer, or project rates."
+                        : "Fill in the item details, then submit for review."}
       </p>
 
       {selected?.status === "pending" ? (
         <ApprovalBanner tone="pending" title={`${selected.name} is waiting for review`}>
-          You can prepare listings after this profile is approved.
+          You can add items now. They stay in verification until {theme.name} approves them.
+        </ApprovalBanner>
+      ) : null}
+      {selected?.status === "suspended" ? (
+        <ApprovalBanner tone="suspended" title={`${selected.name} is disabled by admin`}>
+          New items cannot be added while this shop is disabled.
         </ApprovalBanner>
       ) : null}
       {selected?.status === "rejected" ? (
@@ -201,31 +393,35 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
           {selected.rejectionReason || "Update the profile, then wait for another review."}
         </ApprovalBanner>
       ) : null}
-      {!formMode && services.data?.some((service) => service.approvalStatus === "pending") ? (
-        <ApprovalBanner tone="pending" title="Some listings are waiting for review">
-          They stay hidden on your public profile until Concierge approves them.
-        </ApprovalBanner>
-      ) : null}
-      {!formMode && services.data?.some((service) => service.approvalStatus === "rejected") ? (
-        <ApprovalBanner tone="rejected" title="A listing was not approved">
-          Open the listing to see the reason, update it, and wait for another review.
-        </ApprovalBanner>
-      ) : null}
 
       {mine.isLoading ? <PageState title="Loading businesses" loading /> : null}
       {!businesses.length && !mine.isLoading ? (
-        <PageState
+        <EmptyList
           title="Create a business profile first"
           description="You need a provider profile before adding listings."
           action={
             <Link to="/list-business">
-              <Button>Become a provider</Button>
+              <Button>Add new business</Button>
+            </Link>
+          }
+        />
+      ) : creating && selected && !canAddItems(selected) ? (
+        <PageState
+          title={selected.status === "suspended" ? "Disabled by admin" : "Cannot add items"}
+          description={
+            selected.status === "suspended"
+              ? "This shop is disabled by admin, so new items cannot be added."
+              : "This business cannot accept new listings right now."
+          }
+          action={
+            <Link to={`/provider/listings?business=${selected.id}`}>
+              <Button>Back to items</Button>
             </Link>
           }
         />
       ) : (
         <>
-          {businesses.length > 1 ? (
+          {businesses.length > 1 && creating ? (
             <div className="mt-8 max-w-md">
               <Field label="Business">
                 <Select
@@ -246,181 +442,390 @@ export function ProviderListings({ mode }: { mode?: "create" | "edit" }) {
             </div>
           ) : null}
 
-          {!formMode ? (
-            <div className="mt-8 flex flex-wrap gap-3">
-              {selected?.status === "active" ? (
-                <Link to={`/provider/listings/create?business=${selected.id}`}>
-                  <Button>Create listing</Button>
-                </Link>
-              ) : null}
-              <Link to="/provider">
-                <Button variant="outline">Dashboard</Button>
-              </Link>
-            </div>
-          ) : null}
-
-          {formMode && creating && selected && selected.status !== "active" ? (
-            <PageState
-              title="Profile must be approved first"
-              description="Listings can be created after Concierge activates this business profile."
-              action={
-                <Link to="/provider">
-                  <Button>Back to dashboard</Button>
-                </Link>
-              }
-            />
-          ) : formMode ? (
-            <form
-              onSubmit={submit}
-              className="mt-10 grid gap-5 rounded-3xl border border-line bg-white p-6 md:grid-cols-2 md:p-9"
-            >
-              <Field label="Category">
-                <Select
-                  value={mainId}
-                  onChange={(event) => {
-                    setMainId(event.target.value);
-                    setSubId("");
-                  }}
-                  required
-                >
-                  <option value="">Select category</option>
-                  {categories.data?.map((category) => (
+          <form
+            onSubmit={submit}
+            className="mt-10 grid gap-5 rounded-3xl border border-line bg-white p-6 md:grid-cols-2 md:p-9"
+          >
+            <Field label="Category" error={errors.categoryId} required={isFieldRequired("categoryId")}>
+              <Select
+                value={mainId}
+                onChange={(event) => {
+                  setMainId(event.target.value);
+                  setSubId("");
+                  setErrors((current) => ({ ...current, categoryId: undefined, subcategoryId: undefined }));
+                }}
+                aria-invalid={Boolean(errors.categoryId)}
+              >
+                <option value="">Select category</option>
+                {categories.data
+                  ?.filter(
+                    (category) =>
+                      flattenDescendants(category).some((entry) => entry.category.kind === shopKind) ||
+                      category.kind === shopKind,
+                  )
+                  .map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
                   ))}
-                </Select>
-              </Field>
-              {subcategories.length ? (
-                <Field label="Subcategory">
-                  <Select value={subId} onChange={(event) => setSubId(event.target.value)} required>
-                    <option value="">Select subcategory</option>
-                    {subcategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              ) : null}
-              <Field label="Listing name">
-                <Input
-                  value={form.name}
-                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                  required
-                />
-              </Field>
-              <Field label="Starting price">
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.price}
-                  onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
-                  required
-                />
-              </Field>
-              <Field label="Pricing type">
+              </Select>
+            </Field>
+            {subcategoryOptions.length ? (
+              <Field label="Subcategory" error={errors.subcategoryId} required={isFieldRequired("subcategoryId")}>
                 <Select
-                  value={form.pricingType}
-                  onChange={(event) => setForm((current) => ({ ...current, pricingType: event.target.value }))}
+                  value={subId}
+                  onChange={(event) => {
+                    setSubId(event.target.value);
+                    setErrors((current) => ({ ...current, subcategoryId: undefined }));
+                  }}
+                  aria-invalid={Boolean(errors.subcategoryId)}
                 >
-                  {PRICING_TYPES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  <option value="">Select subcategory</option>
+                  {subcategoryOptions.map(({ category, label }) => (
+                    <option key={category.id} value={category.id}>
+                      {label}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <div className="md:col-span-2">
-                <Field label="Description">
-                  <Textarea
-                    rows={5}
-                    minLength={10}
-                    value={form.description}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, description: event.target.value }))
-                    }
-                    required
-                  />
-                </Field>
-              </div>
-              {listingCategoryId && listingForm.isLoading ? (
-                <p className="text-sm text-ink-soft md:col-span-2">Loading listing fields…</p>
-              ) : null}
-              {listingForm.isError ? (
-                <p className="text-sm text-red-700 md:col-span-2">Could not load listing fields.</p>
-              ) : null}
-              {listingForm.data?.fields?.length ? (
-                <DynamicForm
-                  fields={listingForm.data.fields}
-                  values={fieldValues}
-                  onChange={setFieldValues}
+            ) : null}
+            <Field
+              label={
+                stayListing
+                  ? "Room / cottage name"
+                  : rentalListing
+                    ? "Item name"
+                    : travelListing
+                      ? "Vehicle / trip name"
+                      : eventListing
+                        ? "Package name"
+                        : logisticsListing
+                          ? "Service name"
+                          : educationListing
+                            ? "Course name"
+                            : healthListing
+                              ? "Treatment name"
+                              : professionalListing
+                                ? "Service name"
+                                : "Listing name"
+              }
+              error={errors.listingName}
+              required={isFieldRequired("listingName")}
+            >
+              <Input
+                value={form.name}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, name: event.target.value }));
+                  setErrors((current) => ({ ...current, listingName: undefined }));
+                }}
+                aria-invalid={Boolean(errors.listingName)}
+              />
+            </Field>
+            <Field
+              label={
+                stayListing
+                  ? "Starting nightly rate"
+                  : rentalListing
+                    ? "Starting daily rate"
+                    : hourlyDefault
+                      ? "Starting hourly rate"
+                      : eventListing || educationListing
+                        ? "Starting day rate"
+                        : "Starting price"
+              }
+              error={errors.price}
+              required={isFieldRequired("price")}
+            >
+              <Input
+                type="number"
+                min="0"
+                value={form.price}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, price: event.target.value }));
+                  setErrors((current) => ({ ...current, price: undefined }));
+                }}
+                aria-invalid={Boolean(errors.price)}
+              />
+            </Field>
+            <Field label="Pricing type" error={errors.pricingType} required={isFieldRequired("pricingType")}>
+              <Select
+                value={form.pricingType}
+                onChange={(event) => setForm((current) => ({ ...current, pricingType: event.target.value }))}
+                aria-invalid={Boolean(errors.pricingType)}
+              >
+                {PRICING_TYPES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="Description" error={errors.listingDescription} required={isFieldRequired("listingDescription")}>
+                <Textarea
+                  rows={5}
+                  value={form.description}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, description: event.target.value }));
+                    setErrors((current) => ({ ...current, listingDescription: undefined }));
+                  }}
+                  aria-invalid={Boolean(errors.listingDescription)}
                 />
-              ) : null}
-              {save.isError ? (
-                <p className="text-sm text-red-700 md:col-span-2">{save.error.message}</p>
-              ) : null}
-              {creating ? (
-                <p className="text-sm text-ink-soft md:col-span-2">
-                  New listings are submitted for review before they appear on your public profile.
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-3 md:col-span-2">
-                <Button type="submit" disabled={save.isPending || !selected || !listingCategoryId}>
-                  {save.isPending ? "Saving…" : editing ? "Save changes" : "Submit listing"}
+              </Field>
+            </div>
+            <GalleryUpload
+              label={
+                stayListing
+                  ? "Room photos"
+                  : travelListing
+                    ? "Vehicle photos"
+                    : eventListing
+                      ? "Package photos"
+                      : logisticsListing
+                        ? "Service photos"
+                        : educationListing
+                          ? "Course photos"
+                          : healthListing
+                            ? "Treatment photos"
+                            : professionalListing
+                              ? "Service photos"
+                              : "Item photos"
+              }
+              hint={
+                stayListing
+                  ? "Add several photos of this room type. Guests see them as a gallery when they open the room."
+                  : rentalListing
+                    ? "Add several photos of this hire item. Customers see them as a gallery."
+                    : travelListing
+                      ? "Add several photos of this vehicle. Customers see them as a gallery."
+                      : eventListing
+                        ? "Add several photos of this package. Customers see them as a gallery."
+                        : logisticsListing
+                          ? "Add several photos of this service. Customers see them as a gallery."
+                          : educationListing
+                            ? "Add several photos of this course. Customers see them as a gallery."
+                            : healthListing
+                              ? "Add several photos of this treatment. Customers see them as a gallery."
+                              : professionalListing
+                                ? "Add several photos of this service. Customers see them as a gallery."
+                                : "Add several photos of this item."
+              }
+              values={images}
+              uploading={uploadImage.isPending}
+              onSelect={(files) => uploadImage.mutate(files)}
+              onRemove={(url) => setImages((current) => current.filter((item) => item !== url))}
+            />
+            {listingCategoryId && listingForm.isLoading ? (
+              <p className="text-sm text-ink-soft md:col-span-2">Loading listing fields…</p>
+            ) : null}
+            {listingForm.isError ? (
+              <p className="text-sm text-red-700 md:col-span-2">Could not load listing fields.</p>
+            ) : null}
+            {listingForm.data?.fields?.length ? (
+              <DynamicForm fields={listingForm.data.fields} values={fieldValues} onChange={setFieldValues} />
+            ) : null}
+            {save.isError ? <p className="text-sm text-red-700 md:col-span-2">{save.error.message}</p> : null}
+            {creating ? (
+              <p className="text-sm text-ink-soft md:col-span-2">
+                New listings are submitted for review before they appear on your public profile.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-3 md:col-span-2">
+              <Button type="submit" disabled={save.isPending || !selected || !listingCategoryId}>
+                {save.isPending ? "Saving…" : editing ? "Save changes" : "Submit listing"}
+              </Button>
+              <Link to={selected ? `/provider/listings?business=${selected.id}` : "/provider"}>
+                <Button type="button" variant="outline">
+                  Back to items
                 </Button>
-                <Link to="/provider/listings">
-                  <Button type="button" variant="outline">
-                    Back to listings
-                  </Button>
-                </Link>
-              </div>
-            </form>
-          ) : (
-            <ul className="mt-10 grid gap-3">
-              {grouped.flatMap(({ business, services: rows }) =>
-                rows.length
-                  ? rows.map((service) => (
-                      <li
-                        key={service.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-low px-4 py-4"
-                      >
-                        <div>
-                          <p className="font-semibold">{service.name}</p>
-                          <p className="text-sm text-ink-soft">
-                            {business.name} · {service.currency} {service.price} · {approvalLabel(service)}
-                          </p>
-                          {service.approvalStatus === "rejected" && service.rejectionReason ? (
-                            <p className="mt-1 text-xs text-red-700">{service.rejectionReason}</p>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Link to={`/provider/listings/${service.id}/edit?business=${business.id}`}>
-                            <Button variant="outline">Edit</Button>
-                          </Link>
-                          {service.approvalStatus === "approved" && service.isActive ? (
-                            <Button variant="outline" onClick={() => unpublish.mutate(service.id)}>
-                              Unpublish
-                            </Button>
-                          ) : null}
-                          {service.approvalStatus === "approved" && !service.isActive ? (
-                            <Button variant="outline" onClick={() => publish.mutate(service.id)}>
-                              Publish
-                            </Button>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))
-                  : [
-                      <li key={`${business.id}-empty`} className="rounded-2xl bg-surface-low px-4 py-6 text-sm text-ink-soft">
-                        No listings yet for {business.name}.
-                      </li>,
-                    ],
-              )}
-            </ul>
-          )}
+              </Link>
+            </div>
+          </form>
         </>
       )}
+    </section>
+  );
+}
+
+function BusinessItemsPage({
+  business,
+  services,
+  isLoading,
+  onChanged,
+}: {
+  business: Business;
+  services?: Service[];
+  isLoading: boolean;
+  onChanged: () => void;
+}) {
+  const status = businessStatus(business);
+  const canAdd = canAddItems(business);
+
+  return (
+    <section className="page-shell py-14 md:py-20">
+      <Link to="/provider" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-navy">
+        <ArrowLeft className="size-4" /> Back to businesses
+      </Link>
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="label-caps text-gold-dark">
+            {isStayListing(business.listing)
+              ? "Rooms"
+              : isRentalListing(business.listing)
+                ? "Hire"
+                : isTravelListing(business.listing)
+                  ? "Fleet"
+                  : isEventListing(business.listing)
+                    ? "Packages"
+                    : isLogisticsListing(business.listing)
+                      ? "Services"
+                      : isEducationListing(business.listing)
+                        ? "Courses"
+                        : isHealthListing(business.listing)
+                          ? "Treatments"
+                          : isProfessionalListing(business.listing)
+                            ? "Services"
+                            : isHomeListing(business.listing) ||
+                                isAutomotiveListing(business.listing) ||
+                                isElectronicsListing(business.listing)
+                              ? "Packages"
+                              : "Items"}
+          </p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight">{business.name}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
+            <StatusBadge label={status.label} tone={status.tone} />
+            <span>{business.listing?.category?.name ?? "No category"}</span>
+          </div>
+        </div>
+        {canAdd ? (
+          <div className="flex flex-wrap gap-2">
+            {isStayListing(business.listing) ||
+            isRentalListing(business.listing) ||
+            isTravelListing(business.listing) ||
+            isEventListing(business.listing) ||
+            isLogisticsListing(business.listing) ||
+            isEducationListing(business.listing) ||
+            isHealthListing(business.listing) ||
+            isProfessionalListing(business.listing) ||
+            isHomeListing(business.listing) ||
+            isAutomotiveListing(business.listing) ||
+            isElectronicsListing(business.listing) ? (
+              <Link to={`/provider/enquiries?business=${business.id}`}>
+                <Button variant="outline">
+                  {isStayListing(business.listing)
+                    ? "Stay enquiries"
+                    : isRentalListing(business.listing)
+                      ? "Hire enquiries"
+                      : isTravelListing(business.listing)
+                        ? "Trip enquiries"
+                        : isEventListing(business.listing)
+                          ? "Event enquiries"
+                          : isLogisticsListing(business.listing)
+                            ? "Move enquiries"
+                            : isEducationListing(business.listing)
+                              ? "Learning enquiries"
+                              : isHealthListing(business.listing)
+                                ? "Health enquiries"
+                                : isProfessionalListing(business.listing)
+                                  ? "Professional enquiries"
+                                  : isHomeListing(business.listing)
+                                    ? "Job enquiries"
+                                    : isAutomotiveListing(business.listing)
+                                      ? "Workshop enquiries"
+                                      : "Repair enquiries"}
+                </Button>
+              </Link>
+            ) : null}
+            <Link to={`/provider/listings/create?business=${business.id}`}>
+              <Button>
+                <Plus className="size-4" />{" "}
+                {isStayListing(business.listing)
+                  ? "Add room"
+                  : isRentalListing(business.listing)
+                    ? "Add hire item"
+                    : isTravelListing(business.listing)
+                      ? "Add vehicle"
+                      : isEventListing(business.listing)
+                        ? "Add package"
+                        : isLogisticsListing(business.listing)
+                          ? "Add service"
+                          : isEducationListing(business.listing)
+                            ? "Add course"
+                            : isHealthListing(business.listing)
+                              ? "Add treatment"
+                              : isProfessionalListing(business.listing)
+                                ? "Add service"
+                                : isHomeListing(business.listing) ||
+                                    isAutomotiveListing(business.listing) ||
+                                    isElectronicsListing(business.listing)
+                                  ? "Add package"
+                                  : "Add item"}
+              </Button>
+            </Link>
+          </div>
+        ) : isStayListing(business.listing) ||
+          isRentalListing(business.listing) ||
+          isTravelListing(business.listing) ||
+          isEventListing(business.listing) ||
+          isLogisticsListing(business.listing) ||
+          isEducationListing(business.listing) ||
+          isHealthListing(business.listing) ||
+          isProfessionalListing(business.listing) ||
+          isHomeListing(business.listing) ||
+          isAutomotiveListing(business.listing) ||
+          isElectronicsListing(business.listing) ? (
+          <Link to={`/provider/enquiries?business=${business.id}`}>
+            <Button variant="outline">
+              {isStayListing(business.listing)
+                ? "Stay enquiries"
+                : isRentalListing(business.listing)
+                  ? "Hire enquiries"
+                  : isTravelListing(business.listing)
+                    ? "Trip enquiries"
+                    : isEventListing(business.listing)
+                      ? "Event enquiries"
+                      : isLogisticsListing(business.listing)
+                        ? "Move enquiries"
+                        : isEducationListing(business.listing)
+                          ? "Learning enquiries"
+                          : isHealthListing(business.listing)
+                            ? "Health enquiries"
+                            : isProfessionalListing(business.listing)
+                              ? "Professional enquiries"
+                              : isHomeListing(business.listing)
+                                ? "Job enquiries"
+                                : isAutomotiveListing(business.listing)
+                                  ? "Workshop enquiries"
+                                  : "Repair enquiries"}
+            </Button>
+          </Link>
+        ) : null}
+      </div>
+
+      {business.status === "pending" ? (
+        <ApprovalBanner tone="pending" title={`${business.name} is waiting for review`}>
+          You can add items now. They stay in verification until {theme.name} approves them.
+        </ApprovalBanner>
+      ) : null}
+      {business.status === "suspended" ? (
+        <ApprovalBanner tone="suspended" title={`${business.name} is disabled by admin`}>
+          This shop is hidden until {theme.name} restores it.
+        </ApprovalBanner>
+      ) : null}
+      {business.status === "rejected" ? (
+        <ApprovalBanner tone="rejected" title={`${business.name} was not approved`}>
+          {business.rejectionReason || "Update the profile, then wait for another review."}
+        </ApprovalBanner>
+      ) : null}
+
+      <div className="mt-8">
+        <ProviderListingsTable
+          business={business}
+          services={services}
+          isLoading={isLoading}
+          onChanged={onChanged}
+        />
+      </div>
     </section>
   );
 }

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { RejectPanel } from "../components/RejectPanel";
+import { EmptyList } from "../components/EmptyList";
 import { useAuth } from "../context/auth";
 import { api, hasPermission } from "../lib/api";
 import { flattenCategories } from "../lib/taxonomy";
@@ -11,14 +12,16 @@ export function ListingsPage() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState(searchParams.get("status") ?? "pending");
+  const [status, setStatus] = useState(searchParams.get("status") ?? (searchParams.get("businessId") ? "" : "pending"));
   const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const businessId = searchParams.get("businessId") ?? "";
 
   const params = new URLSearchParams({ pageSize: "50" });
   if (q.trim()) params.set("q", q.trim());
   if (status) params.set("status", status);
   if (categoryId) params.set("categoryId", categoryId);
+  if (businessId) params.set("businessId", businessId);
 
   const list = useQuery({
     queryKey: ["admin", "listings", params.toString()],
@@ -46,6 +49,7 @@ export function ListingsPage() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.rejectListing(id, reason),
     onSuccess: invalidate,
   });
+  const remove = useMutation({ mutationFn: api.deleteListing, onSuccess: invalidate });
   const rejecting = list.data?.items.find((listing) => listing.id === rejectingId);
 
   if (!hasPermission(user, "businesses.read")) {
@@ -55,8 +59,14 @@ export function ListingsPage() {
   return (
     <div className="stack">
       <div>
-        <h2 style={{ margin: 0 }}>Listings</h2>
-        <p className="muted">Moderate marketplace offerings before they appear on provider profiles</p>
+        <h2 style={{ margin: 0 }}>Catalog items</h2>
+        <p className="muted">Moderate shop catalog items, stay rooms, hire items, travel vehicles, event packages, logistics services, education courses, health treatments, and professional services before they appear on public profiles</p>
+        {businessId ? (
+          <p className="muted" style={{ margin: "0.5rem 0 0" }}>
+            Showing items for one seller.{" "}
+            <Link to="/listings">View all catalog items</Link>
+          </p>
+        ) : null}
       </div>
       <div className="row">
         <input className="input" placeholder="Search listing or provider" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -127,9 +137,21 @@ export function ListingsPage() {
                           Approve
                         </button>
                       ) : null}
-                      {listing.approvalStatus !== "rejected" ? (
+                      {listing.approvalStatus === "pending" || listing.approvalStatus === "draft" ? (
                         <button className="btn danger" type="button" onClick={() => setRejectingId(listing.id)}>
                           Reject
+                        </button>
+                      ) : null}
+                      {listing.approvalStatus === "approved" && hasPermission(user, "businesses.delete") ? (
+                        <button
+                          className="btn danger"
+                          type="button"
+                          onClick={() => {
+                            if (!window.confirm(`Delete “${listing.name}”? This cannot be undone.`)) return;
+                            remove.mutate(listing.id);
+                          }}
+                        >
+                          Delete
                         </button>
                       ) : null}
                     </div>
@@ -141,7 +163,9 @@ export function ListingsPage() {
         </table>
         {list.isLoading ? <p className="muted">Loading…</p> : null}
         {list.isError ? <p className="error">Failed to load listings</p> : null}
-        {list.data && !list.data.items.length ? <p className="muted">No listings match these filters.</p> : null}
+        {list.data && !list.data.items.length ? (
+          <EmptyList compact title="No listings match these filters." />
+        ) : null}
       </div>
     </div>
   );

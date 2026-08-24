@@ -9,6 +9,8 @@ export interface User {
   avatarUrl?: string | null;
   emailVerifiedAt?: string | null;
   phoneVerifiedAt?: string | null;
+  recoveryEmail?: string | null;
+  recoveryEmailVerifiedAt?: string | null;
   mfaEnabled?: boolean;
   permissions?: string[];
   roles?: string[];
@@ -21,9 +23,12 @@ export interface Category {
   slug: string;
   icon?: string | null;
   imageUrl?: string | null;
+  bannerUrl?: string | null;
   description?: string | null;
+  kind?: "supplier" | "service";
+  sortOrder?: number;
   parentId?: string | null;
-  parent?: { id: string; name: string; slug: string } | null;
+  parent?: { id: string; name: string; slug: string; imageUrl?: string | null; bannerUrl?: string | null; description?: string | null; kind?: "supplier" | "service" } | null;
   children?: Category[];
   _count?: { children?: number; listings?: number; services?: number };
 }
@@ -86,13 +91,16 @@ export type AttachmentEntityType =
   | "verification"
   | "review"
   | "message"
-  | "field_value";
+  | "field_value"
+  | "category";
 
 export type AttachmentPurpose =
   | "avatar"
   | "logo"
   | "cover"
   | "gallery"
+  | "background"
+  | "banner"
   | "kyc_owner"
   | "kyc_location"
   | "kyc_storefront"
@@ -143,7 +151,27 @@ export interface Service {
   rejectionReason?: string | null;
   pricingType?: string | null;
   categoryId?: string | null;
+  category?: Category;
   fieldValues?: FieldValue[];
+  business?: {
+    id: string;
+    name: string;
+    slug: string;
+    verified?: boolean;
+    phone?: string;
+    email?: string;
+    coverUrl?: string | null;
+    ownerId?: string;
+    status?: "pending" | "active" | "rejected" | "suspended" | "deleted";
+    listing?: {
+      id: string;
+      avgRating: number;
+      reviewCount: number;
+      city?: string;
+      listingKind?: "supplier" | "service";
+      category?: Category;
+    };
+  };
 }
 
 export interface SocialLinks {
@@ -166,10 +194,13 @@ export interface Business {
   status?: "pending" | "active" | "rejected" | "suspended" | "deleted";
   rejectionReason?: string | null;
   ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   listing?: Listing;
   reviews?: Review[];
   services?: Service[];
   fieldValues?: FieldValue[];
+  _count?: { services?: number };
 }
 
 export interface Listing {
@@ -187,9 +218,11 @@ export interface Listing {
   avgRating: number;
   reviewCount: number;
   featured?: boolean;
+  listingKind?: "supplier" | "service";
   category?: Category;
   business?: Business;
   distanceKm?: number | null;
+  fieldValues?: FieldValue[];
 }
 
 export interface SearchResult {
@@ -204,6 +237,302 @@ export interface WishlistItem {
   listingId: string;
   createdAt: string;
   listing?: Listing;
+}
+
+export type StayEnquiryStatus = "new" | "viewed" | "responded" | "closed";
+export type RentalEnquiryStatus = StayEnquiryStatus;
+export type TravelEnquiryStatus = StayEnquiryStatus;
+export type EventEnquiryStatus = StayEnquiryStatus;
+export type LogisticsEnquiryStatus = StayEnquiryStatus;
+export type EducationEnquiryStatus = StayEnquiryStatus;
+export type HealthEnquiryStatus = StayEnquiryStatus;
+export type ProfessionalEnquiryStatus = StayEnquiryStatus;
+export type HomeTradeEnquiryStatus = StayEnquiryStatus;
+export type AutomotiveEnquiryStatus = StayEnquiryStatus;
+export type ElectronicsEnquiryStatus = StayEnquiryStatus;
+
+export interface StayRoomSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface StayEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  notes?: string | null;
+  roomSelections: StayRoomSelection[];
+  status: StayEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface RentalItemSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface RentalEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  hireFrom: string;
+  hireTo: string;
+  deliveryRequested: boolean;
+  notes?: string | null;
+  itemSelections: RentalItemSelection[];
+  status: RentalEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface TravelVehicleSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface TravelEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  pickupDate: string;
+  pickupTime?: string | null;
+  pickupLocation: string;
+  dropoffLocation: string;
+  passengers: number;
+  roundTrip: boolean;
+  notes?: string | null;
+  vehicleSelections: TravelVehicleSelection[];
+  status: TravelEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface EventPackageSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface EventEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  eventDate: string;
+  eventTime?: string | null;
+  venue: string;
+  guests: number;
+  notes?: string | null;
+  packageSelections: EventPackageSelection[];
+  status: EventEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface LogisticsServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface LogisticsEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  pickupDate: string;
+  pickupTime?: string | null;
+  pickupLocation: string;
+  dropoffLocation: string;
+  packingRequired: boolean;
+  notes?: string | null;
+  serviceSelections: LogisticsServiceSelection[];
+  status: LogisticsEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface EducationCourseSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface EducationEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  startDate: string;
+  preferredTime?: string | null;
+  learningMode?: string | null;
+  learners: number;
+  notes?: string | null;
+  courseSelections: EducationCourseSelection[];
+  status: EducationEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface HealthServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface HealthEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  appointmentDate: string;
+  appointmentTime?: string | null;
+  patients: number;
+  concern?: string | null;
+  notes?: string | null;
+  serviceSelections: HealthServiceSelection[];
+  status: HealthEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface ProfessionalServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface ProfessionalEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  preferredDate: string;
+  preferredTime?: string | null;
+  topic?: string | null;
+  notes?: string | null;
+  serviceSelections: ProfessionalServiceSelection[];
+  status: ProfessionalEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface HomeTradeServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface HomeTradeEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  preferredDate: string;
+  preferredTime?: string | null;
+  jobLocation: string;
+  notes?: string | null;
+  serviceSelections: HomeTradeServiceSelection[];
+  status: HomeTradeEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface AutomotiveServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface AutomotiveEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  preferredDate: string;
+  preferredTime?: string | null;
+  vehicleInfo?: string | null;
+  notes?: string | null;
+  serviceSelections: AutomotiveServiceSelection[];
+  status: AutomotiveEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
+}
+
+export interface ElectronicsServiceSelection {
+  serviceId: string;
+  name?: string;
+  quantity: number;
+}
+
+export interface ElectronicsEnquiry {
+  id: string;
+  businessId: string;
+  listingId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  preferredDate: string;
+  preferredTime?: string | null;
+  deviceInfo?: string | null;
+  notes?: string | null;
+  serviceSelections: ElectronicsServiceSelection[];
+  status: ElectronicsEnquiryStatus;
+  ownerNote?: string | null;
+  createdAt: string;
+  business?: Pick<Business, "id" | "name" | "slug" | "email" | "phone">;
+  listing?: Pick<Listing, "id" | "title" | "city">;
 }
 
 export interface VerificationSubmission {
@@ -223,10 +552,14 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly code?: string;
+  readonly fieldErrors?: Record<string, string>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string, fieldErrors?: Record<string, string>) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -235,7 +568,52 @@ function csrfToken() {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+const SKIP_REFRESH = /\/api\/auth\/(login|register|refresh|forgot-password|verify-reset-otp|reset-password)$/;
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function tryRefreshSession() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const token = csrfToken();
+      const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: token ? { "X-CSRF-Token": token } : {},
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+type ErrorBody = {
+  error?: string | { message?: string; code?: string; details?: { fieldErrors?: Record<string, string[] | string> } };
+  message?: string;
+};
+
+function readApiError(body: ErrorBody | null, status: number) {
+  const payload = body?.error;
+  const object = payload && typeof payload === "object" ? payload : null;
+  const message =
+    typeof payload === "string" ? payload : object?.message ?? body?.message ?? "Something went wrong.";
+  const fieldErrors: Record<string, string> = {};
+  const raw = object?.details?.fieldErrors;
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      const text = Array.isArray(value) ? value[0] : value;
+      if (text) fieldErrors[key] = text;
+    }
+  }
+  return new ApiError(message, status, object?.code, Object.keys(fieldErrors).length ? fieldErrors : undefined);
+}
+
+async function request<T>(path: string, init?: RequestInit, didRefresh = false): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   const mutating = method !== "GET" && method !== "HEAD";
   const token = csrfToken();
@@ -249,15 +627,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  if (response.status === 401 && !didRefresh && !SKIP_REFRESH.test(path)) {
+    const refreshed = await tryRefreshSession();
+    if (refreshed) return request<T>(path, init, true);
+  }
+
   if (response.status === 204) return undefined as T;
 
-  const body = (await response.json().catch(() => null)) as
-    | { error?: string | { message?: string }; message?: string }
-    | null;
+  const body = (await response.json().catch(() => null)) as ErrorBody | null;
   if (!response.ok) {
-    const errorMessage =
-      typeof body?.error === "string" ? body.error : body?.error?.message;
-    throw new ApiError(errorMessage ?? body?.message ?? "Something went wrong.", response.status);
+    throw readApiError(body, response.status);
   }
   return body as T;
 }
@@ -278,17 +657,62 @@ export const api = {
     const value = await request<{ user: User }>("/api/auth/me");
     return value.user;
   },
-  updateMe: async (input: { name?: string; phone?: string | null; avatarUrl?: string | null }) => {
+  updateMe: async (input: {
+    name?: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+    recoveryEmail?: string | null;
+  }) => {
     const value = await request<{ user: User }>("/api/auth/me", {
       method: "PATCH",
       body: JSON.stringify(input),
     });
     return value.user;
   },
-  requestOtp: (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; phone?: string }) =>
-    request<{ sent: boolean }>("/api/auth/otp/request", { method: "POST", body: JSON.stringify(input) }),
-  verifyOtp: async (input: { channel?: "email" | "sms"; purpose?: "register" | "login" | "change"; code: string }) => {
+  requestOtp: (input: {
+    channel?: "email" | "sms";
+    purpose?: "register" | "login" | "change" | "reset" | "recovery";
+    phone?: string;
+  }) => request<{ sent: boolean }>("/api/auth/otp/request", { method: "POST", body: JSON.stringify(input) }),
+  verifyOtp: async (input: {
+    channel?: "email" | "sms";
+    purpose?: "register" | "login" | "change" | "reset" | "recovery";
+    code: string;
+  }) => {
     const value = await request<{ user: User }>("/api/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.user;
+  },
+  verifySignupOtp: async (code: string) => {
+    const value = await request<{ user: User }>("/api/auth/verify-signup-otp", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    return value.user;
+  },
+  resendSignupOtp: () => request<{ sent: boolean }>("/api/auth/resend-signup-otp", { method: "POST", body: "{}" }),
+  forgotPassword: (input: { email: string; method?: "account" | "recovery" }) =>
+    request<{ sent: boolean }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify(input) }),
+  verifyResetOtp: (input: { email: string; method?: "account" | "recovery"; code: string }) =>
+    request<{ resetToken: string }>("/api/auth/verify-reset-otp", { method: "POST", body: JSON.stringify(input) }),
+  resetPassword: (input: { email: string; method?: "account" | "recovery"; newPassword: string; resetToken: string }) =>
+    request<{ updated: boolean }>("/api/auth/reset-password", { method: "POST", body: JSON.stringify(input) }),
+  sendRecoveryEmailOtp: () =>
+    request<{ sent: boolean; alreadyVerified?: boolean }>("/api/auth/send-recovery-email-otp", {
+      method: "POST",
+      body: "{}",
+    }),
+  verifyRecoveryEmailOtp: async (code: string) => {
+    const value = await request<{ user: User }>("/api/auth/verify-recovery-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    return value.user;
+  },
+  changePassword: async (input: { currentPassword: string; newPassword: string }) => {
+    const value = await request<{ user: User }>("/api/auth/change-password", {
       method: "POST",
       body: JSON.stringify(input),
     });
@@ -305,6 +729,7 @@ export const api = {
     name: string;
     email: string;
     phone?: string;
+    recoveryEmail?: string;
     password: string;
     role?: UserRole;
   }) => {
@@ -422,8 +847,8 @@ export const api = {
     return "business" in value ? value.business : value;
   },
   myBusinesses: async () => {
-    const value = await request<{ businesses: Business[] }>("/api/businesses/mine");
-    return value.businesses;
+    const value = await request<unknown>("/api/businesses/mine");
+    return unwrapArray<Business>(value, ["businesses", "items", "data"]);
   },
   updateBusiness: async (id: string, input: Record<string, unknown>) => {
     const value = await request<{ business: Business }>(`/api/businesses/${encodeURIComponent(id)}`, {
@@ -433,10 +858,14 @@ export const api = {
     return value.business;
   },
   services: async (businessId: string) => {
-    const value = await request<{ services: Service[] }>(
-      `/api/services/business/${encodeURIComponent(businessId)}`,
+    const value = await request<unknown>(`/api/services/business/${encodeURIComponent(businessId)}`);
+    return unwrapArray<Service>(value, ["services", "items", "data"]);
+  },
+  service: async (id: string): Promise<Service> => {
+    const value = await request<Service | { service: Service }>(
+      `/api/services/${encodeURIComponent(id)}`,
     );
-    return value.services;
+    return "service" in value ? value.service : value;
   },
   createService: async (input: Record<string, unknown>) => {
     const value = await request<{ service: Service }>("/api/services", {
@@ -554,6 +983,380 @@ export const api = {
   },
   removeWishlist: (listingId: string) =>
     request<void>(`/api/wishlist/${encodeURIComponent(listingId)}`, { method: "DELETE" }),
+  createStayEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children: number;
+    notes?: string;
+    roomSelections: StayRoomSelection[];
+  }) => {
+    const value = await request<{ enquiry: StayEnquiry }>("/api/stay-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  stayEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: StayEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/stay-enquiries${query}`);
+  },
+  updateStayEnquiry: async (id: string, input: { status?: StayEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: StayEnquiry }>(`/api/stay-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createRentalEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    hireFrom: string;
+    hireTo: string;
+    deliveryRequested?: boolean;
+    notes?: string;
+    itemSelections: RentalItemSelection[];
+  }) => {
+    const value = await request<{ enquiry: RentalEnquiry }>("/api/rental-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  rentalEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: RentalEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/rental-enquiries${query}`);
+  },
+  updateRentalEnquiry: async (id: string, input: { status?: RentalEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: RentalEnquiry }>(`/api/rental-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createTravelEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    pickupDate: string;
+    pickupTime?: string;
+    pickupLocation: string;
+    dropoffLocation: string;
+    passengers: number;
+    roundTrip?: boolean;
+    notes?: string;
+    vehicleSelections: TravelVehicleSelection[];
+  }) => {
+    const value = await request<{ enquiry: TravelEnquiry }>("/api/travel-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  travelEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: TravelEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/travel-enquiries${query}`);
+  },
+  updateTravelEnquiry: async (id: string, input: { status?: TravelEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: TravelEnquiry }>(`/api/travel-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createEventEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    eventDate: string;
+    eventTime?: string;
+    venue: string;
+    guests: number;
+    notes?: string;
+    packageSelections: EventPackageSelection[];
+  }) => {
+    const value = await request<{ enquiry: EventEnquiry }>("/api/event-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  eventEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: EventEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/event-enquiries${query}`);
+  },
+  updateEventEnquiry: async (id: string, input: { status?: EventEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: EventEnquiry }>(`/api/event-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createLogisticsEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    pickupDate: string;
+    pickupTime?: string;
+    pickupLocation: string;
+    dropoffLocation: string;
+    packingRequired?: boolean;
+    notes?: string;
+    serviceSelections: LogisticsServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: LogisticsEnquiry }>("/api/logistics-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  logisticsEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: LogisticsEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/logistics-enquiries${query}`);
+  },
+  updateLogisticsEnquiry: async (id: string, input: { status?: LogisticsEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: LogisticsEnquiry }>(`/api/logistics-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createEducationEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    startDate: string;
+    preferredTime?: string;
+    learningMode?: string;
+    learners: number;
+    notes?: string;
+    courseSelections: EducationCourseSelection[];
+  }) => {
+    const value = await request<{ enquiry: EducationEnquiry }>("/api/education-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  educationEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: EducationEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/education-enquiries${query}`);
+  },
+  updateEducationEnquiry: async (id: string, input: { status?: EducationEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: EducationEnquiry }>(`/api/education-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createHealthEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    appointmentDate: string;
+    appointmentTime?: string;
+    patients: number;
+    concern?: string;
+    notes?: string;
+    serviceSelections: HealthServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: HealthEnquiry }>("/api/health-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  healthEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: HealthEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/health-enquiries${query}`);
+  },
+  updateHealthEnquiry: async (id: string, input: { status?: HealthEnquiryStatus; ownerNote?: string | null }) => {
+    const value = await request<{ enquiry: HealthEnquiry }>(`/api/health-enquiries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  createProfessionalEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    preferredDate: string;
+    preferredTime?: string;
+    topic?: string;
+    notes?: string;
+    serviceSelections: ProfessionalServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: ProfessionalEnquiry }>("/api/professional-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  professionalEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: ProfessionalEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/professional-enquiries${query}`);
+  },
+  updateProfessionalEnquiry: async (
+    id: string,
+    input: { status?: ProfessionalEnquiryStatus; ownerNote?: string | null },
+  ) => {
+    const value = await request<{ enquiry: ProfessionalEnquiry }>(
+      `/api/professional-enquiries/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return value.enquiry;
+  },
+  createHomeTradeEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    preferredDate: string;
+    preferredTime?: string;
+    jobLocation: string;
+    notes?: string;
+    serviceSelections: HomeTradeServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: HomeTradeEnquiry }>("/api/home-trade-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  homeTradeEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: HomeTradeEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/home-trade-enquiries${query}`);
+  },
+  updateHomeTradeEnquiry: async (
+    id: string,
+    input: { status?: HomeTradeEnquiryStatus; ownerNote?: string | null },
+  ) => {
+    const value = await request<{ enquiry: HomeTradeEnquiry }>(
+      `/api/home-trade-enquiries/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return value.enquiry;
+  },
+  createAutomotiveEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    preferredDate: string;
+    preferredTime?: string;
+    vehicleInfo?: string;
+    notes?: string;
+    serviceSelections: AutomotiveServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: AutomotiveEnquiry }>("/api/automotive-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  automotiveEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: AutomotiveEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/automotive-enquiries${query}`);
+  },
+  updateAutomotiveEnquiry: async (
+    id: string,
+    input: { status?: AutomotiveEnquiryStatus; ownerNote?: string | null },
+  ) => {
+    const value = await request<{ enquiry: AutomotiveEnquiry }>(
+      `/api/automotive-enquiries/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return value.enquiry;
+  },
+  createElectronicsEnquiry: async (input: {
+    businessId: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    preferredDate: string;
+    preferredTime?: string;
+    deviceInfo?: string;
+    notes?: string;
+    serviceSelections: ElectronicsServiceSelection[];
+  }) => {
+    const value = await request<{ enquiry: ElectronicsEnquiry }>("/api/electronics-enquiries", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return value.enquiry;
+  },
+  electronicsEnquiries: async (params?: URLSearchParams) => {
+    const query = params?.toString() ? `?${params.toString()}` : "";
+    return request<{
+      items: ElectronicsEnquiry[];
+      pagination: { total: number; page: number; pageSize: number; totalPages: number };
+    }>(`/api/electronics-enquiries${query}`);
+  },
+  updateElectronicsEnquiry: async (
+    id: string,
+    input: { status?: ElectronicsEnquiryStatus; ownerNote?: string | null },
+  ) => {
+    const value = await request<{ enquiry: ElectronicsEnquiry }>(
+      `/api/electronics-enquiries/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return value.enquiry;
+  },
   recommendations: (params?: URLSearchParams) =>
     api.search(params ?? new URLSearchParams({ pageSize: "8" })),
 };

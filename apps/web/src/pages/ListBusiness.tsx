@@ -1,17 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   DynamicForm,
   toFieldValuePayload,
   valuesFromFieldValues,
   type FieldValueMap,
 } from "../components/CategoryFieldsEditor";
+import { FlagPhoneInput } from "../components/FlagPhoneInput";
+import { ImagePreviewUpload } from "../components/ImagePreviewUpload";
 import { Button, Field, Input, PageState, Select, Textarea } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { api } from "../lib/api";
-import { assignedCategoryId, childrenOf } from "../lib/category-tree";
+import { ApiError, api, type Business } from "../lib/api";
+import { assignedCategoryId, flattenDescendants } from "../lib/category-tree";
+import { mainsForKind, type MarketplaceKind } from "../lib/listing-kind";
+import { isStayCategory } from "../lib/stays";
+import { isRentalCategory } from "../lib/rentals";
+import { isTravelCategory } from "../lib/travel";
+import { isEventsRoot } from "../lib/events";
+import { isLogisticsRoot } from "../lib/logistics";
+import { isEducationRoot } from "../lib/education";
+import { isHealthRoot } from "../lib/health";
+import { isProfessionalRoot } from "../lib/professional";
+import { isHomeRoot } from "../lib/home";
+import { isAutomotiveRoot } from "../lib/automotive";
+import { isElectronicsRoot } from "../lib/electronics";
+import { firstFormError, isFieldRequired, validateForm, type FieldKey } from "../lib/validation";
 
 interface BusinessForm {
   name: string;
@@ -19,7 +35,6 @@ interface BusinessForm {
   phone: string;
   title: string;
   mainCategoryId: string;
-  categoryId: string;
   description: string;
   address: string;
   city: string;
@@ -38,7 +53,6 @@ const initialForm: BusinessForm = {
   phone: "",
   title: "",
   mainCategoryId: "",
-  categoryId: "",
   description: "",
   address: "",
   city: "",
@@ -54,22 +68,62 @@ const initialForm: BusinessForm = {
 export function ListBusiness() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const [form, setForm] = useState<BusinessForm>(initialForm);
+  const [intent, setIntent] = useState<MarketplaceKind | "">("");
+  const [subId, setSubId] = useState("");
   const [fieldValues, setFieldValues] = useState<FieldValueMap>({});
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const visibleMains = intent ? mainsForKind(categories.data ?? [], intent) : (categories.data ?? []);
+  const selectedMain = visibleMains.find((category) => category.id === form.mainCategoryId);
+  const subcategoryOptions = selectedMain
+    ? flattenDescendants(selectedMain).filter((entry) => !intent || entry.category.kind === intent)
+    : [];
+  const listingCategoryId = assignedCategoryId(form.mainCategoryId, subId, categories.data ?? []);
+  const stayForm = isStayCategory(selectedMain);
+  const rentalForm = isRentalCategory(selectedMain);
+  const travelForm = isTravelCategory(selectedMain);
+  const eventForm = isEventsRoot(selectedMain) && intent === "service";
+  const logisticsForm = isLogisticsRoot(selectedMain) && intent === "service";
+  const educationForm = isEducationRoot(selectedMain) && intent === "service";
+  const healthForm = isHealthRoot(selectedMain) && intent === "service";
+  const professionalForm = isProfessionalRoot(selectedMain) && intent === "service";
+  const homeForm = isHomeRoot(selectedMain) && intent === "service";
+  const automotiveForm = isAutomotiveRoot(selectedMain) && intent === "service";
+  const electronicsForm = isElectronicsRoot(selectedMain) && intent === "service";
+  const operatorForm =
+    travelForm ||
+    eventForm ||
+    logisticsForm ||
+    educationForm ||
+    healthForm ||
+    professionalForm ||
+    homeForm ||
+    automotiveForm ||
+    electronicsForm;
   const providerForm = useQuery({
-    queryKey: ["category-form", form.categoryId, "provider"],
-    queryFn: () => api.categoryForm(form.categoryId, "provider"),
-    enabled: Boolean(form.categoryId),
+    queryKey: ["category-form", listingCategoryId || form.mainCategoryId, "provider"],
+    queryFn: () => api.categoryForm(listingCategoryId || form.mainCategoryId, "provider"),
+    enabled: Boolean(listingCategoryId || form.mainCategoryId),
   });
-  const subcategories = childrenOf(categories.data ?? [], form.mainCategoryId);
   const create = useMutation({
     mutationFn: api.createBusiness,
     onSuccess: (result) => {
       if (result.user) queryClient.setQueryData(["auth", "me"], result.user);
+      queryClient.setQueryData(["businesses", "mine"], (current: Business[] | undefined) => {
+        const next = current?.filter((business) => business.id !== result.business.id) ?? [];
+        return [result.business, ...next];
+      });
+      void queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+      toast.success("Business submitted for review.");
+      navigate(`/provider?business=${result.business.id}`, { replace: true });
+    },
+    onError: (error) => {
+      toast.error(error instanceof ApiError ? error.message : "Unable to submit this business.");
     },
   });
   const upload = useMutation({
@@ -99,6 +153,19 @@ export function ListBusiness() {
 
   if (isLoading) return <PageState title="Loading" loading />;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!user.emailVerifiedAt) {
+    return (
+      <PageState
+        title="Verify your email first"
+        description="We need a verified email before you can list a business."
+        action={
+          <Link to="/verify-email" state={{ from: location.pathname }}>
+            <Button>Verify email</Button>
+          </Link>
+        }
+      />
+    );
+  }
   if (categories.isError) {
     return (
       <PageState
@@ -111,10 +178,51 @@ export function ListBusiness() {
 
   function update<K extends keyof BusinessForm>(key: K, value: BusinessForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+    const mapped: Record<string, FieldKey> = {
+      name: "businessName",
+      title: "businessTitle",
+      email: "businessEmail",
+      phone: "businessPhone",
+      mainCategoryId: "categoryId",
+    };
+    const errorKey = mapped[key as string] ?? (key as FieldKey);
+    setErrors((current) => ({ ...current, [errorKey]: undefined }));
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    const values = {
+      businessName: form.name,
+      businessTitle: form.title,
+      businessEmail: form.email,
+      businessPhone: form.phone,
+      intent,
+      categoryId: form.mainCategoryId,
+      description: form.description,
+      address: form.address,
+      city: form.city,
+      website: form.website,
+      instagram: form.instagram,
+      facebook: form.facebook,
+      openTime: form.openTime,
+      closeTime: form.closeTime,
+      lat: form.lat,
+      lng: form.lng,
+    };
+    const extra: FieldKey[] = subcategoryOptions.length ? ["subcategoryId"] : [];
+    const nextErrors = validateForm(
+      "business",
+      {
+        ...values,
+        subcategoryId: subId,
+      },
+      extra,
+    );
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      toast.error(firstFormError(nextErrors) ?? "Please fix the highlighted fields.");
+      return;
+    }
     const hours = {
       monday: [form.openTime, form.closeTime] as [string, string],
       tuesday: [form.openTime, form.closeTime] as [string, string],
@@ -130,7 +238,7 @@ export function ListBusiness() {
       email: form.email,
       phone: form.phone || undefined,
       title: form.title || form.name,
-      categoryId: form.categoryId,
+      categoryId: listingCategoryId || form.mainCategoryId,
       description: form.description,
       address: form.address,
       city: form.city,
@@ -149,40 +257,19 @@ export function ListBusiness() {
     });
   }
 
-  if (create.isSuccess) {
-    return (
-      <PageState
-        title="Your business was submitted"
-        description="Your profile is now in the Concierge review queue. Add services and complete identity verification from your account."
-        action={
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to={`/business/${create.data.business.slug ?? create.data.business.id}/edit`}>
-              <Button>
-                Manage profile <ArrowRight className="size-4" />
-              </Button>
-            </Link>
-            <Link to="/verification">
-              <Button variant="outline">Start verification</Button>
-            </Link>
-          </div>
-        }
-      />
-    );
-  }
-
   return (
     <section className="page-shell py-14 md:py-20">
       <div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
         <div>
           <p className="label-caps text-gold-dark">Become a provider</p>
           <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-            Add your business when you are ready.
+            List your business when you are ready.
           </h1>
           <p className="mt-5 leading-7 text-ink-soft">
-            Use the same account. Choose a category, complete the profile form, and submit for review.
+            Selling goods is the main path. Technicians can still list a trade. Choose a category, complete the form, and submit for review.
           </p>
           <div className="mt-8 grid gap-4 text-sm">
-            {["Curated directory presence", "Verified reviews from members", "Services catalog & nearby discovery"].map(
+            {["Shop catalog with bulk and piece rates", "Direct connect with buyers", "Verified reviews from members"].map(
               (item) => (
                 <p key={item} className="flex items-center gap-3">
                   <CheckCircle2 className="size-5 text-emerald-600" />
@@ -193,155 +280,276 @@ export function ListBusiness() {
           </div>
         </div>
         <form onSubmit={submit} className="grid gap-5 rounded-3xl border border-line bg-white p-6 shadow-sm md:grid-cols-2 md:p-9">
-          <Field label="Business name">
-            <Input value={form.name} onChange={(event) => update("name", event.target.value)} required />
+          <Field label="Business name" error={errors.businessName} required={isFieldRequired("businessName")}>
+            <Input value={form.name} onChange={(event) => update("name", event.target.value)} aria-invalid={Boolean(errors.businessName)} />
           </Field>
-          <Field label="Profile title">
+          <Field label={stayForm ? "Property title" : rentalForm ? "Shop title" : operatorForm ? "Operator title" : "Profile title"} error={errors.businessTitle} required={isFieldRequired("businessTitle")}>
             <Input
               value={form.title}
               onChange={(event) => update("title", event.target.value)}
-              placeholder="e.g. Bespoke Interior Studio"
-              required
+              placeholder={
+                stayForm
+                  ? "e.g. Valley View Resort"
+                  : rentalForm
+                    ? "e.g. Coastal Wheels"
+                    : travelForm
+                      ? "e.g. Metro Yellow Cabs"
+                      : eventForm
+                        ? "e.g. Atlas Event Studio"
+                        : logisticsForm
+                          ? "e.g. Harborline Courier"
+                          : educationForm
+                            ? "e.g. Apex Coaching Centre"
+                            : healthForm
+                              ? "e.g. Greenleaf Clinic"
+                              : professionalForm
+                                ? "e.g. Northside Advisors"
+                                : homeForm
+                                  ? "e.g. Apex Electrical"
+                                  : automotiveForm
+                                    ? "e.g. Metro Auto Care"
+                                    : electronicsForm
+                                      ? "e.g. Pixel Fix Lab"
+                                      : "e.g. Bespoke Interior Studio"
+              }
+              aria-invalid={Boolean(errors.businessTitle)}
             />
           </Field>
-          <Field label="Business email">
-            <Input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} required />
+          <Field label="Business email" error={errors.businessEmail} required={isFieldRequired("businessEmail")}>
+            <Input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} aria-invalid={Boolean(errors.businessEmail)} />
           </Field>
-          <Field label="Phone">
-            <Input type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} />
+          <Field label="Phone" error={errors.businessPhone}>
+            <FlagPhoneInput value={form.phone} onChange={(value) => update("phone", value)} error={Boolean(errors.businessPhone)} />
           </Field>
-          <Field label="Category">
+          <ImagePreviewUpload
+            label="Profile image"
+            value={logoUrl}
+            uploading={upload.isPending && upload.variables?.kind === "logo"}
+            onSelect={(file) => upload.mutate({ file, kind: "logo" })}
+          />
+          <ImagePreviewUpload
+            label="Banner image"
+            value={coverUrl}
+            aspect="banner"
+            className="md:col-span-1"
+            uploading={upload.isPending && upload.variables?.kind === "cover"}
+            onSelect={(file) => upload.mutate({ file, kind: "cover" })}
+          />
+          <div className="md:col-span-2">
+            <Field label="I am" error={errors.intent} required={isFieldRequired("intent")}>
+            <Select
+              value={intent}
+              onChange={(event) => {
+                const next = event.target.value as MarketplaceKind | "";
+                setIntent(next);
+                setSubId("");
+                setForm((current) => ({ ...current, mainCategoryId: "" }));
+                setErrors((current) => ({ ...current, intent: undefined, categoryId: undefined }));
+              }}
+              aria-invalid={Boolean(errors.intent)}
+            >
+              <option value="">Select what you offer</option>
+              <option value="supplier">Selling goods (shop / wholesale)</option>
+              <option value="service">Offering a service (stays, trades, transport)</option>
+            </Select>
+            </Field>
+          </div>
+          <Field label="Category" error={errors.categoryId} required={isFieldRequired("categoryId")}>
             <Select
               value={form.mainCategoryId}
               onChange={(event) => {
-                const mainCategoryId = event.target.value;
-                const nextId = assignedCategoryId(mainCategoryId, "", categories.data ?? []);
-                setForm((current) => ({ ...current, mainCategoryId, categoryId: nextId }));
+                update("mainCategoryId", event.target.value);
+                setSubId("");
               }}
-              required
+              disabled={!intent}
+              aria-invalid={Boolean(errors.categoryId)}
             >
-              <option value="">Select category</option>
-              {categories.data?.map((category) => (
+              <option value="">{intent ? "Select main category" : "Choose selling vs trade first"}</option>
+              {visibleMains.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
             </Select>
           </Field>
-          {subcategories.length ? (
-            <Field label="Subcategory">
+          {subcategoryOptions.length ? (
+            <Field
+              label={
+                stayForm
+                  ? "Stay type"
+                  : rentalForm
+                    ? "Hire type"
+                    : travelForm
+                      ? "Transport type"
+                      : eventForm
+                        ? "Event type"
+                        : logisticsForm
+                          ? "Logistics type"
+                          : educationForm
+                            ? "Education type"
+                            : healthForm
+                              ? "Health type"
+                              : professionalForm
+                                ? "Practice type"
+                                : homeForm
+                                  ? "Trade type"
+                                  : automotiveForm
+                                    ? "Workshop type"
+                                    : electronicsForm
+                                      ? "Repair type"
+                                      : "Subcategory"
+              }
+              error={errors.subcategoryId}
+              required
+            >
               <Select
-                value={form.categoryId}
-                onChange={(event) => update("categoryId", event.target.value)}
-                required
+                value={subId}
+                onChange={(event) => {
+                  setSubId(event.target.value);
+                  setErrors((current) => ({ ...current, subcategoryId: undefined }));
+                }}
+                aria-invalid={Boolean(errors.subcategoryId)}
               >
-                <option value="">Select subcategory</option>
-                {subcategories.map((category) => (
+                <option value="">
+                  {stayForm
+                    ? "Select hotel, resort, homestay…"
+                    : rentalForm
+                      ? "Select vehicles, cameras, event gear…"
+                      : travelForm
+                        ? "Select taxi, airport, tour…"
+                        : eventForm
+                          ? "Select photographer, caterer, planner…"
+                          : logisticsForm
+                            ? "Select courier, movers, security…"
+                            : educationForm
+                              ? "Select coaching, tuition, training…"
+                              : healthForm
+                                ? "Select dentist, clinic, spa…"
+                                : professionalForm
+                                  ? "Select CA, lawyer, consultant…"
+                                  : homeForm
+                                    ? "Select electrician, plumber, painter…"
+                                    : automotiveForm
+                                      ? "Select car repair, wash, tow…"
+                                      : electronicsForm
+                                        ? "Select laptop, phone, IT repair…"
+                                        : "Select subcategory"}
+                </option>
+                {subcategoryOptions.map(({ category, label }) => (
                   <option key={category.id} value={category.id}>
-                    {category.name}
+                    {label}
                   </option>
                 ))}
               </Select>
             </Field>
           ) : null}
-          <Field label="Website">
+          <Field label="Website" error={errors.website}>
             <Input
               type="url"
               value={form.website}
               onChange={(event) => update("website", event.target.value)}
               placeholder="https://"
+              aria-invalid={Boolean(errors.website)}
             />
           </Field>
-          <div className="md:col-span-2">
-            <Field label="Description">
-              <Textarea
-                value={form.description}
-                onChange={(event) => update("description", event.target.value)}
-                rows={5}
-                minLength={20}
-                placeholder="Describe your expertise in at least 20 characters."
-                required
-              />
-            </Field>
-          </div>
-          <Field label="Street address">
-            <Input value={form.address} onChange={(event) => update("address", event.target.value)} required />
-          </Field>
-          <Field label="City">
-            <Input value={form.city} onChange={(event) => update("city", event.target.value)} required />
-          </Field>
-          <Field label="Opens">
-            <Input type="time" value={form.openTime} onChange={(event) => update("openTime", event.target.value)} required />
-          </Field>
-          <Field label="Closes">
-            <Input type="time" value={form.closeTime} onChange={(event) => update("closeTime", event.target.value)} required />
-          </Field>
-          <Field label="Instagram">
-            <Input
-              type="url"
-              value={form.instagram}
-              onChange={(event) => update("instagram", event.target.value)}
-              placeholder="https://instagram.com/..."
-            />
-          </Field>
-          <Field label="Facebook">
-            <Input
-              type="url"
-              value={form.facebook}
-              onChange={(event) => update("facebook", event.target.value)}
-              placeholder="https://facebook.com/..."
-            />
-          </Field>
-          <Field label="Latitude (optional)">
-            <Input type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} />
-          </Field>
-          <Field label="Longitude (optional)">
-            <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} />
-          </Field>
-
-          {form.categoryId && providerForm.isLoading ? (
+          {form.mainCategoryId && providerForm.isLoading ? (
             <p className="text-sm text-ink-soft md:col-span-2">Loading category fields…</p>
           ) : null}
           {providerForm.isError ? (
             <p className="text-sm text-red-700 md:col-span-2">Could not load category fields.</p>
           ) : null}
           {providerForm.data?.fields?.length ? (
-            <DynamicForm
-              fields={providerForm.data.fields}
-              values={fieldValues}
-              onChange={setFieldValues}
-            />
+            <div className="rounded-2xl border border-line bg-surface-low/60 p-4 md:col-span-2 md:p-5">
+              <p className="text-sm font-semibold">
+                {stayForm ? "Property details" : rentalForm ? "Shop details" : operatorForm ? "Operator details" : "Category details"}
+              </p>
+              <p className="mt-1 text-xs font-normal text-ink-soft">
+                {stayForm
+                  ? "Amenities, house rules, meals, and check-in times for this stay. Guests see these grouped like Breakfast included and Couple friendly."
+                  : rentalForm
+                  ? "Pickup hours, delivery, ID, and deposit policy for this hire shop. Customers see these on the shop page."
+                  : travelForm
+                  ? "Hours, airports, fleet, and trip policy for this operator. Customers see these on the operator page."
+                  : eventForm
+                  ? "Hours, event types, team size, and cancellation for this crew. Customers see these on the crew page."
+                  : logisticsForm
+                  ? "Hours, coverage, packing, and insurance for this operator. Customers see these on the operator page."
+                  : educationForm
+                  ? "Hours, subjects, modes, and cancellation for this institute. Customers see these on the institute page."
+                  : healthForm
+                  ? "Hours, specialties, home visit, and cancellation for this practice. Customers see these on the practice page."
+                  : professionalForm
+                  ? "Hours, practice areas, remote options, and cancellation for this firm. Customers see these on the firm page."
+                  : homeForm
+                  ? "Hours, job types, service radius, and cancellation for this trade. Customers see these on the trade page."
+                  : automotiveForm
+                  ? "Hours, vehicle types, and cancellation for this workshop. Customers see these on the workshop page."
+                  : electronicsForm
+                  ? "Hours, device types, and cancellation for this repair shop. Customers see these on the shop page."
+                  : "Extra fields for this category, including license number when it applies."}
+              </p>
+              <div className="mt-4">
+                <DynamicForm
+                  fields={providerForm.data.fields}
+                  values={fieldValues}
+                  onChange={setFieldValues}
+                />
+              </div>
+            </div>
           ) : null}
+          <div className="md:col-span-2">
+            <Field label="Description" error={errors.description} required={isFieldRequired("description")}>
+              <Textarea
+                value={form.description}
+                onChange={(event) => update("description", event.target.value)}
+                rows={5}
+                placeholder="Describe your expertise in at least 20 characters."
+                aria-invalid={Boolean(errors.description)}
+              />
+            </Field>
+          </div>
+          <Field label="Street address" error={errors.address} required={isFieldRequired("address")}>
+            <Input value={form.address} onChange={(event) => update("address", event.target.value)} aria-invalid={Boolean(errors.address)} />
+          </Field>
+          <Field label="City" error={errors.city} required={isFieldRequired("city")}>
+            <Input value={form.city} onChange={(event) => update("city", event.target.value)} aria-invalid={Boolean(errors.city)} />
+          </Field>
+          <Field label="Opens" error={errors.openTime} required={isFieldRequired("openTime")}>
+            <Input type="time" value={form.openTime} onChange={(event) => update("openTime", event.target.value)} aria-invalid={Boolean(errors.openTime)} />
+          </Field>
+          <Field label="Closes" error={errors.closeTime} required={isFieldRequired("closeTime")}>
+            <Input type="time" value={form.closeTime} onChange={(event) => update("closeTime", event.target.value)} aria-invalid={Boolean(errors.closeTime)} />
+          </Field>
+          <Field label="Instagram" error={errors.instagram}>
+            <Input
+              type="url"
+              value={form.instagram}
+              onChange={(event) => update("instagram", event.target.value)}
+              placeholder="https://instagram.com/..."
+              aria-invalid={Boolean(errors.instagram)}
+            />
+          </Field>
+          <Field label="Facebook" error={errors.facebook}>
+            <Input
+              type="url"
+              value={form.facebook}
+              onChange={(event) => update("facebook", event.target.value)}
+              placeholder="https://facebook.com/..."
+              aria-invalid={Boolean(errors.facebook)}
+            />
+          </Field>
+          <Field label="Latitude (optional)" error={errors.lat}>
+            <Input type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} aria-invalid={Boolean(errors.lat)} />
+          </Field>
+          <Field label="Longitude (optional)" error={errors.lng}>
+            <Input type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} aria-invalid={Boolean(errors.lng)} />
+          </Field>
 
-          <label className="text-sm md:col-span-1">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Logo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.mutate({ file, kind: "logo" });
-              }}
-            />
-            {logoUrl ? <p className="mt-1 text-xs text-emerald-700">Logo ready</p> : null}
-          </label>
-          <label className="text-sm md:col-span-1">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wider">Cover</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.mutate({ file, kind: "cover" });
-              }}
-            />
-            {coverUrl ? <p className="mt-1 text-xs text-emerald-700">Cover ready</p> : null}
-          </label>
           {create.isError ? <p className="text-sm text-red-700 md:col-span-2">{create.error.message}</p> : null}
           <Button
             type="submit"
             className="mt-2 md:col-span-2"
-            disabled={create.isPending || categories.isLoading || (Boolean(form.categoryId) && providerForm.isLoading)}
+            disabled={create.isPending || categories.isLoading || (Boolean(form.mainCategoryId) && providerForm.isLoading)}
           >
             {create.isPending ? "Submitting…" : "Submit business"}
           </Button>

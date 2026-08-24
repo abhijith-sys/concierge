@@ -11,22 +11,78 @@ describe("search filters", () => {
     const where = searchRepository.buildWhere(
       query({ category: "home-property", subcategory: "electricians" }),
     );
-    const listing = where.listing as { category?: { OR?: Array<{ slug?: string; parent?: { slug?: string } }> } };
-    expect(listing.category?.OR).toEqual([
-      { slug: "electricians" },
-      { parent: { slug: "electricians" } },
-    ]);
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: [
+            {
+              listing: {
+                is: {
+                  category: {
+                    OR: [
+                      { slug: "electricians" },
+                      { parent: { slug: "electricians" } },
+                      { parent: { parent: { slug: "electricians" } } },
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              services: {
+                some: {
+                  isActive: true,
+                  approvalStatus: "approved",
+                  category: {
+                    OR: [
+                      { slug: "electricians" },
+                      { parent: { slug: "electricians" } },
+                      { parent: { parent: { slug: "electricians" } } },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      ]),
+    );
   });
 
-  it("matches a main category slug against itself or its children", () => {
+  it("matches a main category slug against itself, children, grandchildren, or offerings", () => {
     const where = searchRepository.buildWhere(query({ category: "automotive" }));
-    const listing = where.listing as { category?: { OR?: Array<{ slug?: string }> } };
-    expect(listing.category?.OR?.[0]).toEqual({ slug: "automotive" });
-    expect(listing.category?.OR?.[1]).toEqual({ parent: { slug: "automotive" } });
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              listing: {
+                is: {
+                  category: {
+                    OR: [
+                      { slug: "automotive" },
+                      { parent: { slug: "automotive" } },
+                      { parent: { parent: { slug: "automotive" } } },
+                    ],
+                  },
+                },
+              },
+            },
+          ]),
+        }),
+      ]),
+    );
+  });
+
+  it("filters shops vs service professionals by listingKind", () => {
+    const shops = searchRepository.buildWhere(query({ kind: "supplier" }));
+    expect(shops.AND).toEqual(expect.arrayContaining([{ listing: { listingKind: "supplier" } }]));
+    const trades = searchRepository.buildWhere(query({ kind: "service" }));
+    expect(trades.AND).toEqual(expect.arrayContaining([{ listing: { listingKind: "service" } }]));
   });
 
   it("only returns active providers", () => {
     const where = searchRepository.buildWhere(query());
-    expect(where.status).toBe("active");
+    expect(where.AND).toEqual(expect.arrayContaining([{ status: "active" }]));
   });
 });

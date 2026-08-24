@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation } from "react-router-dom";
+import { EmptyList } from "../components/EmptyList";
 import { ListingCard } from "../components/ListingCard";
 import { Button, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
@@ -34,7 +35,7 @@ export function Wishlist() {
           action={<Button onClick={() => void wishlist.refetch()}>Retry</Button>}
         />
       ) : !wishlist.data?.length ? (
-        <PageState
+        <EmptyList
           title="No saved listings yet"
           description="Browse the directory and tap the heart to save a business."
           action={

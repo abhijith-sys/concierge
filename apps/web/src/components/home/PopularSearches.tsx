@@ -16,6 +16,12 @@ export function PopularSearches({ categories }: { categories: Category[] }) {
           {category.name}
         </Link>
       ))}
+      <Link
+        to="/listings?kind=service"
+        className="rounded-full border border-dashed border-line px-3.5 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-navy hover:text-navy"
+      >
+        Need a technician?
+      </Link>
     </div>
   );
 }

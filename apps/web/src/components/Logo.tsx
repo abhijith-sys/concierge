@@ -1,8 +1,10 @@
-import { Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
+import { theme } from "../lib/theme";
 
 export function Logo({ className, onClick }: { className?: string; onClick?: () => void }) {
+  const mark = theme.logoIncludesWordmark ? theme.assets.logo : theme.assets.logoMark;
+
   return (
     <Link
       to="/"
@@ -12,10 +14,12 @@ export function Logo({ className, onClick }: { className?: string; onClick?: () 
         className,
       )}
     >
-      <span className="grid size-7 place-items-center rounded-full bg-gold text-navy shadow-sm">
-        <Star className="size-3.5 fill-current" aria-hidden="true" />
-      </span>
-      Concierge
+      <img
+        src={mark}
+        alt=""
+        className={theme.logoIncludesWordmark ? "h-8 w-auto" : "size-7"}
+      />
+      {theme.logoIncludesWordmark ? <span className="sr-only">{theme.name}</span> : theme.name}
     </Link>
   );
 }

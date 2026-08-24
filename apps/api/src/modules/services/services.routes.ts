@@ -12,6 +12,12 @@ servicesRouter.get("/business/:businessId", async (req, res) => {
   res.json({ services });
 });
 
+servicesRouter.get("/:id", async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const service = await servicesService.getById(id, req.user);
+  res.json({ service });
+});
+
 servicesRouter.post("/", requireAuth, async (req, res) => {
   const data = createServiceSchema.parse(req.body);
   const service = await servicesService.create(data, req.user!);

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { RejectPanel } from "../components/RejectPanel";
+import { EmptyList } from "../components/EmptyList";
 import { useAuth } from "../context/auth";
 import { api, hasPermission } from "../lib/api";
 import { flattenCategories } from "../lib/taxonomy";
@@ -94,6 +95,7 @@ export function BusinessesPage() {
             <tr>
               <th>Business</th>
               <th>Category</th>
+              <th>Catalog</th>
               <th>Status</th>
               <th>Verified</th>
               <th>Actions</th>
@@ -110,32 +112,44 @@ export function BusinessesPage() {
                   ) : null}
                 </td>
                 <td>{business.listing?.category?.name ?? "—"}</td>
+                <td>
+                  <Link to={`/listings?businessId=${encodeURIComponent(business.id)}`}>
+                    {business._count?.services ?? 0} items
+                  </Link>
+                </td>
                 <td>{business.status}</td>
                 <td>{business.verified ? "Yes" : "No"}</td>
                 <td>
                   <div className="row">
                     {hasPermission(user, "businesses.moderate") ? (
                       <>
-                        {business.status !== "active" ? (
+                        {business.status !== "active" && business.status !== "deleted" ? (
                           <button className="btn" type="button" onClick={() => activate.mutate(business.id)}>
                             Activate
                           </button>
                         ) : null}
                         {business.status === "active" ? (
                           <button className="btn" type="button" onClick={() => suspend.mutate(business.id)}>
-                            Suspend
+                            Disable
                           </button>
                         ) : null}
-                        {business.status === "pending" || business.status === "active" ? (
+                        {business.status === "pending" ? (
                           <button className="btn danger" type="button" onClick={() => setRejectingId(business.id)}>
                             Reject
                           </button>
                         ) : null}
                       </>
                     ) : null}
-                    {hasPermission(user, "businesses.delete") ? (
-                      <button className="btn danger" type="button" onClick={() => remove.mutate(business.id)}>
-                        Soft delete
+                    {hasPermission(user, "businesses.delete") && business.status !== "pending" && business.status !== "deleted" ? (
+                      <button
+                        className="btn danger"
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm(`Delete “${business.name}”? This hides the shop from the directory.`)) return;
+                          remove.mutate(business.id);
+                        }}
+                      >
+                        Delete
                       </button>
                     ) : null}
                   </div>
@@ -146,7 +160,9 @@ export function BusinessesPage() {
         </table>
         {list.isLoading ? <p className="muted">Loading…</p> : null}
         {list.isError ? <p className="error">Failed to load businesses</p> : null}
-        {list.data && !list.data.items.length ? <p className="muted">No businesses match these filters.</p> : null}
+        {list.data && !list.data.items.length ? (
+          <EmptyList compact title="No businesses match these filters." />
+        ) : null}
       </div>
     </div>
   );

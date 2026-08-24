@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { EmptyList } from "../components/EmptyList";
 import { api, hasPermission } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -49,6 +50,9 @@ export function RolesPage() {
             ))}
           </tbody>
         </table>
+        {!roles.isLoading && !(roles.data?.length ?? 0) ? (
+          <EmptyList compact title="No roles yet." />
+        ) : null}
       </div>
     </div>
   );

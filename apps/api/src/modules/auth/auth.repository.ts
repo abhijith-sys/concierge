@@ -1,3 +1,4 @@
+import type { OtpChannel, OtpPurpose, Role } from "@prisma/client";
 import { prisma } from "../../shared/db/prisma.js";
 import {
   assignDefaultRoleForLegacy,
@@ -15,14 +16,29 @@ export const authRepository = {
     return prisma.user.findUnique({ where: { email }, select: { id: true } });
   },
 
+  findByRecoveryEmail(email: string) {
+    return prisma.user.findFirst({
+      where: { recoveryEmail: email, recoveryEmailVerifiedAt: { not: null } },
+      select: publicUserSelect,
+    });
+  },
+
   findPublicById(id: string) {
     return prisma.user.findUnique({ where: { id }, select: publicUserSelect });
+  },
+
+  findAuthById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: { ...publicUserSelect, passwordHash: true },
+    });
   },
 
   async createUser(data: {
     name: string;
     email: string;
     phone?: string;
+    recoveryEmail?: string;
     passwordHash: string;
     role: "user" | "business";
   }) {
@@ -38,7 +54,7 @@ export const authRepository = {
     return prisma.user.update({ where: { id }, data, select: publicUserSelect });
   },
 
-  async withAccess(user: { id: string; role: "user" | "business" | "admin" } & Record<string, unknown>) {
+  async withAccess(user: { id: string; role: Role } & Record<string, unknown>) {
     const [permissions, roles, businessCount] = await Promise.all([
       getPermissionKeysForUser(user.id, user.role),
       getRoleKeysForUser(user.id),
@@ -49,15 +65,15 @@ export const authRepository = {
 
   createOtp(data: {
     userId: string;
-    channel: "email" | "sms";
-    purpose: "register" | "login" | "change";
+    channel: OtpChannel;
+    purpose: OtpPurpose;
     codeHash: string;
     expiresAt: Date;
   }) {
     return prisma.verificationChallenge.create({ data });
   },
 
-  findLatestOtp(userId: string, channel: "email" | "sms", purpose: "register" | "login" | "change") {
+  findLatestOtp(userId: string, channel: OtpChannel, purpose: OtpPurpose) {
     return prisma.verificationChallenge.findFirst({
       where: { userId, channel, purpose, consumedAt: null },
       orderBy: { createdAt: "desc" },
