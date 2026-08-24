@@ -15,6 +15,7 @@ import { formatHomeFrom, isHomeListing, homePreviewTags } from "../lib/home";
 import { formatAutomotiveFrom, isAutomotiveListing, automotivePreviewTags } from "../lib/automotive";
 import { formatElectronicsFrom, isElectronicsListing, electronicsPreviewTags } from "../lib/electronics";
 import { catalogOfferBrand } from "../lib/shop";
+import { isOpenNow } from "../lib/hours";
 import { stayAmenityPreview } from "../lib/stay-amenities";
 import { isSupplierListing } from "../lib/listing-kind";
 import { formatListingPrice } from "../lib/pricing";
@@ -89,6 +90,7 @@ export function ProviderCard({
                       : electronics
                         ? electronicsPreviewTags(listing.fieldValues)
                         : [];
+  const openNow = listing.openNow ?? isOpenNow(listing.hours);
   const vertical =
     stay ||
     rental ||
@@ -121,6 +123,11 @@ export function ProviderCard({
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-emerald-700 shadow-sm">
             <BadgeCheck className="size-3.5" aria-hidden="true" />
             Verified
+          </span>
+        ) : null}
+        {openNow ? (
+          <span className="absolute bottom-3 left-3 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white shadow-sm">
+            Open now
           </span>
         ) : null}
         <WishlistButton listingId={listing.id} className="absolute right-3 top-3 size-9" />

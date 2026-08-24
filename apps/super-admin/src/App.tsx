@@ -23,6 +23,8 @@ import { ProfessionalEnquiriesPage } from "./pages/ProfessionalEnquiriesPage";
 import { HomeTradeEnquiriesPage } from "./pages/HomeTradeEnquiriesPage";
 import { AutomotiveEnquiriesPage } from "./pages/AutomotiveEnquiriesPage";
 import { ElectronicsEnquiriesPage } from "./pages/ElectronicsEnquiriesPage";
+import { ReviewsPage } from "./pages/ReviewsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { VerificationPage } from "./pages/VerificationPage";
 
@@ -64,6 +66,8 @@ export default function App() {
           <Route path="roles" element={<RolesPage />} />
           <Route path="assets" element={<AssetsPage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

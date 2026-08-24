@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { EmptyList } from "../components/EmptyList";
+import { OwnerNoteField } from "../components/OwnerNoteField";
 import { PageState, Select } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import {
@@ -172,8 +173,19 @@ export function ProviderEnquiries() {
   });
 
   const updateStay = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateStayEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateStayEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["stay-enquiries"] });
       toast.success("Enquiry updated.");
@@ -181,8 +193,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateRental = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateRentalEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateRentalEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["rental-enquiries"] });
       toast.success("Enquiry updated.");
@@ -190,8 +213,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateTravel = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateTravelEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateTravelEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["travel-enquiries"] });
       toast.success("Enquiry updated.");
@@ -199,8 +233,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateEvent = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateEventEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateEventEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["event-enquiries"] });
       toast.success("Enquiry updated.");
@@ -208,8 +253,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateLogistics = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateLogisticsEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateLogisticsEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["logistics-enquiries"] });
       toast.success("Enquiry updated.");
@@ -217,8 +273,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateEducation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateEducationEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateEducationEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["education-enquiries"] });
       toast.success("Enquiry updated.");
@@ -226,8 +293,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateHealth = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateHealthEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateHealthEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["health-enquiries"] });
       toast.success("Enquiry updated.");
@@ -235,8 +313,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateProfessional = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateProfessionalEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateProfessionalEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["professional-enquiries"] });
       toast.success("Enquiry updated.");
@@ -244,8 +333,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateHomeTrade = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateHomeTradeEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateHomeTradeEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["home-trade-enquiries"] });
       toast.success("Enquiry updated.");
@@ -253,8 +353,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateAutomotive = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateAutomotiveEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateAutomotiveEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["automotive-enquiries"] });
       toast.success("Enquiry updated.");
@@ -262,8 +373,19 @@ export function ProviderEnquiries() {
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update enquiry."),
   });
   const updateElectronics = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StayEnquiryStatus }) =>
-      api.updateElectronicsEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: StayEnquiryStatus;
+      ownerNote?: string | null;
+    }) =>
+      api.updateElectronicsEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["electronics-enquiries"] });
       toast.success("Enquiry updated.");
@@ -465,6 +587,23 @@ export function ProviderEnquiries() {
                               : "Enquiries for this listing type appear here."}
       </p>
 
+      {selected?.id && hasEnquiryType ? (
+        <div className="mt-6">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-navy"
+            onClick={() =>
+              void api.exportEnquiriesCsv(selected.id).catch((error) =>
+                toast.error(error instanceof ApiError ? error.message : "Export failed"),
+              )
+            }
+          >
+            <Download className="size-4" />
+            Export CSV
+          </button>
+        </div>
+      ) : null}
+
       {!selected || !hasEnquiryType ? (
         <EmptyList
           className="mt-10"
@@ -473,7 +612,7 @@ export function ProviderEnquiries() {
         />
       ) : (
         <div className="mt-10 overflow-x-auto rounded-2xl border border-line">
-          <table className="w-full min-w-[52rem] text-left text-sm">
+          <table className="w-full min-w-[64rem] text-left text-sm">
             <thead className="border-b border-line bg-surface-low text-xs font-bold uppercase tracking-wider text-ink-soft">
               <tr>
                 <th className="px-4 py-3">Customer</th>
@@ -481,12 +620,13 @@ export function ProviderEnquiries() {
                 <th className="px-4 py-3">{thirdColumn}</th>
                 <th className="px-4 py-3">{fourthColumn}</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Internal note</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-ink-soft">
+                  <td colSpan={6} className="px-4 py-8 text-ink-soft">
                     Loading enquiries…
                   </td>
                 </tr>
@@ -522,6 +662,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateStay.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : rental && rentalItems.length ? (
@@ -552,6 +701,15 @@ export function ProviderEnquiries() {
                           </option>
                         ))}
                       </Select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateRental.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
                     </td>
                   </tr>
                 ))
@@ -591,6 +749,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateTravel.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : eventCrew && eventItems.length ? (
@@ -628,6 +795,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateEvent.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : logistics && logisticsItems.length ? (
@@ -662,6 +838,15 @@ export function ProviderEnquiries() {
                           </option>
                         ))}
                       </Select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateLogistics.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
                     </td>
                   </tr>
                 ))
@@ -700,6 +885,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateEducation.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : health && healthItems.length ? (
@@ -734,6 +928,15 @@ export function ProviderEnquiries() {
                           </option>
                         ))}
                       </Select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateHealth.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
                     </td>
                   </tr>
                 ))
@@ -770,6 +973,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateProfessional.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : homeTrade && homeTradeItems.length ? (
@@ -804,6 +1016,15 @@ export function ProviderEnquiries() {
                           </option>
                         ))}
                       </Select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateHomeTrade.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
                     </td>
                   </tr>
                 ))
@@ -840,6 +1061,15 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateAutomotive.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : electronics && electronicsItems.length ? (
@@ -875,11 +1105,20 @@ export function ProviderEnquiries() {
                         ))}
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <OwnerNoteField
+                        value={enquiry.ownerNote}
+                        onSave={async (note) => {
+                          await updateElectronics.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                          toast.success("Note saved.");
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8">
+                  <td colSpan={6} className="px-4 py-8">
                     <EmptyList
                       compact
                       title="No enquiries yet"

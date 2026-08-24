@@ -4,6 +4,8 @@ import { isEventServiceCategorySlug } from "../../shared/domain/events.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { eventEnquiriesRepository } from "./event-enquiries.repository.js";
 import type {
   CreateEventEnquiryInput,
@@ -105,6 +107,15 @@ export const eventEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "event",
+      detailLines: [`Event date: ${input.eventDate} · ${input.venue}`],
+    });
+
     return enquiry;
   },
 
@@ -136,9 +147,11 @@ export const eventEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return eventEnquiriesRepository.update(id, {
+    const updated = await eventEnquiriesRepository.update(id, {
       status: input.status as EventEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "event");
+    return updated;
   },
 };

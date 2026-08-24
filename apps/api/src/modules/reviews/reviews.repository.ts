@@ -66,4 +66,53 @@ export const reviewsRepository = {
       await recalculateListingRating(tx, businessId);
     });
   },
+
+  findByIdWithBusiness(id: string) {
+    return prisma.review.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true, slug: true } },
+      },
+    });
+  },
+
+  createReport(reviewId: string, reporterId: string | undefined, reason?: string) {
+    return prisma.reviewReport.create({
+      data: {
+        reviewId,
+        reporterId,
+        reason,
+      },
+    });
+  },
+
+  listOpenReports(page: number, pageSize: number) {
+    const where = { status: "open" };
+    return prisma.$transaction([
+      prisma.reviewReport.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          review: {
+            include: {
+              user: { select: { id: true, name: true } },
+              business: { select: { id: true, name: true, slug: true } },
+            },
+          },
+          reporter: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      prisma.reviewReport.count({ where }),
+    ]);
+  },
+
+  dismissReport(id: string) {
+    return prisma.reviewReport.update({
+      where: { id },
+      data: { status: "dismissed" },
+    });
+  },
 };

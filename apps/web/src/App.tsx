@@ -58,6 +58,14 @@ const ProviderEnquiries = lazyWithReload(
   () => import("./pages/ProviderEnquiries"),
   (module) => module.ProviderEnquiries,
 );
+const MyEnquiries = lazyWithReload(
+  () => import("./pages/MyEnquiries"),
+  (module) => module.MyEnquiries,
+);
+const EnquiryStatus = lazyWithReload(
+  () => import("./pages/EnquiryStatus"),
+  (module) => module.EnquiryStatus,
+);
 const Content = lazyWithReload(() => import("./pages/Content"), (module) => module.Content);
 
 function ScrollToTop() {
@@ -85,6 +93,8 @@ function AppRoutes() {
           <Route path="verify-email" element={<VerifyEmail />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="account" element={<Account />} />
+          <Route path="account/enquiries" element={<MyEnquiries />} />
+          <Route path="enquiry-status" element={<EnquiryStatus />} />
           <Route path="wishlist" element={<Wishlist />} />
           <Route path="list-business" element={<ListBusiness />} />
           <Route path="provider" element={<ProviderDashboard />} />

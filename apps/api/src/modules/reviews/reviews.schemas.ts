@@ -12,5 +12,10 @@ export const createReviewSchema = z.object({
   comment: z.string().trim().min(10).max(2_000),
 });
 
+export const reportReviewSchema = z.object({
+  reason: z.string().trim().min(3).max(500).optional(),
+});
+
 export type ListReviewsQuery = z.infer<typeof listReviewsSchema>;
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+export type ReportReviewInput = z.infer<typeof reportReviewSchema>;

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { EmptyList } from "../components/EmptyList";
+import { EnquiryOwnerNote } from "../components/EnquiryOwnerNote";
 import { useAuth } from "../context/auth";
 import { api, hasPermission } from "../lib/api";
 
@@ -15,7 +16,19 @@ export function StayEnquiriesPage() {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => api.updateStayEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: string;
+      ownerNote?: string | null;
+    }) =>
+      api.updateStayEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "stay-enquiries"] });
     },
@@ -40,6 +53,7 @@ export function StayEnquiriesPage() {
               <th>Dates</th>
               <th>Rooms</th>
               <th>Status</th>
+              <th>Owner note</th>
             </tr>
           </thead>
           <tbody>
@@ -84,6 +98,15 @@ export function StayEnquiriesPage() {
                   ) : (
                     enquiry.status
                   )}
+                </td>
+                <td>
+                  <EnquiryOwnerNote
+                    value={enquiry.ownerNote}
+                    canEdit={hasPermission(user, "businesses.moderate")}
+                    onSave={async (note) => {
+                      await update.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                    }}
+                  />
                 </td>
               </tr>
             ))}

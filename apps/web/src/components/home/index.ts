@@ -7,4 +7,5 @@ export { IndustryGrid } from "./IndustryGrid";
 export { PopularSearches } from "./PopularSearches";
 export { ProviderCarousel } from "./ProviderCarousel";
 export { RecommendedSection } from "./RecommendedSection";
+export { RecentlyViewedSection } from "./RecentlyViewedSection";
 export { SearchBar } from "./SearchBar";

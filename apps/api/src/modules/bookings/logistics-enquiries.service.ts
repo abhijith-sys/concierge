@@ -4,6 +4,8 @@ import { isLogisticsServiceCategorySlug } from "../../shared/domain/logistics.js
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { logisticsEnquiriesRepository } from "./logistics-enquiries.repository.js";
 import type {
   CreateLogisticsEnquiryInput,
@@ -107,6 +109,15 @@ export const logisticsEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "logistics",
+      detailLines: [`Pickup: ${input.pickupDate} · ${input.pickupLocation} → ${input.dropoffLocation}`],
+    });
+
     return enquiry;
   },
 
@@ -138,9 +149,11 @@ export const logisticsEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return logisticsEnquiriesRepository.update(id, {
+    const updated = await logisticsEnquiriesRepository.update(id, {
       status: input.status as LogisticsEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "logistics");
+    return updated;
   },
 };

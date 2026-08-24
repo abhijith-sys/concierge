@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Replace https://dialgo.in with your production site URL (VITE_SITE_URL). -->
+  <url><loc>https://dialgo.in/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://dialgo.in/listings</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://dialgo.in/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://dialgo.in/contact</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://dialgo.in/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://dialgo.in/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

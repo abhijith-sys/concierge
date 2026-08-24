@@ -4,6 +4,8 @@ import { isAutomotiveServiceCategorySlug } from "../../shared/domain/automotive.
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { automotiveEnquiriesRepository } from "./automotive-enquiries.repository.js";
 import type {
   AutomotiveEnquiryListQuery,
@@ -111,6 +113,15 @@ export const automotiveEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "automotive",
+      detailLines: [`Preferred date: ${input.preferredDate}`],
+    });
+
     return enquiry;
   },
 
@@ -142,9 +153,11 @@ export const automotiveEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return automotiveEnquiriesRepository.update(id, {
+    const updated = await automotiveEnquiriesRepository.update(id, {
       status: input.status as AutomotiveEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "automotive");
+    return updated;
   },
 };

@@ -1,18 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Check, MapPin, Star, Trash2 } from "lucide-react";
-import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { BadgeCheck, Check, Flag, MapPin, Star, Trash2 } from "lucide-react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ApprovalBanner } from "../components/ApprovalBanner";
 import { CatalogItemCard } from "../components/CatalogItemCard";
 import { EmptyList } from "../components/EmptyList";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState, Textarea } from "../components/ui";
+import { ShareProfileButtons } from "../components/ShareProfileButtons";
 import { WishlistButton } from "../components/WishlistButton";
 import { useAuth } from "../context/useAuth";
 import { api, type Listing } from "../lib/api";
 import { fieldByKey, displayValue } from "../lib/field-values";
+import { defaultPageTitle, localBusinessJsonLd, useDocumentHead } from "../components/PageHead";
 import { theme } from "../lib/theme";
-import { recordExploredCategory, recordRecentListing } from "../lib/discovery";
+import { recordExploredCategory, recordRecentBusinessView, recordRecentListing } from "../lib/discovery";
 import { isStayListing } from "../lib/stays";
 import { isRentalListing } from "../lib/rentals";
 import { isTravelListing } from "../lib/travel";
@@ -97,6 +100,49 @@ export function BusinessDetail() {
       ]);
     },
   });
+  const reportReview = useMutation({
+    mutationFn: (id: string) => api.reportReview(id, { reason: "Inappropriate or misleading content" }),
+    onSuccess: () => toast.success("Review reported. Our team will review it."),
+    onError: () => toast.error("Could not report review."),
+  });
+
+  const pageHead = useMemo(() => {
+    const profile = business.data;
+    if (!profile) {
+      return {
+        title: defaultPageTitle(),
+        description: theme.description,
+      };
+    }
+    const listing = profile.listing;
+    const locationBits = [profile.name, listing?.city, listing?.category?.name].filter(Boolean);
+    const title = defaultPageTitle(locationBits.join(" · "));
+    const description =
+      listing?.description?.trim().slice(0, 155) ||
+      `${profile.name}${listing?.city ? ` in ${listing.city}` : ""} — verified business on ${theme.name}.`;
+    return {
+      title,
+      description,
+      canonicalPath: `/business/${profile.slug}`,
+      jsonLd: localBusinessJsonLd({
+        name: profile.name,
+        slug: profile.slug,
+        description: listing?.description,
+        city: listing?.city,
+        address: listing?.address,
+        lat: listing?.lat,
+        lng: listing?.lng,
+        phone: profile.phone ?? undefined,
+        website: listing?.website,
+        image: listing?.images?.[0] ?? profile.coverUrl ?? undefined,
+        avgRating: listing?.avgRating,
+        reviewCount: listing?.reviewCount,
+        category: listing?.category?.name,
+      }),
+    };
+  }, [business.data]);
+
+  useDocumentHead(pageHead);
 
   useEffect(() => {
     const profile = business.data;
@@ -106,6 +152,7 @@ export function BusinessDetail() {
       business: profile,
       businessId: profile.id,
     });
+    recordRecentBusinessView(profile);
     if (profile.listing.category?.slug && profile.listing.category.name) {
       recordExploredCategory({
         slug: profile.listing.category.slug,
@@ -486,7 +533,8 @@ export function BusinessDetail() {
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
-        <div className="absolute right-4 top-4 z-10 flex items-center gap-2 md:right-8 md:top-6">
+        <div className="absolute right-4 top-4 z-10 flex flex-wrap items-center justify-end gap-2 md:right-8 md:top-6">
+          <ShareProfileButtons name={profile.name} slug={profile.slug} />
           <WishlistButton listingId={profile.listing?.id} />
           {canEdit ? (
             <Link
@@ -761,7 +809,17 @@ export function BusinessDetail() {
                         >
                           <Trash2 />
                         </button>
-                      ) : null}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => reportReview.mutate(review.id)}
+                          disabled={reportReview.isPending}
+                          aria-label="Report review"
+                          className="icon-button text-ink-soft hover:text-red-700 disabled:opacity-50"
+                        >
+                          <Flag className="size-4" />
+                        </button>
+                      )}
                     </div>
                     <p className="mt-4 text-sm leading-6 text-ink-soft">{review.comment}</p>
                   </article>

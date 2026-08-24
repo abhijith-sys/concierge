@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import type { SearchSuggestion } from "../lib/api";
 import {
   BecomeProviderSection,
   CategoryQuickNav,
@@ -11,11 +12,13 @@ import {
   IndustryGrid,
   ProviderCarousel,
   RecommendedSection,
+  RecentlyViewedSection,
 } from "../components/home";
 import { api } from "../lib/api";
 import { popularSubcategories } from "../lib/category-tree";
 import {
   getExploredCategories,
+  getRecentBusinessViews,
   getRecentListings,
   getSavedCity,
   getSavedCoords,
@@ -30,6 +33,7 @@ export function Home() {
   const [coords, setCoords] = useState(getSavedCoords);
   const explored = getExploredCategories();
   const recent = getRecentListings();
+  const recentBusinesses = getRecentBusinessViews();
 
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const mains = categories.data ?? [];
@@ -93,6 +97,16 @@ export function Home() {
     });
   }
 
+  function handleSuggestionSelect(suggestion: SearchSuggestion) {
+    if (suggestion.href) {
+      navigate(suggestion.href);
+      return;
+    }
+    if (suggestion.type === "query") {
+      submit(new Event("submit") as unknown as FormEvent);
+    }
+  }
+
   return (
     <>
       <HeroSection
@@ -105,8 +119,10 @@ export function Home() {
         onQueryChange={setQuery}
         onSubmit={submit}
         onUseLocation={useLocation}
+        onSuggestionSelect={handleSuggestionSelect}
       />
       <CategoryQuickNav categories={mains} loading={categories.isLoading} error={categories.isError} />
+      <RecentlyViewedSection businesses={recentBusinesses} />
       <ProviderCarousel
         title="Popular near you"
         subtitle={

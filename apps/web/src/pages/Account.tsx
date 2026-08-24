@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Mail, ShieldCheck, UserRound } from "lucide-react";
+import { Building2, Lock, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
@@ -22,6 +22,10 @@ export function Account() {
   const [phone, setPhone] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
 
   const mine = useQuery({
@@ -44,6 +48,17 @@ export function Account() {
       return api.updateMe({ avatarUrl: stored.url });
     },
     onSuccess: (next) => queryClient.setQueryData(["auth", "me"], next),
+  });
+  const changePassword = useMutation({
+    mutationFn: api.changePassword,
+    onSuccess: (next) => {
+      queryClient.setQueryData(["auth", "me"], next);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password updated.");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to change password."),
   });
 
   useEffect(() => {
@@ -205,6 +220,96 @@ export function Account() {
           ) : null}
 
           <div className="rounded-3xl border border-line p-8">
+            <h2 className="text-2xl font-semibold">Security</h2>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (newPassword !== confirmPassword) {
+                  toast.error("New passwords do not match.");
+                  return;
+                }
+                changePassword.mutate({ currentPassword, newPassword });
+              }}
+              className="mt-6 grid gap-4 md:grid-cols-2"
+            >
+              <Field label="Current password">
+                <Input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </Field>
+              <div className="hidden md:block" />
+              <Field label="New password">
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </Field>
+              <Field label="Confirm new password">
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </Field>
+              <Button
+                type="submit"
+                className="md:col-span-2"
+                disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
+              >
+                <Lock className="size-4" /> Change password
+              </Button>
+            </form>
+
+            {!user.phoneVerifiedAt && phone.trim() ? (
+              <div className="mt-8 border-t border-line pt-8">
+                <h3 className="text-lg font-semibold">Verify phone</h3>
+                <p className="mt-2 text-sm text-ink-soft">
+                  A 6-digit code will be sent to {phone.trim()}. Save your profile first if you changed your number.
+                </p>
+                <div className="mt-5 grid gap-4 md:max-w-md">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await api.requestOtp({ channel: "sms", purpose: "change", phone: phone.trim() });
+                        toast.success("Code sent to your phone.");
+                      } catch (error) {
+                        toast.error(error instanceof ApiError ? error.message : "Could not send the code.");
+                      }
+                    }}
+                  >
+                    Send SMS code
+                  </Button>
+                  <OtpInput value={phoneOtp} onChange={setPhoneOtp} />
+                  <Button
+                    type="button"
+                    disabled={phoneOtp.length !== 6}
+                    onClick={async () => {
+                      try {
+                        const next = await api.verifyOtp({ channel: "sms", purpose: "change", code: phoneOtp });
+                        queryClient.setQueryData(["auth", "me"], next);
+                        setPhoneOtp("");
+                        toast.success("Phone verified.");
+                      } catch (error) {
+                        toast.error(error instanceof ApiError ? error.message : "Invalid or expired code.");
+                      }
+                    }}
+                  >
+                    Verify phone
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-line p-8">
             <h2 className="text-2xl font-semibold">
               {mine.data?.length || isProvider(user) ? "Your businesses" : "Your activity"}
             </h2>
@@ -214,6 +319,9 @@ export function Account() {
               </Link>
               <Link to="/wishlist">
                 <Button variant="outline">Wishlist</Button>
+              </Link>
+              <Link to="/account/enquiries">
+                <Button variant="outline">My enquiries</Button>
               </Link>
               <Link to="/provider">
                 <Button>

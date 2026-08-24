@@ -28,7 +28,7 @@ services:
       API_PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-concierge}:${POSTGRES_PASSWORD:-concierge}@db:5432/${POSTGRES_DB:-concierge}?schema=public
       JWT_SECRET: ${JWT_SECRET:-dev-change-me-in-production}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:5174,http://localhost:8080,http://localhost:8081}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:5174,http://localhost:3343,http://localhost:8081}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       RUN_SEED: ${RUN_SEED:-true}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
@@ -70,7 +70,7 @@ services:
       args:
         VITE_ADMIN_URL: ${ADMIN_APP_ORIGIN:-http://localhost:8081}
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-3343}:80"
     depends_on:
       api:
         condition: service_healthy

@@ -1,6 +1,8 @@
 import { ChevronDown, MapPin } from "lucide-react";
 import type { FormEvent } from "react";
 import { twMerge } from "tailwind-merge";
+import type { SearchSuggestion } from "../lib/api";
+import { SearchAutocomplete } from "../SearchAutocomplete";
 import { Button } from "../ui";
 
 export function SearchBar({
@@ -10,6 +12,7 @@ export function SearchBar({
   onQueryChange,
   onSubmit,
   onUseLocation,
+  onSuggestionSelect,
   queryPlaceholder = "Search services, businesses or professionals...",
   className,
 }: {
@@ -19,6 +22,7 @@ export function SearchBar({
   onQueryChange: (value: string) => void;
   onSubmit: (event: FormEvent) => void;
   onUseLocation?: () => void;
+  onSuggestionSelect?: (suggestion: SearchSuggestion) => void;
   queryPlaceholder?: string;
   className?: string;
 }) {
@@ -51,12 +55,22 @@ export function SearchBar({
       </label>
       <label className="flex flex-1 items-center gap-3 border-t border-line px-4 md:border-l md:border-t-0">
         <span className="sr-only">{queryPlaceholder}</span>
-        <input
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          className="h-11 w-full bg-transparent text-sm outline-none"
-          placeholder={queryPlaceholder}
-        />
+        {onSuggestionSelect ? (
+          <SearchAutocomplete
+            value={query}
+            onChange={onQueryChange}
+            city={city}
+            placeholder={queryPlaceholder}
+            onSelect={onSuggestionSelect}
+          />
+        ) : (
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            className="h-11 w-full bg-transparent text-sm outline-none"
+            placeholder={queryPlaceholder}
+          />
+        )}
       </label>
       <Button type="submit" variant="gold" className="w-full px-7 md:w-auto">
         Search

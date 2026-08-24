@@ -4,6 +4,8 @@ import { isHealthServiceCategorySlug } from "../../shared/domain/health.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { healthEnquiriesRepository } from "./health-enquiries.repository.js";
 import type {
   CreateHealthEnquiryInput,
@@ -105,6 +107,15 @@ export const healthEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "health",
+      detailLines: [`Appointment: ${input.appointmentDate}`],
+    });
+
     return enquiry;
   },
 
@@ -136,9 +147,11 @@ export const healthEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return healthEnquiriesRepository.update(id, {
+    const updated = await healthEnquiriesRepository.update(id, {
       status: input.status as HealthEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "health");
+    return updated;
   },
 };

@@ -3,7 +3,7 @@ import { assertCanViewBusiness, type AuthUser } from "../../shared/domain/busine
 import { ApiError } from "../../shared/errors/index.js";
 import { paginate } from "../../shared/utils/index.js";
 import { reviewsRepository } from "./reviews.repository.js";
-import type { CreateReviewInput, ListReviewsQuery } from "./reviews.schemas.js";
+import type { CreateReviewInput, ListReviewsQuery, ReportReviewInput } from "./reviews.schemas.js";
 
 export const reviewsService = {
   async list(query: ListReviewsQuery, user?: AuthUser) {
@@ -51,5 +51,29 @@ export const reviewsService = {
       );
     }
     await reviewsRepository.deleteWithAggregate(id, review.businessId);
+  },
+
+  async report(id: string, input: ReportReviewInput, user?: AuthUser) {
+    const review = await reviewsRepository.findById(id);
+    if (!review) {
+      throw new ApiError(404, "REVIEW_NOT_FOUND", "Review not found");
+    }
+    return reviewsRepository.createReport(id, user?.id, input.reason);
+  },
+
+  async listReported(page: number, pageSize: number) {
+    const [items, total] = await reviewsRepository.listOpenReports(page, pageSize);
+    return {
+      items,
+      pagination: paginate(total, page, pageSize),
+    };
+  },
+
+  async dismissReport(reportId: string) {
+    try {
+      return await reviewsRepository.dismissReport(reportId);
+    } catch {
+      throw new ApiError(404, "REPORT_NOT_FOUND", "Report not found");
+    }
   },
 };

@@ -2,6 +2,7 @@ import type { Category, Listing } from "./api";
 
 const CITY_KEY = "concierge_city";
 const VIEWED_KEY = "concierge_recent_listings";
+const VIEWED_BUSINESSES_KEY = "concierge_recent_businesses";
 const EXPLORED_KEY = "concierge_explored_categories";
 const COORDS_KEY = "concierge_coords";
 
@@ -65,6 +66,38 @@ export function getRecentListings(): Listing[] {
 export function recordRecentListing(listing: Listing) {
   const next = [listing, ...getRecentListings().filter((item) => item.id !== listing.id)].slice(0, 8);
   writeJson(VIEWED_KEY, next);
+}
+
+export type RecentBusinessView = {
+  slug: string;
+  name: string;
+  coverUrl?: string | null;
+  city?: string;
+  listingId?: string;
+};
+
+export function getRecentBusinessViews(): RecentBusinessView[] {
+  return readJson<RecentBusinessView[]>(VIEWED_BUSINESSES_KEY, []).filter((item) => item?.slug && item?.name);
+}
+
+export function recordRecentBusinessView(business: {
+  slug: string;
+  name: string;
+  coverUrl?: string | null;
+  listing?: { id?: string; city?: string };
+}) {
+  const entry: RecentBusinessView = {
+    slug: business.slug,
+    name: business.name,
+    coverUrl: business.coverUrl,
+    city: business.listing?.city,
+    listingId: business.listing?.id,
+  };
+  const next = [
+    entry,
+    ...getRecentBusinessViews().filter((item) => item.slug !== business.slug),
+  ].slice(0, 10);
+  writeJson(VIEWED_BUSINESSES_KEY, next);
 }
 
 export function getExploredCategories(): Array<Pick<Category, "name" | "slug">> {

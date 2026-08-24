@@ -66,6 +66,12 @@ export function AdminLayout() {
           {hasPermission(user, "assets.read_private") || hasPermission(user, "businesses.read") ? (
             <NavLink to="/assets">Assets</NavLink>
           ) : null}
+          {hasPermission(user, "reviews.moderate") ? <NavLink to="/reviews">Reviews</NavLink> : null}
+          {hasPermission(user, "settings.write") ||
+          hasPermission(user, "audit.read") ||
+          hasPermission(user, "businesses.read") ? (
+            <NavLink to="/settings">Settings</NavLink>
+          ) : null}
           {hasPermission(user, "audit.read") ? <NavLink to="/audit">Audit</NavLink> : null}
         </NavGroup>
         <div style={{ flex: 1 }} />

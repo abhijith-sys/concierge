@@ -1,16 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { LayoutGrid, Map, Search, SlidersHorizontal } from "lucide-react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { EmptyList } from "../components/EmptyList";
 import { SearchBar } from "../components/home/SearchBar";
 import { ListingCard } from "../components/ListingCard";
+import { defaultPageTitle, PageHead } from "../components/PageHead";
 import { SafeImage } from "../components/SafeImage";
+import { SearchAutocomplete } from "../components/SearchAutocomplete";
 import { Button, Input, PageState, Select } from "../components/ui";
-import { api } from "../lib/api";
+import { api, type SearchSuggestion } from "../lib/api";
+import { lazyWithReload } from "../lib/lazyWithReload";
 import { theme } from "../lib/theme";
 import { iconForCategory } from "../lib/category-icon";
-import { recordExploredCategory, setSavedCity, setSavedCoords } from "../lib/discovery";
+import { recordExploredCategory, setSavedCity, setSavedCoords, getExploredCategories } from "../lib/discovery";
 import { isStayCategory } from "../lib/stays";
 import { isRentalCategory } from "../lib/rentals";
 import { isTravelCategory } from "../lib/travel";
@@ -29,6 +32,7 @@ import {
   type MarketplaceKind,
 } from "../lib/listing-kind";
 
+const SearchResultsMap = lazyWithReload(() => import("../components/SearchResultsMap"), (module) => module.default);
 const heroImage = theme.assets.banner;
 
 export function Listings() {
@@ -76,6 +80,7 @@ export function Listings() {
     leafKind ?? (mixedMain ? (serviceFirstRoot ? "service" : "supplier") : mainKind) ?? "supplier";
   const selectedKind = leafKind ?? (params.get("kind") as MarketplaceKind | null) ?? defaultKind;
   const showKindTabs = Boolean(mixedMain || !categorySlug);
+  const mapView = params.get("view") === "map";
   requestParams.set("kind", selectedKind);
 
   if (categorySlug) {
@@ -263,8 +268,71 @@ export function Listings() {
     setParams(next);
   }
 
+  function setResultsView(view: "list" | "map") {
+    updateParam("view", view === "map" ? "map" : "");
+  }
+
+  function handleSuggestionSelect(suggestion: SearchSuggestion) {
+    if (suggestion.type === "query" && suggestion.href) {
+      const url = new URL(suggestion.href, window.location.origin);
+      const next = new URLSearchParams(params);
+      const q = url.searchParams.get("q");
+      if (q) {
+        next.set("q", q);
+        setQuery(q);
+      }
+      const suggestCity = url.searchParams.get("city");
+      if (suggestCity) {
+        next.set("city", suggestCity);
+        setCity(suggestCity);
+      }
+      next.delete("page");
+      setParams(next);
+      return;
+    }
+    if (suggestion.href) navigate(suggestion.href);
+  }
+
+  const seo = useMemo(() => {
+    const searchQ = params.get("q")?.trim();
+    const categoryName = category.data?.name;
+    if (searchQ) {
+      const cityLabel = params.get("city")?.trim();
+      const title = cityLabel
+        ? `"${searchQ}" in ${cityLabel}`
+        : `"${searchQ}" search results`;
+      return {
+        title: defaultPageTitle(title),
+        description: cityLabel
+          ? `Find ${searchQ} businesses and services in ${cityLabel} on DialGo.`
+          : `Search results for ${searchQ} on DialGo — verified businesses and services.`,
+        canonicalPath: categorySlug
+          ? `/listings/${categorySlug}?${params.toString()}`
+          : `/listings?${params.toString()}`,
+      };
+    }
+    if (categoryName) {
+      return {
+        title: defaultPageTitle(`${categoryName} listings`),
+        description: category.data?.description?.trim() ||
+          `Browse ${categoryName} businesses and services on DialGo.`,
+        canonicalPath: `/listings/${categorySlug}`,
+      };
+    }
+    return {
+      title: defaultPageTitle("Browse listings"),
+      description: "Search and browse verified businesses, shops, and service professionals on DialGo.",
+      canonicalPath: "/listings",
+    };
+  }, [params, category.data, categorySlug]);
+
   return (
     <div className="page-shell py-10">
+      <PageHead
+        title={seo.title}
+        description={seo.description}
+        canonicalPath={seo.canonicalPath}
+      />
       {showKindTabs ? (
         <div className="mb-6 flex justify-center">
           <div
@@ -411,6 +479,7 @@ export function Listings() {
               onQueryChange={setQuery}
               onSubmit={submit}
               onUseLocation={useLocation}
+              onSuggestionSelect={handleSuggestionSelect}
               queryPlaceholder={
                 stayView
                   ? "Search hotels, resorts, or homestays"
@@ -439,8 +508,15 @@ export function Listings() {
           ) : (
             <form onSubmit={submit} className="mt-4 flex rounded-xl bg-white p-1.5">
               <label className="flex flex-1 items-center gap-2 px-3 text-black">
-                <Search className="size-5" /><span className="sr-only">Search listings</span>
-                <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-11 w-full bg-transparent text-sm outline-none" placeholder={tradesView ? "Search technicians or services" : "Search shops or items"} />
+                <Search className="size-5 shrink-0" /><span className="sr-only">Search listings</span>
+                <SearchAutocomplete
+                  value={query}
+                  onChange={setQuery}
+                  city={city}
+                  placeholder={tradesView ? "Search technicians or services" : "Search shops or items"}
+                  onSelect={handleSuggestionSelect}
+                  inputClassName="text-black"
+                />
               </label>
               <Button type="submit">Search</Button>
             </form>
@@ -480,6 +556,13 @@ export function Listings() {
               <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">City
                 <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Any city" className="bg-white normal-case tracking-normal" />
               </label>
+              <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">Sort by
+                <Select value={params.get("sort") ?? "relevance"} onChange={(event) => updateParam("sort", event.target.value === "relevance" ? "" : event.target.value)} className="normal-case tracking-normal">
+                  <option value="relevance">Relevance</option>
+                  <option value="rating">Highest rated</option>
+                  <option value="distance" disabled={!params.get("lat") || !params.get("lng")}>Nearest</option>
+                </Select>
+              </label>
               <label className="grid gap-2 text-xs font-bold uppercase tracking-wider">Minimum rating
                 <Select value={params.get("rating") ?? ""} onChange={(event) => updateParam("rating", event.target.value)} className="normal-case tracking-normal">
                   <option value="">Any rating</option><option value="4">4.0+</option><option value="4.5">4.5+</option><option value="4.8">4.8+</option>
@@ -488,6 +571,10 @@ export function Listings() {
               <label className="flex cursor-pointer items-center gap-3 text-sm">
                 <input type="checkbox" checked={params.get("open") === "true"} onChange={(event) => updateParam("open", event.target.checked ? "true" : "")} className="size-5 accent-black" />
                 Open now
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 text-sm">
+                <input type="checkbox" checked={params.get("verified") === "true"} onChange={(event) => updateParam("verified", event.target.checked ? "true" : "")} className="size-5 accent-black" />
+                Verified only
               </label>
               <Button
                 variant="outline"
@@ -529,7 +616,7 @@ export function Listings() {
         </aside>
 
         <section>
-          <div className="mb-6 flex items-end justify-between gap-4">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="label-caps text-gold-dark">
                 {stayView
@@ -586,14 +673,82 @@ export function Listings() {
                                   : "Shops & sellers"}
               </h2>
             </div>
-            {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
+            <div className="flex items-center gap-3">
+              <div className="inline-flex rounded-xl border border-line bg-white p-1" role="group" aria-label="Results view">
+                <button
+                  type="button"
+                  aria-pressed={!mapView}
+                  onClick={() => setResultsView("list")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    !mapView ? "bg-navy text-white" : "text-ink-soft hover:text-navy"
+                  }`}
+                >
+                  <LayoutGrid className="size-4" aria-hidden="true" />
+                  List
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={mapView}
+                  onClick={() => setResultsView("map")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    mapView ? "bg-navy text-white" : "text-ink-soft hover:text-navy"
+                  }`}
+                >
+                  <Map className="size-4" aria-hidden="true" />
+                  Map
+                </button>
+              </div>
+              {results.data ? <p className="text-sm text-ink-soft">{results.data.total} results</p> : null}
+            </div>
           </div>
           {results.isLoading ? (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <div key={index} className="h-72 animate-pulse rounded-2xl bg-surface-high" />)}</div>
           ) : results.isError ? (
             <PageState title="We couldn't load listings" description="Check that the API is running, then try again." action={<Button onClick={() => void results.refetch()}>Try again</Button>} />
           ) : results.data?.items.length === 0 ? (
-            <EmptyList title="No matches yet" description="Try broadening your filters or searching another city." action={<Button onClick={() => setParams(new URLSearchParams())}>Clear filters</Button>} />
+            <div className="rounded-2xl border border-line bg-surface-low p-8">
+              <EmptyList
+                title="No matches yet"
+                description={
+                  params.get("city")
+                    ? `Nothing found in ${params.get("city")}. Try another city or remove filters.`
+                    : "Try broadening your search or exploring a category below."
+                }
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button onClick={() => setParams(new URLSearchParams())}>Clear all filters</Button>
+                    {params.get("city") ? (
+                      <Button variant="outline" onClick={() => updateParam("city", "")}>
+                        Search any city
+                      </Button>
+                    ) : null}
+                  </div>
+                }
+              />
+              {(getExploredCategories().length || categories.data?.length) ? (
+                <div className="mt-8 border-t border-line pt-6">
+                  <p className="text-center text-sm font-semibold text-navy">Try these categories</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {(getExploredCategories().length
+                      ? getExploredCategories()
+                      : (categories.data ?? []).slice(0, 6).map((main) => ({ slug: main.slug, name: main.name }))
+                    ).slice(0, 6).map((category) => (
+                      <Link
+                        key={category.slug}
+                        to={listingsPath(category.slug)}
+                        className="rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-navy transition hover:border-navy"
+                      >
+                        {category.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : mapView ? (
+            <Suspense fallback={<div className="h-[28rem] animate-pulse rounded-2xl bg-surface-high" />}>
+              <SearchResultsMap items={results.data?.items ?? []} />
+            </Suspense>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">

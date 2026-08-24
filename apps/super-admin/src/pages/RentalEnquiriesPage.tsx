@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { EmptyList } from "../components/EmptyList";
+import { EnquiryOwnerNote } from "../components/EnquiryOwnerNote";
 import { useAuth } from "../context/auth";
 import { api, hasPermission } from "../lib/api";
 
@@ -15,7 +16,19 @@ export function RentalEnquiriesPage() {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => api.updateRentalEnquiry(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      ownerNote,
+    }: {
+      id: string;
+      status?: string;
+      ownerNote?: string | null;
+    }) =>
+      api.updateRentalEnquiry(id, {
+        ...(status !== undefined ? { status } : {}),
+        ...(ownerNote !== undefined ? { ownerNote } : {}),
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "rental-enquiries"] });
     },
@@ -40,6 +53,7 @@ export function RentalEnquiriesPage() {
               <th>Dates</th>
               <th>Items</th>
               <th>Status</th>
+              <th>Owner note</th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +95,15 @@ export function RentalEnquiriesPage() {
                   ) : (
                     enquiry.status
                   )}
+                </td>
+                <td>
+                  <EnquiryOwnerNote
+                    value={enquiry.ownerNote}
+                    canEdit={hasPermission(user, "businesses.moderate")}
+                    onSave={async (note) => {
+                      await update.mutateAsync({ id: enquiry.id, ownerNote: note || null });
+                    }}
+                  />
                 </td>
               </tr>
             ))}

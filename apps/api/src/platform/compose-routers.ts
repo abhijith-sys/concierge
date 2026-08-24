@@ -24,6 +24,7 @@ import {
   stayEnquiriesRouter,
   travelEnquiriesRouter,
 } from "../modules/bookings/index.js";
+import { enquiriesMineRouter } from "../modules/bookings/enquiries-mine.routes.js";
 
 /**
  * Mounts active domain routers under /api.
@@ -51,6 +52,7 @@ export function composeApiRouter() {
   apiRouter.use("/home-trade-enquiries", homeTradeEnquiriesRouter);
   apiRouter.use("/automotive-enquiries", automotiveEnquiriesRouter);
   apiRouter.use("/electronics-enquiries", electronicsEnquiriesRouter);
+  apiRouter.use("/enquiries", enquiriesMineRouter);
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/verification", verificationRouter);
   apiRouter.use("/uploads", uploadsRouter);

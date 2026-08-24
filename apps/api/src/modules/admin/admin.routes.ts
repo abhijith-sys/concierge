@@ -21,6 +21,7 @@ import {
   adminUserPatchSchema,
 } from "./admin.schemas.js";
 import { adminService } from "./admin.service.js";
+import { reviewsService } from "../reviews/reviews.service.js";
 
 export const adminRouter = Router();
 
@@ -341,6 +342,41 @@ adminRouter.get(
   requireAnyPermission(PERMISSIONS.SETTINGS_WRITE, PERMISSIONS.AUDIT_READ, PERMISSIONS.BUSINESSES_READ),
   async (_req, res) => {
     res.json({ settings: adminService.settings() });
+  },
+);
+
+adminRouter.get(
+  "/review-reports",
+  requirePermission(PERMISSIONS.REVIEWS_MODERATE),
+  async (req, res) => {
+    const query = z
+      .object({
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(50).default(20),
+      })
+      .parse(req.query);
+    const result = await reviewsService.listReported(query.page, query.pageSize);
+    res.json(result);
+  },
+);
+
+adminRouter.patch(
+  "/review-reports/:id",
+  requirePermission(PERMISSIONS.REVIEWS_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const report = await reviewsService.dismissReport(id);
+    res.json({ report });
+  },
+);
+
+adminRouter.delete(
+  "/reviews/:id",
+  requirePermission(PERMISSIONS.REVIEWS_MODERATE),
+  async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    await reviewsService.remove(id, req.user!);
+    res.status(204).send();
   },
 );
 adminRouter.get("/users", requirePermission(PERMISSIONS.USERS_READ), async (req, res) => {

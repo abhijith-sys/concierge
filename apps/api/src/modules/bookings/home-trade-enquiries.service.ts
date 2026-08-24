@@ -4,6 +4,8 @@ import { isHomeServiceCategorySlug } from "../../shared/domain/home.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { homeTradeEnquiriesRepository } from "./home-trade-enquiries.repository.js";
 import type {
   CreateHomeTradeEnquiryInput,
@@ -107,6 +109,15 @@ export const homeTradeEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "home trade",
+      detailLines: [`Preferred date: ${input.preferredDate} · ${input.jobLocation}`],
+    });
+
     return enquiry;
   },
 
@@ -138,9 +149,11 @@ export const homeTradeEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return homeTradeEnquiriesRepository.update(id, {
+    const updated = await homeTradeEnquiriesRepository.update(id, {
       status: input.status as HomeTradeEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "home trade");
+    return updated;
   },
 };

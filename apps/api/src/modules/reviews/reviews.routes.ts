@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../shared/auth/index.js";
-import { createReviewSchema, listReviewsSchema } from "./reviews.schemas.js";
+import { createReviewSchema, listReviewsSchema, reportReviewSchema } from "./reviews.schemas.js";
 import { reviewsService } from "./reviews.service.js";
 
 export const reviewsRouter = Router();
@@ -22,4 +22,11 @@ reviewsRouter.delete("/:id", requireAuth, async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   await reviewsService.remove(id, req.user!);
   res.status(204).send();
+});
+
+reviewsRouter.post("/:id/report", async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const data = reportReviewSchema.parse(req.body ?? {});
+  const report = await reviewsService.report(id, data, req.user);
+  res.status(201).json({ report });
 });

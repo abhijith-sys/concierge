@@ -4,6 +4,8 @@ import { isEducationServiceCategorySlug } from "../../shared/domain/education.js
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { educationEnquiriesRepository } from "./education-enquiries.repository.js";
 import type {
   CreateEducationEnquiryInput,
@@ -105,6 +107,15 @@ export const educationEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "education",
+      detailLines: [`Start date: ${input.startDate}`],
+    });
+
     return enquiry;
   },
 
@@ -136,9 +147,11 @@ export const educationEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return educationEnquiriesRepository.update(id, {
+    const updated = await educationEnquiriesRepository.update(id, {
       status: input.status as EducationEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "education");
+    return updated;
   },
 };

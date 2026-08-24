@@ -4,6 +4,8 @@ import { isStayCategorySlug } from "../../shared/domain/stays.js";
 import { EmailService } from "../../shared/integrations/email.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
 import { brand } from "../../shared/brand.js";
+import { sendGuestEnquiryConfirmation } from "./enquiry-notifications.js";
+import { notifyGuestIfStatusChanged } from "./enquiry-status-notify.js";
 import { stayEnquiriesRepository } from "./stay-enquiries.repository.js";
 import type {
   CreateStayEnquiryInput,
@@ -116,6 +118,15 @@ export const stayEnquiriesService = {
       // Enquiry is already stored; email is best-effort.
     }
 
+    await sendGuestEnquiryConfirmation({
+      guestEmail: input.guestEmail,
+      guestName: input.guestName,
+      businessName: business.name,
+      enquiryId: enquiry.id,
+      verticalLabel: "stay",
+      detailLines: [`Dates: ${input.checkIn} → ${input.checkOut}`],
+    });
+
     return enquiry;
   },
 
@@ -147,9 +158,11 @@ export const stayEnquiriesService = {
     if (!canManage(existing, user)) {
       throw new ApiError(403, "FORBIDDEN", "You cannot update this enquiry");
     }
-    return stayEnquiriesRepository.update(id, {
+    const updated = await stayEnquiriesRepository.update(id, {
       status: input.status as StayEnquiryStatus | undefined,
       ownerNote: input.ownerNote,
     });
+    await notifyGuestIfStatusChanged(existing, input.status, "stay");
+    return updated;
   },
 };

@@ -255,6 +255,30 @@ export const api = {
     }>("/api/admin/settings");
     return value.settings;
   },
+  reviewReports: async () => {
+    const value = await request<{
+      items: Array<{
+        id: string;
+        reason?: string | null;
+        createdAt: string;
+        review: {
+          id: string;
+          rating: number;
+          comment: string;
+          user: { id: string; name: string };
+          business: { id: string; name: string; slug: string };
+        };
+      }>;
+    }>("/api/admin/review-reports");
+    return value;
+  },
+  dismissReviewReport: (id: string) =>
+    request(`/api/admin/review-reports/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: "{}",
+    }),
+  adminRemoveReview: (id: string) =>
+    request<void>(`/api/admin/reviews/${encodeURIComponent(id)}`, { method: "DELETE" }),
   businesses: (params: URLSearchParams) =>
     request<{ items: Business[]; pagination: { total: number } }>(
       `/api/admin/businesses?${params.toString()}`,

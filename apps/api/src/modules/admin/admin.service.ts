@@ -7,6 +7,10 @@ import { getEnv } from "../../config/env.js";
 import { prisma } from "../../shared/db/prisma.js";
 import { paginate } from "../../shared/utils/index.js";
 import { urlForStorageKey } from "../assets/assets.repository.js";
+import {
+  notifyBusinessOwnerStatus,
+  notifyServiceApproval,
+} from "../bookings/enquiry-notifications.js";
 import { adminRepository } from "./admin.repository.js";
 import type { z } from "zod";
 import type {
@@ -101,6 +105,9 @@ export const adminService = {
     ctx: { actorId: string; ip?: string; requestId?: string },
     reason?: string,
   ) {
+    const existing = await adminRepository.getById(id);
+    if (!existing) throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
+
     const business = await adminRepository.update(id, {
       status,
       rejectionReason: status === BusinessStatus.rejected ? reason ?? null : status === BusinessStatus.active ? null : undefined,
@@ -114,6 +121,32 @@ export const adminService = {
       ip: ctx.ip,
       requestId: ctx.requestId,
     });
+
+    const ownerEmail = existing.owner?.email;
+    if (ownerEmail) {
+      if (status === BusinessStatus.active) {
+        await notifyBusinessOwnerStatus({
+          ownerEmail,
+          businessName: existing.name,
+          status: "active",
+        });
+      } else if (status === BusinessStatus.rejected) {
+        await notifyBusinessOwnerStatus({
+          ownerEmail,
+          businessName: existing.name,
+          status: "rejected",
+          reason,
+        });
+      } else if (status === BusinessStatus.suspended) {
+        await notifyBusinessOwnerStatus({
+          ownerEmail,
+          businessName: existing.name,
+          status: "suspended",
+          reason,
+        });
+      }
+    }
+
     return business;
   },
 
@@ -317,6 +350,18 @@ export const adminService = {
       ip: ctx.ip,
       requestId: ctx.requestId,
     });
+
+    const ownerEmail = existing.business?.owner?.email;
+    if (ownerEmail && (approvalStatus === ServiceApprovalStatus.approved || approvalStatus === ServiceApprovalStatus.rejected)) {
+      await notifyServiceApproval({
+        ownerEmail,
+        serviceName: existing.name,
+        businessName: existing.business?.name ?? "your business",
+        approvalStatus: approvalStatus === ServiceApprovalStatus.approved ? "approved" : "rejected",
+        reason,
+      });
+    }
+
     return listing;
   },
 

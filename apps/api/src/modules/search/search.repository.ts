@@ -28,6 +28,7 @@ function buildWhere(query: SearchQuery): Prisma.BusinessWhereInput {
 
   const filters: Prisma.BusinessWhereInput[] = [
     { status: "active" },
+    ...(query.verified ? [{ verified: true }] : []),
     {
       listing: {
         ...(query.city ? { city: { equals: query.city, mode: "insensitive" } } : {}),
@@ -101,11 +102,16 @@ export const searchRepository = {
   buildWhere,
   orderBy,
 
-  findMany(where: Prisma.BusinessWhereInput, skip: number, take: number) {
+  findMany(
+    where: Prisma.BusinessWhereInput,
+    skip: number,
+    take: number,
+    customOrderBy: Prisma.BusinessOrderByWithRelationInput[] = orderBy,
+  ) {
     return prisma.business.findMany({
       where,
       include: listingInclude,
-      orderBy,
+      orderBy: customOrderBy,
       skip,
       take,
     });
@@ -120,6 +126,50 @@ export const searchRepository = {
       where,
       include: listingInclude,
       orderBy,
+    });
+  },
+
+  suggestBusinesses(term: string, city: string | undefined, take: number) {
+    return prisma.business.findMany({
+      where: {
+        status: "active",
+        name: { contains: term, mode: "insensitive" },
+        ...(city
+          ? { listing: { is: { city: { equals: city, mode: "insensitive" } } } }
+          : {}),
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: "asc" },
+      take,
+    });
+  },
+
+  suggestListingTitles(term: string, city: string | undefined, take: number) {
+    return prisma.listing.findMany({
+      where: {
+        title: { contains: term, mode: "insensitive" },
+        business: { status: "active" },
+        ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        business: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { title: "asc" },
+      take,
+    });
+  },
+
+  suggestCategories(term: string, take: number) {
+    return prisma.category.findMany({
+      where: {
+        isActive: true,
+        name: { contains: term, mode: "insensitive" },
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      take,
     });
   },
 };

@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import type { Category } from "../../lib/api";
+import type { Category, SearchSuggestion } from "../../lib/api";
 import { theme } from "../../lib/theme";
 import { SafeImage } from "../SafeImage";
 import { ThemeBackdrop } from "../ThemeBackdrop";
@@ -24,6 +24,7 @@ export function HeroSection({
   onQueryChange,
   onSubmit,
   onUseLocation,
+  onSuggestionSelect,
 }: {
   city: string;
   query: string;
@@ -34,6 +35,7 @@ export function HeroSection({
   onQueryChange: (value: string) => void;
   onSubmit: (event: FormEvent) => void;
   onUseLocation?: () => void;
+  onSuggestionSelect?: (suggestion: SearchSuggestion) => void;
 }) {
   const heroTiles = categories.slice(0, 4);
 
@@ -55,6 +57,7 @@ export function HeroSection({
             onQueryChange={onQueryChange}
             onSubmit={onSubmit}
             onUseLocation={onUseLocation}
+            onSuggestionSelect={onSuggestionSelect}
           />
           <PopularSearches categories={popularSearches} />
         </div>

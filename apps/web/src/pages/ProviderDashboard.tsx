@@ -69,7 +69,10 @@ export function ProviderDashboard() {
       ))}
       {rejected.map((business) => (
         <ApprovalBanner key={business.id} tone="rejected" title={`${business.name} was not approved`}>
-          {business.rejectionReason || "Update your profile and wait for another review."}
+          <p>{business.rejectionReason || "Update your profile and wait for another review."}</p>
+          <Link to={`/business/${business.slug}/edit`} className="mt-2 inline-flex font-semibold underline">
+            Edit profile and resubmit
+          </Link>
         </ApprovalBanner>
       ))}
 

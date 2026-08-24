@@ -213,6 +213,7 @@ export interface Listing {
   lat?: number;
   lng?: number;
   hours?: Record<string, [string, string] | null>;
+  openNow?: boolean;
   images: string[];
   website?: string;
   avgRating: number;
@@ -230,6 +231,18 @@ export interface SearchResult {
   total: number;
   page: number;
   pages: number;
+}
+
+export interface SearchSuggestion {
+  type: "business" | "category" | "query";
+  label: string;
+  slug?: string;
+  id?: string;
+  href?: string;
+}
+
+export interface SearchSuggestResult {
+  suggestions: SearchSuggestion[];
 }
 
 export interface WishlistItem {
@@ -535,6 +548,37 @@ export interface ElectronicsEnquiry {
   listing?: Pick<Listing, "id" | "title" | "city">;
 }
 
+export type MineEnquiryVertical =
+  | "stay"
+  | "rental"
+  | "travel"
+  | "event"
+  | "logistics"
+  | "education"
+  | "health"
+  | "professional"
+  | "home_trade"
+  | "automotive"
+  | "electronics";
+
+export interface GuestEnquiryLookupItem {
+  id: string;
+  vertical: string;
+  status: string;
+  createdAt: string;
+  business: Pick<Business, "id" | "name" | "slug">;
+  summary: string;
+}
+
+export interface MineEnquiry {
+  id: string;
+  vertical: MineEnquiryVertical;
+  status: string;
+  createdAt: string;
+  summary: string;
+  business: Pick<Business, "id" | "name" | "slug"> | null;
+}
+
 export interface VerificationSubmission {
   id: string;
   businessId: string;
@@ -718,6 +762,29 @@ export const api = {
     });
     return value.user;
   },
+  myEnquiries: (params?: URLSearchParams) =>
+    request<{ items: MineEnquiry[]; pagination: { total: number; page: number; pageSize: number; totalPages: number } }>(
+      `/api/enquiries/mine${params ? `?${params.toString()}` : ""}`,
+    ),
+  lookupGuestEnquiries: (params: URLSearchParams) =>
+    request<{ items: GuestEnquiryLookupItem[] }>(`/api/enquiries/lookup?${params.toString()}`),
+  exportEnquiriesCsv: async (businessId: string) => {
+    const response = await fetch(
+      `/api/enquiries/export?businessId=${encodeURIComponent(businessId)}&format=csv`,
+      { credentials: "include" },
+    );
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new ApiError(response.status, "EXPORT_FAILED", body?.message ?? "Export failed");
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `enquiries-${businessId}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  },
   login: async (input: { email: string; password: string }) => {
     const value = await request<{ user: User }>("/api/auth/login", {
       method: "POST",
@@ -813,7 +880,7 @@ export const api = {
       return { items: value as Listing[], total: value.length, page: 1, pages: 1 };
     }
     const record = value as Record<string, unknown>;
-    const rawItems = unwrapArray<Business & { distanceKm?: number }>(value, [
+    const rawItems = unwrapArray<Business & { distanceKm?: number; listing?: Listing & { openNow?: boolean } }>(value, [
       "items",
       "results",
       "businesses",
@@ -828,6 +895,7 @@ export const api = {
         avgRating: 0,
         reviewCount: 0,
       }),
+      openNow: business.listing?.openNow,
       business,
       businessId: business.id,
       distanceKm: typeof business.distanceKm === "number" ? business.distanceKm : undefined,
@@ -839,6 +907,11 @@ export const api = {
       page: Number(record.page ?? pagination.page ?? 1),
       pages: Number(record.pages ?? pagination.pages ?? pagination.totalPages ?? 1),
     };
+  },
+  searchSuggest: async (q: string, city?: string, limit = 8): Promise<SearchSuggestResult> => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    if (city?.trim()) params.set("city", city.trim());
+    return request<SearchSuggestResult>(`/api/search/suggest?${params.toString()}`);
   },
   business: async (slug: string): Promise<Business> => {
     const value = await request<Business | { business: Business }>(
@@ -963,6 +1036,11 @@ export const api = {
   },
   deleteReview: (id: string) =>
     request<void>(`/api/reviews/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  reportReview: (id: string, input?: { reason?: string }) =>
+    request<{ report: { id: string } }>(`/api/reviews/${encodeURIComponent(id)}/report`, {
+      method: "POST",
+      body: JSON.stringify(input ?? {}),
+    }),
   createBusiness: async (input: Record<string, unknown>) => {
     const value = await request<{ business: Business; user?: User }>("/api/businesses", {
       method: "POST",

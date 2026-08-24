@@ -1,0 +1,30 @@
+---
+description: Require docs/FUNCTIONAL_FLOW.md updates when adding or changing user-facing flows
+alwaysApply: true
+---
+
+# Update FUNCTIONAL_FLOW.md for every feature
+
+When adding or changing a **user-facing flow**, **API endpoint**, or **module**, update [`docs/FUNCTIONAL_FLOW.md`](../../docs/FUNCTIONAL_FLOW.md) in the same change.
+
+## Required updates
+
+1. **Sections 1–3** — Add or revise the numbered flow (steps: Page → action → API → DB → outcome). Tag status: ✅ complete, ⚠️ partial, ❌ missing, ⏭️ deferred/skipped.
+2. **Section 7** — Mark the module item (e.g. `A-M6`) in the completion tables with the correct icon.
+3. **Section 5** — Update the gap matrix row when a layer (Web UI, API, DB, Admin UI, Notify) changes.
+4. **Section 8** — Append an implementation-log entry with date and touched files.
+
+## Status icons (use consistently)
+
+| Icon | Meaning |
+|------|---------|
+| ✅ | Complete end-to-end |
+| ⚠️ | Partial / stubbed |
+| ❌ | Missing |
+| ⏭️ | Deferred or explicitly skipped |
+
+## Example (Section 8 log row)
+
+`| A-M6 | Share / deep link on business profile | \`BusinessDetail.tsx\` — copy link + WhatsApp |`
+
+Do not ship new routes, pages, or modules without updating this doc.
