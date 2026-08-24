@@ -11,7 +11,7 @@ import {
   normalizeAndValidateFieldValues,
   serializeFieldValue,
 } from "../../shared/domain/category-fields.js";
-import { ApiError } from "../../shared/errors/index.js";
+import { writeAuditLog } from "../../shared/logging/audit.js";
 import { formSchemaVersion } from "../../shared/domain/composed-forms.js";
 import { slugify } from "../../shared/utils/index.js";
 import { assetsService } from "../assets/assets.service.js";
@@ -201,6 +201,48 @@ export const businessesService = {
     }
 
     await dualWriteBusinessMedia(business, user.id);
+    return business;
+  },
+
+  async pause(id: string, user: AuthUser) {
+    const existing = await businessesRepository.findOwner(id);
+    if (!existing) {
+      throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
+    }
+    if (user.role !== Role.admin && existing.ownerId !== user.id) {
+      throw new ApiError(403, "NOT_OWNER", "Only the business owner can pause this listing");
+    }
+    if (existing.status !== BusinessStatus.active) {
+      throw new ApiError(400, "INVALID_STATUS", "Only active businesses can be paused");
+    }
+    const business = await businessesRepository.update(id, { status: BusinessStatus.suspended });
+    await writeAuditLog({
+      actorId: user.id,
+      action: "business.owner.pause",
+      entityType: "business",
+      entityId: id,
+    });
+    return business;
+  },
+
+  async unpause(id: string, user: AuthUser) {
+    const existing = await businessesRepository.findOwner(id);
+    if (!existing) {
+      throw new ApiError(404, "BUSINESS_NOT_FOUND", "Business not found");
+    }
+    if (user.role !== Role.admin && existing.ownerId !== user.id) {
+      throw new ApiError(403, "NOT_OWNER", "Only the business owner can restore this listing");
+    }
+    if (existing.status !== BusinessStatus.suspended) {
+      throw new ApiError(400, "INVALID_STATUS", "Only paused businesses can be restored");
+    }
+    const business = await businessesRepository.update(id, { status: BusinessStatus.active });
+    await writeAuditLog({
+      actorId: user.id,
+      action: "business.owner.unpause",
+      entityType: "business",
+      entityId: id,
+    });
     return business;
   },
 };

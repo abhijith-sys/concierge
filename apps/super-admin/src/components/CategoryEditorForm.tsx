@@ -10,6 +10,8 @@ export type CategoryDraft = {
   imageUrl: string;
   bannerUrl: string;
   kind: "supplier" | "service";
+  imageReviewStatus: string;
+  imageReviewNote: string;
 };
 
 export function emptyCategoryDraft(sortOrder = "1", kind: "supplier" | "service" = "supplier"): CategoryDraft {
@@ -22,6 +24,8 @@ export function emptyCategoryDraft(sortOrder = "1", kind: "supplier" | "service"
     imageUrl: "",
     bannerUrl: "",
     kind,
+    imageReviewStatus: "approved",
+    imageReviewNote: "",
   };
 }
 
@@ -44,6 +48,8 @@ export function draftFromCategory(category: {
     imageUrl: category.imageUrl ?? "",
     bannerUrl: category.bannerUrl ?? "",
     kind: category.kind === "service" ? "service" : "supplier",
+    imageReviewStatus: category.imageReviewStatus ?? "approved",
+    imageReviewNote: category.imageReviewNote ?? "",
   };
 }
 
@@ -179,6 +185,29 @@ export function CategoryEditorForm({
         />
       </div>
       <div className="row">
+        <label className="stack" style={{ minWidth: "11rem" }}>
+          <span className="field-label">Image review</span>
+          <select
+            className="select"
+            value={draft.imageReviewStatus}
+            onChange={(event) => onChange({ ...draft, imageReviewStatus: event.target.value })}
+          >
+            <option value="approved">Approved</option>
+            <option value="pending">Pending review</option>
+            <option value="flagged">Flagged</option>
+          </select>
+        </label>
+        <label className="stack" style={{ flex: 1, minWidth: "14rem" }}>
+          <span className="field-label">Review note (admin)</span>
+          <input
+            className="input"
+            placeholder="NSFW, copyright, replace banner…"
+            value={draft.imageReviewNote}
+            onChange={(event) => onChange({ ...draft, imageReviewNote: event.target.value })}
+          />
+        </label>
+      </div>
+      <div className="row">
         <button className="btn primary" type="submit" disabled={blocked}>
           {submitLabel}
         </button>
@@ -204,6 +233,8 @@ export function payloadFromDraft(draft: CategoryDraft, extra?: Record<string, un
     bannerUrl: draft.bannerUrl.trim(),
     sortOrder: Number(draft.sortOrder) || 0,
     kind: draft.kind,
+    imageReviewStatus: draft.imageReviewStatus || null,
+    imageReviewNote: draft.imageReviewNote.trim() || null,
     ...extra,
   };
 }

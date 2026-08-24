@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { GalleryUpload } from "./GalleryUpload";
+import { ImagePreviewUpload } from "./ImagePreviewUpload";
 import { FlagPhoneInput } from "./FlagPhoneInput";
 import { Field, Input, Select, Textarea } from "./ui";
 import type { CategoryField } from "../lib/api";
@@ -40,7 +43,7 @@ export function isFieldVisible(field: CategoryField, values: FieldValueMap) {
 
 function emptyValue(field: CategoryField): unknown {
   if (field.fieldType === "boolean") return false;
-  if (field.fieldType === "multiselect") return [];
+  if (field.fieldType === "multiselect" || field.fieldType === "asset_gallery") return [];
   if (field.fieldType === "json" && widgetOf(field) === "location") return { lat: "", lng: "" };
   return "";
 }
@@ -76,6 +79,9 @@ export function toFieldValuePayload(fields: CategoryField[], values: FieldValueM
       if (field.fieldType === "multiselect" && !Array.isArray(value)) {
         value = [];
       }
+      if (field.fieldType === "asset_gallery" && !Array.isArray(value)) {
+        value = typeof value === "string" && value ? [value] : [];
+      }
       if (field.fieldType === "boolean") {
         value = Boolean(value);
       }
@@ -110,13 +116,16 @@ export function DynamicForm({
   values,
   onChange,
   errors,
+  onUpload,
 }: {
   fields: CategoryField[];
   values: FieldValueMap;
   onChange: (next: FieldValueMap) => void;
   errors?: Record<string, string>;
+  onUpload?: (file: File) => Promise<string>;
 }) {
   const visible = fields.filter((field) => isFieldVisible(field, values));
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   if (!visible.length) return null;
 
   const sections = new Map<string, CategoryField[]>();
@@ -292,14 +301,66 @@ export function DynamicForm({
               );
             }
 
-            if (field.fieldType === "asset_ref" || field.fieldType === "asset_gallery" || field.fieldType === "json") {
+            if (field.fieldType === "asset_ref") {
+              const url = typeof values[field.key] === "string" ? String(values[field.key]) : "";
+              return (
+                <ImagePreviewUpload
+                  key={field.id}
+                  label={label}
+                  value={url || undefined}
+                  uploading={uploadingKey === field.key}
+                  onSelect={async (file) => {
+                    if (!onUpload) return;
+                    setUploadingKey(field.key);
+                    try {
+                      const stored = await onUpload(file);
+                      setValue(field.key, stored);
+                    } finally {
+                      setUploadingKey(null);
+                    }
+                  }}
+                />
+              );
+            }
+
+            if (field.fieldType === "asset_gallery") {
+              const gallery = Array.isArray(values[field.key])
+                ? (values[field.key] as string[])
+                : typeof values[field.key] === "string" && values[field.key]
+                  ? [String(values[field.key])]
+                  : [];
+              return (
+                <GalleryUpload
+                  key={field.id}
+                  label={label}
+                  values={gallery}
+                  uploading={uploadingKey === field.key}
+                  hint={help ? undefined : field.helpText ?? undefined}
+                  onSelect={async (files) => {
+                    if (!onUpload) return;
+                    setUploadingKey(field.key);
+                    try {
+                      const uploaded: string[] = [];
+                      for (const file of files) {
+                        uploaded.push(await onUpload(file));
+                      }
+                      setValue(field.key, [...gallery, ...uploaded]);
+                    } finally {
+                      setUploadingKey(null);
+                    }
+                  }}
+                  onRemove={(url) => setValue(field.key, gallery.filter((item) => item !== url))}
+                />
+              );
+            }
+
+            if (field.fieldType === "json") {
               return (
                 <Field key={field.id} label={label} required={required} error={errors?.[field.key]}>
                   <Input
                     value={typeof values[field.key] === "string" ? String(values[field.key]) : ""}
                     onChange={(event) => setValue(field.key, event.target.value)}
-                    placeholder={placeholder ?? "Managed after save via media uploads"}
-                    disabled
+                    placeholder={placeholder ?? "JSON value"}
                   />
                   {help}
                 </Field>

@@ -295,6 +295,7 @@ export function FormBuilderPage() {
           <FieldEditor
             draft={draft}
             kind={kind}
+            fieldKeyOptions={(form.data?.fields ?? []).map((field) => field.key)}
             onChange={setDraft}
             onCancel={() => setEditingId(null)}
             pending={createField.isPending || updateField.isPending}
@@ -376,6 +377,7 @@ function LayerTable({
             <th>Label</th>
             <th>Type</th>
             <th>Required</th>
+            <th>Conditional</th>
             <th>Active</th>
             {inherited ? null : <th>Actions</th>}
           </tr>
@@ -393,6 +395,11 @@ function LayerTable({
               </td>
               <td>{field.fieldType}</td>
               <td>{field.required ? "Yes" : "No"}</td>
+              <td className="muted">
+                {field.conditionalRules?.fieldKey
+                  ? `if ${field.conditionalRules.fieldKey} = ${String(field.conditionalRules.equals ?? "set")}`
+                  : "—"}
+              </td>
               <td>{field.isActive ? "Yes" : "No"}</td>
               {inherited ? null : (
                 <td>
@@ -432,6 +439,7 @@ function LayerTable({
 function FieldEditor({
   draft,
   kind,
+  fieldKeyOptions,
   onChange,
   onSave,
   onCancel,
@@ -440,6 +448,7 @@ function FieldEditor({
 }: {
   draft: FieldDraft;
   kind: FormKind;
+  fieldKeyOptions: string[];
   onChange: (draft: FieldDraft) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -537,17 +546,32 @@ function FieldEditor({
         />
       </div>
       <div className="row">
-        <input
-          className="input"
-          placeholder="Show if field key"
+        <select
+          className="select"
           value={draft.conditionalFieldKey}
           onChange={(e) => set("conditionalFieldKey", e.target.value)}
-        />
+        >
+          <option value="">Always show</option>
+          {fieldKeyOptions
+            .filter((key) => key !== draft.key)
+            .map((key) => (
+              <option key={key} value={key}>
+                Show when {key}
+              </option>
+            ))}
+        </select>
         <input
           className="input"
           placeholder="equals (true / value)"
           value={draft.conditionalEquals}
           onChange={(e) => set("conditionalEquals", e.target.value)}
+          disabled={!draft.conditionalFieldKey}
+        />
+        <input
+          className="input"
+          placeholder="Or type field key"
+          value={draft.conditionalFieldKey}
+          onChange={(e) => set("conditionalFieldKey", e.target.value)}
         />
         <label className="row">
           <input type="checkbox" checked={draft.required} onChange={(e) => set("required", e.target.checked)} />

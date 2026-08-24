@@ -144,6 +144,27 @@ export const adminRepository = {
     });
   },
 
+  findUserForExport(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        recoveryEmail: true,
+        emailVerifiedAt: true,
+        phoneVerifiedAt: true,
+        recoveryEmailVerifiedAt: true,
+        disabledAt: true,
+        createdAt: true,
+        userRoles: { include: { role: { select: { key: true } } } },
+        _count: { select: { businesses: true, reviews: true } },
+      },
+    });
+  },
+
   setUserDisabled(id: string, disabled: boolean) {
     return prisma.user.update({
       where: { id },
@@ -248,7 +269,8 @@ export const adminRepository = {
   },
 
   async stats() {
-    const [businesses, services, users, kycQueue, assets, categories, subcategories, categoryKinds] = await Promise.all([
+    const [businesses, services, users, kycQueue, assets, categories, subcategories, categoryKinds, openReviewReports] =
+      await Promise.all([
       prisma.business.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.service.groupBy({ by: ["approvalStatus"], _count: { _all: true } }),
       prisma.user.count(),
@@ -261,7 +283,17 @@ export const adminRepository = {
         where: excludeInternalCategoryWhere,
         _count: { _all: true },
       }),
+      prisma.reviewReport.count({ where: { status: "open" } }),
     ]);
+    let healthOk = true;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch {
+      healthOk = false;
+    }
+    const flaggedCategoryImages = await prisma.category.count({
+      where: { imageReviewStatus: "flagged", ...excludeInternalCategoryWhere },
+    });
     const byStatus = Object.fromEntries(businesses.map((row) => [row.status, row._count._all]));
     const byApproval = Object.fromEntries(services.map((row) => [row.approvalStatus, row._count._all]));
     const listingTotal = services.reduce((sum, row) => sum + row._count._all, 0);
@@ -294,7 +326,30 @@ export const adminRepository = {
       },
       kycQueue,
       assets,
+      openReviewReports,
+      flaggedCategoryImages,
+      healthOk,
     };
+  },
+
+  async getPlatformSettings() {
+    const row = await prisma.platformSettings.findUnique({ where: { id: "default" } });
+    if (row) return row;
+    return prisma.platformSettings.create({
+      data: { id: "default" },
+    });
+  },
+
+  updatePlatformSettings(input: {
+    maintenanceMode?: boolean;
+    maintenanceMessage?: string | null;
+    supportEmail?: string | null;
+  }) {
+    return prisma.platformSettings.upsert({
+      where: { id: "default" },
+      create: { id: "default", ...input },
+      update: input,
+    });
   },
 
   listListings(input: {

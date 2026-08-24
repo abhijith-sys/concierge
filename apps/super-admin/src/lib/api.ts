@@ -52,6 +52,8 @@ export type Category = {
   icon?: string | null;
   imageUrl?: string | null;
   bannerUrl?: string | null;
+  imageReviewStatus?: string | null;
+  imageReviewNote?: string | null;
   kind?: "supplier" | "service";
   sortOrder?: number;
   isActive?: boolean;
@@ -105,6 +107,9 @@ export type AdminStats = {
   categoryKinds?: { supplier: number; service: number };
   kycQueue: number;
   assets: number;
+  openReviewReports?: number;
+  flaggedCategoryImages?: number;
+  healthOk?: boolean;
 };
 
 export type VerificationItem = {
@@ -251,9 +256,59 @@ export const api = {
         runSeed: boolean;
         corsOrigins: string[];
         logLevel: string;
+        maintenanceMode: boolean;
+        maintenanceMessage?: string | null;
+        supportEmail?: string | null;
       };
     }>("/api/admin/settings");
     return value.settings;
+  },
+  patchSettings: (input: {
+    maintenanceMode?: boolean;
+    maintenanceMessage?: string | null;
+    supportEmail?: string | null;
+  }) =>
+    request<{
+      settings: {
+        nodeEnv: string;
+        cookieSecure: boolean;
+        rateLimitEnabled: boolean;
+        requireEmailVerification: boolean;
+        runSeed: boolean;
+        corsOrigins: string[];
+        logLevel: string;
+        maintenanceMode: boolean;
+        maintenanceMessage?: string | null;
+        supportEmail?: string | null;
+      };
+    }>("/api/admin/settings", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }).then((value) => value.settings),
+  bulkBusinesses: (ids: string[], action: "activate" | "suspend" | "delete") =>
+    request<{ updated: number }>("/api/admin/businesses/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, action }),
+    }),
+  exportCategories: () =>
+    request<{ version: 1; exportedAt: string; categories: Array<Record<string, unknown>> }>(
+      "/api/admin/categories/export",
+    ),
+  importCategories: (payload: { version: 1; categories: Array<Record<string, unknown>> }) =>
+    request<{ created: number; updated: number; total: number }>("/api/admin/categories/import", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  exportUserPii: async (id: string) => {
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(id)}/export`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new ApiError(response.status, "Export failed");
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] ?? `user-${id}-export.csv`;
+    return { blob, filename };
   },
   reviewReports: async () => {
     const value = await request<{

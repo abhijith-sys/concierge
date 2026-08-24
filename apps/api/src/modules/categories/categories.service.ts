@@ -2,6 +2,7 @@ import { CategoryFieldScope } from "@prisma/client";
 import { z } from "zod";
 import { ApiError } from "../../shared/errors/index.js";
 import { writeAuditLog } from "../../shared/logging/audit.js";
+import { prisma } from "../../shared/db/prisma.js";
 import { FORM_KINDS, formSchemaVersion, type FormKind } from "../../shared/domain/composed-forms.js";
 import { assetsService } from "../assets/assets.service.js";
 import {
@@ -259,5 +260,129 @@ export const categoriesService = {
       requestId: ctx.requestId,
     });
     return fields;
+  },
+
+  async exportCategories() {
+    const tree = await categoriesRepository.findRootTree(false, false);
+    type ExportNode = {
+      slug: string;
+      name: string;
+      parentSlug: string | null;
+      description: string | null;
+      icon: string | null;
+      imageUrl: string | null;
+      bannerUrl: string | null;
+      kind: string;
+      sortOrder: number;
+      isActive: boolean;
+    };
+    const flat: ExportNode[] = [];
+    function walk(nodes: typeof tree, parentSlug: string | null) {
+      for (const node of nodes) {
+        flat.push({
+          slug: node.slug,
+          name: node.name,
+          parentSlug,
+          description: node.description,
+          icon: node.icon,
+          imageUrl: node.imageUrl,
+          bannerUrl: node.bannerUrl,
+          kind: node.kind,
+          sortOrder: node.sortOrder,
+          isActive: node.isActive,
+        });
+        if (node.children?.length) walk(node.children, node.slug);
+      }
+    }
+    walk(tree, null);
+    return {
+      version: 1 as const,
+      exportedAt: new Date().toISOString(),
+      categories: flat,
+    };
+  },
+
+  async importCategories(
+    input: {
+      version: 1;
+      categories: Array<{
+        slug: string;
+        name: string;
+        parentSlug?: string | null;
+        description?: string | null;
+        icon?: string | null;
+        imageUrl?: string | null;
+        bannerUrl?: string | null;
+        kind?: "supplier" | "service";
+        sortOrder?: number;
+        isActive?: boolean;
+      }>;
+    },
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    const slugToId = new Map<string, string>();
+    const existing = await prisma.category.findMany({ select: { id: true, slug: true } });
+    for (const row of existing) slugToId.set(row.slug, row.id);
+
+    let created = 0;
+    let updated = 0;
+    const pending = [...input.categories];
+    let progress = true;
+    while (pending.length && progress) {
+      progress = false;
+      for (let i = pending.length - 1; i >= 0; i -= 1) {
+        const row = pending[i]!;
+        const parentSlug = row.parentSlug ?? null;
+        if (parentSlug && !slugToId.has(parentSlug)) continue;
+        const parentId = parentSlug ? slugToId.get(parentSlug) ?? null : null;
+        if (parentSlug && !parentId) continue;
+
+        const payload = {
+          name: row.name,
+          slug: row.slug,
+          parentId,
+          description: row.description ?? null,
+          icon: row.icon ?? null,
+          imageUrl: row.imageUrl ?? null,
+          bannerUrl: row.bannerUrl ?? null,
+          kind: row.kind,
+          sortOrder: row.sortOrder,
+          isActive: row.isActive,
+        };
+
+        const existingId = slugToId.get(row.slug);
+        if (existingId) {
+          await categoriesRepository.updateCategory(existingId, payload);
+          updated += 1;
+        } else {
+          const createdRow = await categoriesRepository.createCategory({
+            ...payload,
+            name: row.name,
+            slug: row.slug,
+          });
+          slugToId.set(row.slug, createdRow.id);
+          created += 1;
+        }
+        pending.splice(i, 1);
+        progress = true;
+      }
+    }
+    if (pending.length) {
+      throw new ApiError(
+        400,
+        "IMPORT_UNRESOLVED",
+        `Could not resolve parent for ${pending.length} categor(ies). Check parentSlug references.`,
+      );
+    }
+
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: "admin.categories.import",
+      entityType: "category",
+      meta: { created, updated, total: input.categories.length },
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return { created, updated, total: input.categories.length };
   },
 };

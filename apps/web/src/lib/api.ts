@@ -930,6 +930,20 @@ export const api = {
     });
     return value.business;
   },
+  pauseBusiness: async (id: string) => {
+    const value = await request<{ business: Business }>(`/api/businesses/${encodeURIComponent(id)}/pause`, {
+      method: "POST",
+      body: "{}",
+    });
+    return value.business;
+  },
+  unpauseBusiness: async (id: string) => {
+    const value = await request<{ business: Business }>(`/api/businesses/${encodeURIComponent(id)}/unpause`, {
+      method: "POST",
+      body: "{}",
+    });
+    return value.business;
+  },
   services: async (businessId: string) => {
     const value = await request<unknown>(`/api/services/business/${encodeURIComponent(businessId)}`);
     return unwrapArray<Service>(value, ["services", "items", "data"]);

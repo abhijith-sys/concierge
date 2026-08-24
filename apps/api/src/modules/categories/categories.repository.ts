@@ -47,6 +47,8 @@ export const categoryUpsertSchema = z.object({
   icon: z.string().trim().max(80).nullable().optional(),
   imageUrl: optionalMediaUrl,
   bannerUrl: optionalMediaUrl,
+  imageReviewStatus: z.enum(["pending", "approved", "flagged"]).nullable().optional(),
+  imageReviewNote: z.string().trim().max(2000).nullable().optional(),
   sortOrder: z.number().int().min(0).max(10_000).optional(),
   isActive: z.boolean().optional(),
   kind: z.nativeEnum(CategoryKind).optional(),

@@ -1,12 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { ApprovalBanner } from "../components/ApprovalBanner";
 import { EmptyList } from "../components/EmptyList";
 import { SafeImage } from "../components/SafeImage";
 import { Button, PageState } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { api, type Business } from "../lib/api";
+import { ApiError, api, type Business } from "../lib/api";
 import { isStayListing } from "../lib/stays";
 import { isRentalListing } from "../lib/rentals";
 import { isTravelListing } from "../lib/travel";
@@ -96,13 +97,32 @@ export function ProviderDashboard() {
         />
       ) : null}
 
-      {businesses.length ? <BusinessesTable businesses={businesses} /> : null}
+      {businesses.length ? <BusinessesTable businesses={businesses} onChanged={() => void mine.refetch()} /> : null}
     </section>
   );
 }
 
-function BusinessesTable({ businesses }: { businesses: Business[] }) {
+function BusinessesTable({ businesses, onChanged }: { businesses: Business[]; onChanged: () => void }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const pause = useMutation({
+    mutationFn: api.pauseBusiness,
+    onSuccess: () => {
+      toast.success("Listing paused — hidden from search until you restore it.");
+      void queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+      onChanged();
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not pause listing."),
+  });
+  const unpause = useMutation({
+    mutationFn: api.unpauseBusiness,
+    onSuccess: () => {
+      toast.success("Listing restored and visible again.");
+      void queryClient.invalidateQueries({ queryKey: ["businesses", "mine"] });
+      onChanged();
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not restore listing."),
+  });
   return (
     <section className="mt-10">
       <div className="overflow-x-auto rounded-2xl border border-line">
@@ -169,6 +189,27 @@ function BusinessesTable({ businesses }: { businesses: Business[] }) {
                       <Link to={`/business/${business.slug}/edit`}>
                         <Button variant="ghost">Edit profile</Button>
                       </Link>
+                      {business.status === "active" ? (
+                        <Button
+                          variant="outline"
+                          disabled={pause.isPending}
+                          onClick={() => {
+                            if (!window.confirm(`Pause "${business.name}"? It will be hidden from search.`)) return;
+                            pause.mutate(business.id);
+                          }}
+                        >
+                          Pause
+                        </Button>
+                      ) : null}
+                      {business.status === "suspended" ? (
+                        <Button
+                          variant="outline"
+                          disabled={unpause.isPending}
+                          onClick={() => unpause.mutate(business.id)}
+                        >
+                          Restore
+                        </Button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

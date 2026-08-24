@@ -323,7 +323,10 @@ model Category {
   /// Home / industry card background.
   imageUrl    String?
   /// Listings page hero banner.
-  bannerUrl   String?
+  bannerUrl         String?
+  /// Admin image moderation: pending | approved | flagged
+  imageReviewStatus String?
+  imageReviewNote   String?
   kind        CategoryKind    @default(supplier)
   sortOrder   Int             @default(0)
   isActive    Boolean         @default(true)
@@ -947,4 +950,13 @@ model Attachment {
   @@unique([entityType, entityId, purpose, assetId])
   @@index([entityType, entityId, purpose])
   @@index([assetId])
+}
+
+/// Singleton row (id = "default") for runtime-editable platform settings.
+model PlatformSettings {
+  id                 String   @id @default("default")
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String?
+  supportEmail       String?
+  updatedAt          DateTime @updatedAt
 }

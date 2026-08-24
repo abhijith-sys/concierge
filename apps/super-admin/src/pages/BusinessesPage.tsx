@@ -15,6 +15,7 @@ export function BusinessesPage() {
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const params = new URLSearchParams({ pageSize: "50" });
   if (q.trim()) params.set("q", q.trim());
@@ -40,6 +41,7 @@ export function BusinessesPage() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "businesses"] });
     await queryClient.invalidateQueries({ queryKey: ["admin", "stats"] });
     setRejectingId(null);
+    setSelected(new Set());
   };
 
   const activate = useMutation({ mutationFn: api.activate, onSuccess: invalidate });
@@ -49,17 +51,38 @@ export function BusinessesPage() {
     onSuccess: invalidate,
   });
   const remove = useMutation({ mutationFn: api.softDelete, onSuccess: invalidate });
+  const bulk = useMutation({
+    mutationFn: (action: "activate" | "suspend" | "delete") =>
+      api.bulkBusinesses([...selected], action),
+    onSuccess: invalidate,
+  });
   const rejecting = list.data?.items.find((business) => business.id === rejectingId);
+  const items = list.data?.items ?? [];
+  const allSelected = items.length > 0 && items.every((business) => selected.has(business.id));
 
   if (!hasPermission(user, "businesses.read")) {
     return <p className="error">Missing businesses.read permission</p>;
+  }
+
+  function toggleAll() {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(items.map((business) => business.id)));
+  }
+
+  function toggleOne(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   return (
     <div className="stack">
       <div>
         <h2 style={{ margin: 0 }}>Businesses</h2>
-        <p className="muted">Approve, reject, or suspend provider profiles</p>
+        <p className="muted">Approve, reject, suspend, or bulk-manage provider profiles</p>
       </div>
       <div className="row">
         <input className="input" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -80,6 +103,32 @@ export function BusinessesPage() {
           ))}
         </select>
       </div>
+
+      {selected.size && hasPermission(user, "businesses.moderate") ? (
+        <div className="panel row">
+          <span className="muted">{selected.size} selected</span>
+          <button className="btn" type="button" disabled={bulk.isPending} onClick={() => bulk.mutate("activate")}>
+            Bulk activate
+          </button>
+          <button className="btn" type="button" disabled={bulk.isPending} onClick={() => bulk.mutate("suspend")}>
+            Bulk suspend
+          </button>
+          {hasPermission(user, "businesses.delete") ? (
+            <button
+              className="btn danger"
+              type="button"
+              disabled={bulk.isPending}
+              onClick={() => {
+                if (!window.confirm(`Delete ${selected.size} business(es)?`)) return;
+                bulk.mutate("delete");
+              }}
+            >
+              Bulk delete
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {rejecting && hasPermission(user, "businesses.moderate") ? (
         <RejectPanel
           title={`Reject ${rejecting.name}`}
@@ -93,6 +142,11 @@ export function BusinessesPage() {
         <table>
           <thead>
             <tr>
+              {hasPermission(user, "businesses.moderate") ? (
+                <th>
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                </th>
+              ) : null}
               <th>Business</th>
               <th>Category</th>
               <th>Catalog</th>
@@ -102,8 +156,18 @@ export function BusinessesPage() {
             </tr>
           </thead>
           <tbody>
-            {list.data?.items.map((business) => (
+            {items.map((business) => (
               <tr key={business.id}>
+                {hasPermission(user, "businesses.moderate") ? (
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(business.id)}
+                      onChange={() => toggleOne(business.id)}
+                      aria-label={`Select ${business.name}`}
+                    />
+                  </td>
+                ) : null}
                 <td>
                   <strong>{business.name}</strong>
                   <div className="muted">{business.listing?.city}</div>

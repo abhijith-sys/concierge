@@ -17,6 +17,35 @@ export function DashboardPage() {
   });
 
   const s = stats.data;
+  const pendingProviders = s?.pendingProviders ?? s?.businesses.pending ?? 0;
+  const pendingListings = s?.pendingListings ?? s?.listings?.pending ?? 0;
+  const openReports = s?.openReviewReports ?? 0;
+  const flaggedImages = s?.flaggedCategoryImages ?? 0;
+  const kycQueue = s?.kycQueue ?? 0;
+
+  const alerts = [
+    pendingProviders > 0
+      ? { tone: "warn" as const, label: "Pending businesses", count: pendingProviders, href: "/businesses?status=pending" }
+      : null,
+    pendingListings > 0
+      ? { tone: "warn" as const, label: "Pending catalog items", count: pendingListings, href: "/listings?status=pending" }
+      : null,
+    openReports > 0
+      ? { tone: "danger" as const, label: "Reported reviews", count: openReports, href: "/reviews" }
+      : null,
+    kycQueue > 0
+      ? { tone: "warn" as const, label: "KYC submissions", count: kycQueue, href: "/verification" }
+      : null,
+    flaggedImages > 0
+      ? { tone: "danger" as const, label: "Flagged category images", count: flaggedImages, href: "/categories" }
+      : null,
+    s && s.healthOk === false
+      ? { tone: "danger" as const, label: "Database health check failed", count: 1, href: "/" }
+      : null,
+    settings.data?.maintenanceMode
+      ? { tone: "warn" as const, label: "Maintenance mode ON", count: 1, href: "/settings" }
+      : null,
+  ].filter(Boolean) as Array<{ tone: "warn" | "danger"; label: string; count: number; href: string }>;
 
   return (
     <div className="stack">
@@ -24,6 +53,32 @@ export function DashboardPage() {
         <h2 style={{ margin: 0 }}>Dashboard</h2>
         <p className="muted">Platform operations overview</p>
       </div>
+
+      {alerts.length ? (
+        <div className="stack">
+          <strong>Needs attention</strong>
+          <div className="stat-grid">
+            {alerts.map((alert) => (
+              <Link
+                key={alert.label}
+                to={alert.href}
+                className={`stat ${alert.tone === "danger" ? "alert-danger" : "alert-warn"}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <span className="muted">{alert.label}</span>
+                <strong>{alert.count}</strong>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="panel">
+          <p className="muted" style={{ margin: 0 }}>
+            No pending alerts — queues look clear.
+          </p>
+        </div>
+      )}
+
       <div className="stat-grid">
         <div className="stat">
           <span className="muted">Users</span>
@@ -39,32 +94,24 @@ export function DashboardPage() {
         </div>
         <Link to="/businesses?status=pending" className="stat">
           <span className="muted">Pending providers</span>
-          <strong>{s?.pendingProviders ?? s?.businesses.pending ?? "—"}</strong>
+          <strong>{pendingProviders || "—"}</strong>
         </Link>
         <Link to="/listings?status=pending" className="stat">
           <span className="muted">Pending catalog items</span>
-          <strong>{s?.pendingListings ?? s?.listings?.pending ?? "—"}</strong>
+          <strong>{pendingListings || "—"}</strong>
         </Link>
         <Link to="/categories" className="stat">
           <span className="muted">Categories</span>
           <strong>{s?.categories ?? "—"}</strong>
         </Link>
-        <Link to="/categories" className="stat">
-          <span className="muted">Supplier categories</span>
-          <strong>{s?.categoryKinds?.supplier ?? "—"}</strong>
-        </Link>
-        <Link to="/categories" className="stat">
-          <span className="muted">Service categories</span>
-          <strong>{s?.categoryKinds?.service ?? "—"}</strong>
-        </Link>
-        <Link to="/categories" className="stat">
-          <span className="muted">Subcategories</span>
-          <strong>{s?.subcategories ?? "—"}</strong>
-        </Link>
         <div className="stat">
           <span className="muted">KYC queue</span>
-          <strong>{s?.kycQueue ?? "—"}</strong>
+          <strong>{kycQueue || "—"}</strong>
         </div>
+        <Link to="/reviews" className="stat">
+          <span className="muted">Open review reports</span>
+          <strong>{openReports || "—"}</strong>
+        </Link>
       </div>
       <div className="panel stack">
         <p className="muted" style={{ margin: 0 }}>
@@ -73,8 +120,8 @@ export function DashboardPage() {
         {settings.data ? (
           <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
             env={settings.data.nodeEnv} · rateLimit={String(settings.data.rateLimitEnabled)} ·
-            emailVerify={String(settings.data.requireEmailVerification)} · cookieSecure=
-            {String(settings.data.cookieSecure)}
+            emailVerify={String(settings.data.requireEmailVerification)} · maintenance=
+            {String(settings.data.maintenanceMode)} · health={String(s?.healthOk ?? true)}
           </p>
         ) : null}
       </div>

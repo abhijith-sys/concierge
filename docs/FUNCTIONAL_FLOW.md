@@ -362,22 +362,20 @@ sequenceDiagram
 ### 1.4 Provider / Business
 
 #### Flow 16 — List a Business (Provider Onboarding)
-**Status:** ⚠️ Partial
+**Status:** ✅ Complete
 
 | Step | Layer | Detail |
 |------|-------|--------|
-| 1 | UI | `/list-business` — requires login + verified email ([`ListBusiness.tsx`](../apps/web/src/pages/ListBusiness.tsx)) |
-| 2 | API | `GET /api/categories/:id/forms/provider` — composed dynamic fields |
-| 3 | UI | User selects main/sub category, fills business info, hours, logo/cover, category fields |
-| 4 | API | `POST /api/businesses` — creates business + 1:1 listing |
-| 5 | DB | `Business` (status `pending`), `Listing`, `ListingFieldValue`; promotes `User.role` → `business` |
-| 6 | API | Re-issues access cookie with new role |
+| 1 | UI | `/list-business` — 6-step wizard: Category → Info → Hours → Photos → Fields → Review ([`ListBusiness.tsx`](../apps/web/src/pages/ListBusiness.tsx)) |
+| 2 | UI | Draft persisted in `localStorage` (`conforge-list-business-draft`) between steps |
+| 3 | API | `GET /api/categories/:id/forms/provider` — composed dynamic fields |
+| 4 | UI | `asset_ref` / `asset_gallery` fields upload via `api.upload()` in [`CategoryFieldsEditor.tsx`](../apps/web/src/components/CategoryFieldsEditor.tsx) |
+| 5 | API | `POST /api/businesses` — creates business + 1:1 listing (final step only) |
+| 6 | DB | `Business` (status `pending`), `Listing`, `ListingFieldValue`; promotes `User.role` → `business` |
 | 7 | UI | Redirect to `/provider?business=:id` |
 | 8 | Outcome | Business submitted for admin approval |
 
 **Missing steps:**
-- ❌ Uploads module missing — logo/cover upload calls fail at API layer
-- ⚠️ `asset_ref` / `asset_gallery` category fields show placeholder text in [`CategoryFieldsEditor.tsx`](../apps/web/src/components/CategoryFieldsEditor.tsx)
 - ⚠️ Provider cannot pick a different subcategory when creating catalog items later
 
 ```mermaid
@@ -402,7 +400,7 @@ sequenceDiagram
 ---
 
 #### Flow 17 — Edit Business Profile
-**Status:** ⚠️ Partial (uploads)
+**Status:** ✅ Complete
 
 | Step | Layer | Detail |
 |------|-------|--------|
@@ -413,8 +411,7 @@ sequenceDiagram
 | 5 | DB | Updates `Business`, `Listing`, `ListingFieldValue` |
 | 6 | Outcome | Profile updated (public if business is active) |
 
-**Missing steps:**
-- ❌ Uploads module — logo/cover upload broken until `modules/uploads` restored
+**Missing steps:** None for core profile edit and uploads.
 
 ---
 
@@ -427,7 +424,8 @@ sequenceDiagram
 | 2 | API | `GET /api/businesses/mine` |
 | 3 | DB | Lists `Business` rows owned by user |
 | 4 | UI | Shows approval status badges; links to listings, enquiries, verification, edit |
-| 5 | Outcome | Owner overview of all businesses |
+| 5 | UI | **Pause / Restore** — owner self-service via `POST /api/businesses/:id/pause` and `/unpause` (sets `status: suspended` / `active`) |
+| 6 | Outcome | Owner overview and listing visibility control |
 
 **Missing steps:**
 - ❌ Business analytics (views, leads, conversion) — deferred module
@@ -613,8 +611,9 @@ All routes require authenticated staff with RBAC permissions (not just legacy `a
 |------|-------|--------|
 | 1 | UI | `/` ([`DashboardPage.tsx`](../apps/super-admin/src/pages/DashboardPage.tsx)) |
 | 2 | API | `GET /api/admin/stats`, `GET /api/admin/settings` |
-| 3 | DB | Aggregates users, businesses, listings, pending counts, categories |
-| 4 | Outcome | Platform overview with links to pending queues |
+| 3 | DB | Aggregates users, businesses, listings, pending counts, categories, open review reports, flagged category images, DB health |
+| 4 | UI | **Alert widgets** — links to pending businesses, pending listings, review reports, KYC, flagged images, maintenance mode |
+| 5 | Outcome | Proactive ops overview with attention queue |
 
 ---
 
@@ -625,8 +624,8 @@ All routes require authenticated staff with RBAC permissions (not just legacy `a
 |------|-------|--------|
 | 1 | UI | `/businesses` — filter by status ([`BusinessesPage.tsx`](../apps/super-admin/src/pages/BusinessesPage.tsx)) |
 | 2 | API | `GET /api/admin/businesses`, `GET /api/admin/businesses/:id` |
-| 3 | UI | Activate, suspend, reject (with reason), delete |
-| 4 | API | `POST …/activate`, `…/suspend`, `…/reject`, `DELETE …/businesses/:id` |
+| 3 | UI | Activate, suspend, reject (with reason), delete; **bulk** multi-select activate/suspend/delete |
+| 4 | API | `POST …/activate`, `…/suspend`, `…/reject`, `DELETE …/businesses/:id`, `POST /api/admin/businesses/bulk` |
 | 5 | DB | Updates `Business.status`, `rejectionReason`; audit log |
 | 6 | Outcome | Provider visibility controlled |
 
@@ -662,34 +661,34 @@ sequenceDiagram
 ---
 
 #### Flow 39 — Category Management
-**Status:** ⚠️ Partial
+**Status:** ✅ Complete
 
 | Step | Layer | Detail |
 |------|-------|--------|
 | 1 | UI | `/categories`, `/categories/:id` ([`CategoriesPage.tsx`](../apps/super-admin/src/pages/CategoriesPage.tsx)) |
-| 2 | API | `GET/POST/PATCH/DELETE /api/admin/categories` |
-| 3 | UI | Create/edit category name, slug, images, banner, active flag |
-| 4 | DB | `Category` |
-| 5 | Outcome | Taxonomy drives public browse + dynamic forms |
+| 2 | API | `GET/POST/PATCH/DELETE /api/admin/categories`, `GET/POST …/categories/export|import` |
+| 3 | UI | Create/edit category name, slug, images, banner, active flag; **Export/Import JSON** taxonomy |
+| 4 | UI | **Image moderation** — `imageReviewStatus` (pending/approved/flagged) + admin note; replace via `ImageUploadField` |
+| 5 | DB | `Category` (+ `imageReviewStatus`, `imageReviewNote`) |
+| 6 | Outcome | Taxonomy drives public browse + dynamic forms |
 
 **Missing steps:**
-- ❌ Drag-and-drop field reorder in category list (API `PUT /admin/category-fields/reorder` exists; limited UI)
-- ⚠️ Conditional field rules — schema has `conditionalRules`; no admin UI to configure
+- ❌ Drag-and-drop category tree reorder (sort order is numeric only)
 
 ---
 
 #### Flow 40 — Form Builder
-**Status:** ⚠️ Partial
+**Status:** ✅ Complete
 
 | Step | Layer | Detail |
 |------|-------|--------|
 | 1 | UI | `/categories/:id/forms` ([`FormBuilderPage.tsx`](../apps/super-admin/src/pages/FormBuilderPage.tsx)) |
-| 2 | API | `GET /api/admin/forms/:categoryId`, CRUD on `/admin/categories/:id/fields` |
-| 3 | DB | `CategoryField` (scope `listing` \| `service` \| `business`) |
-| 4 | Outcome | Fields appear in composed public forms |
+| 2 | API | `GET /api/admin/forms/:categoryId`, CRUD on `/admin/categories/:id/fields`, `PATCH /admin/category-fields/:id` |
+| 3 | UI | Add/edit fields including **conditional rules** (show when field X equals Y); up/down reorder |
+| 4 | DB | `CategoryField` (scope `listing` \| `service` \| `business`, `conditionalRules` JSON) |
+| 5 | Outcome | Fields appear in composed public forms with conditional visibility |
 
 **Missing steps:**
-- ❌ Conditional field builder UI
 - ❌ Platform common-field catalog toggle per category (Phase 1 gap)
 
 ---
@@ -851,8 +850,8 @@ Quick reference: which layers exist per feature. `—` = not applicable.
 | Login / logout / refresh | ✅ | ✅ | ✅ | ✅ | — | ✅ |
 | Forgot / reset password | ✅ | ✅ | ✅ | — | ⚠️ | ✅ |
 | Account profile | ✅ | ✅ | ✅ | — | — | ⚠️ |
-| Change password (logged-in) | ❌ | ✅ | ✅ | — | — | ❌ |
-| Phone OTP verify | ❌ | ✅ | ✅ | — | ⚠️ | ❌ |
+| Change password (logged-in) | ✅ | ✅ | ✅ | — | — | ✅ |
+| Phone OTP verify | ✅ | ✅ | ✅ | — | ⚠️ | ✅ |
 | Recovery email verify | ✅ | ✅ | ✅ | — | ⚠️ | ✅ |
 | OAuth login | ❌ | ❌ | — | — | — | ❌ |
 | MFA | ❌ | ⚠️ | ✅ | — | — | ❌ |
@@ -868,8 +867,9 @@ Quick reference: which layers exist per feature. `—` = not applicable.
 | Report review | ✅ | ✅ | ✅ | ✅ | — | ✅ |
 | Review moderation | — | ✅ | ✅ | ✅ | — | ✅ |
 | Wishlist | ✅ | ✅ | ✅ | — | — | ✅ |
-| List business | ✅ | ✅ | ✅ | ✅ | — | ⚠️ |
-| Edit business | ✅ | ✅ | ✅ | — | — | ⚠️ |
+| List business | ✅ | ✅ | ✅ | ✅ | — | ✅ |
+| Edit business | ✅ | ✅ | ✅ | — | — | ✅ |
+| Provider pause/unpause | ✅ | ✅ | ✅ | — | — | ✅ |
 | Provider dashboard | ✅ | ✅ | ✅ | — | — | ✅ |
 | Catalog CRUD | ✅ | ✅ | ✅ | ✅ | — | ⚠️ |
 | KYC submission | ✅ | ✅ | ✅ | ✅ | — | ⚠️ |
@@ -880,10 +880,16 @@ Quick reference: which layers exist per feature. `—` = not applicable.
 | Guest enquiry lookup | ✅ | ✅ | ✅ | — | — | ✅ |
 | Enquiry CSV export (provider) | ✅ | ✅ | ✅ | — | — | ✅ |
 | Verified search filter | ✅ | ✅ | ✅ | — | — | ✅ |
-| File uploads | ✅ | ❌ | ✅ | ✅ | — | ❌ |
+| File uploads | ✅ | ✅ | ✅ | ✅ | — | ⚠️ |
+| Business bulk actions | — | ✅ | ✅ | ✅ | — | ✅ |
+| Platform settings editor | — | ✅ | ✅ | ✅ | — | ✅ |
+| Category import/export | — | ✅ | ✅ | ✅ | — | ✅ |
+| Dashboard alert widgets | — | ✅ | — | — | — | ✅ |
+| User PII export | — | ✅ | ✅ | ✅ | — | ✅ |
+| Category image moderation | — | ✅ | ✅ | ✅ | — | ✅ |
 | Business moderation | — | ✅ | ✅ | ✅ | — | ✅ |
 | Service approval | — | ✅ | ✅ | ✅ | — | ✅ |
-| Category / form builder | — | ✅ | ✅ | ⚠️ | — | ⚠️ |
+| Category / form builder | — | ✅ | ✅ | ✅ | — | ✅ |
 | RBAC users/roles | — | ✅ | ✅ | ✅ | — | ✅ |
 | Audit log | — | ✅ | ✅ | ✅ | — | ✅ |
 | Payments | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -896,15 +902,14 @@ Quick reference: which layers exist per feature. `—` = not applicable.
 
 ## 6. Priority missing workflows
 
-Fix or build these first — they block multiple flows above:
+Most P0/P1 items from prior passes are complete. Remaining high-value gaps:
 
-1. **❌ Restore `apps/api/src/modules/uploads/`** — unblocks avatar, logo, cover, KYC, service gallery, super-admin category images
-2. **❌ Enquiry `ownerNote` UI** — provider inbox + super-admin enquiry pages (API already accepts field)
-3. **❌ Change password UI** — Account page calling `POST /api/auth/change-password`
-4. **❌ Phone OTP UI** — Account page calling `/otp/request` + `/otp/verify`
-5. **❌ Delete review UI** — business profile or account
-6. **❌ My enquiries page** — logged-in user enquiry history across verticals
-7. **❌ Production email/SMS** — configure SendGrid + Twilio env vars (currently dev console stub)
+1. **⚠️ Production email/SMS** — configure SendGrid + Twilio env vars (currently dev console stub)
+2. **❌ B-M8 Claim existing listing** — OTP verify phone/email matches seeded listing
+3. **❌ D-M4 SMS confirmation to guest** — Twilio on enquiry create
+4. **❌ E-M5 Sort/filter reviews on profile** — newest / highest / lowest
+5. **⏭️ G-M5 Background job runner** — SLA reminders, stale enquiry auto-close
+6. **⏭️ SSR for public SEO** — optional; client-side SEO (A-M5) shipped
 
 ---
 
@@ -1031,9 +1036,9 @@ Requires verified email before listing. Role promoted to `business` on create. S
 | B-M1 | ✅ File uploads working | **P0** | `POST /api/uploads` | [`modules/uploads/`](../apps/api/src/modules/uploads/) — base64 → StoragePort → Asset |
 | B-M2 | ✅ Approval / rejection notifications | P0 | Email/SMS hooks on admin activate/reject | [`enquiry-notifications.ts`](../apps/api/src/modules/bookings/enquiry-notifications.ts) + [`admin.service.ts`](../apps/api/src/modules/admin/admin.service.ts) |
 | B-M3 | ✅ Enquiry `ownerNote` + reply UI | P0 | [`ProviderEnquiries.tsx`](../apps/web/src/pages/ProviderEnquiries.tsx) | [`OwnerNoteField`](../apps/web/src/components/OwnerNoteField.tsx) on all vertical inboxes |
-| B-M4 | ❌ Multi-step onboarding wizard | P1 | `/list-business` steps | Category → Info → Hours → Photos → Fields → Review; reduce drop-off |
-| B-M5 | ⚠️ Dynamic `asset_ref` / `asset_gallery` fields | P1 | Wire [`CategoryFieldsEditor`](../apps/web/src/components/CategoryFieldsEditor.tsx) | Depends B-M1 |
-| B-M6 | ❌ Pause / deactivate own listing | P1 | `POST /api/businesses/:id/pause` | Self-service without admin ticket |
+| B-M4 | ✅ Multi-step onboarding wizard | P1 | `/list-business` 6-step wizard + localStorage draft | Category → Info → Hours → Photos → Fields → Review |
+| B-M5 | ✅ Dynamic `asset_ref` / `asset_gallery` fields | P1 | [`CategoryFieldsEditor.tsx`](../apps/web/src/components/CategoryFieldsEditor.tsx) | `ImagePreviewUpload` + `GalleryUpload` via `api.upload()` |
+| B-M6 | ✅ Pause / deactivate own listing | P1 | `POST /api/businesses/:id/pause`, `/unpause` | Owner-only; uses `BusinessStatus.suspended` |
 | B-M7 | ✅ Rejection reason display + resubmit | P1 | UI on `/provider` | [`ProviderDashboard.tsx`](../apps/web/src/pages/ProviderDashboard.tsx) banner + edit link |
 | B-M8 | ❌ Claim existing listing | P2 | `/claim-business`, `POST /api/businesses/:id/claim` | OTP verify phone/email matches seeded listing |
 | B-M9 | ❌ Business hours exceptions / holidays | P2 | `Listing.hoursExceptions` JSON | Calendar UI on edit business |
@@ -1061,26 +1066,27 @@ Requires verified email before listing. Role promoted to `business` on create. S
 flowchart TB
   subgraph exists [Built Today]
     R[Register + verify email]
-    L[List business form]
+    W[Onboarding wizard]
+    L[List business submit]
     D[Provider dashboard]
+    P[Pause / restore listing]
     C[Catalog CRUD]
     K[KYC page]
     E[Enquiry inbox status]
+    U[Uploads + dynamic asset fields]
   end
   subgraph missing [Missing for Production]
-    U[Uploads module]
-    N[Approve/reject notify]
-    ON[Owner note on enquiry]
-    W[Onboarding wizard]
+    CL[Claim listing]
+    AN[Provider analytics]
   end
-  R --> L --> D
+  R --> W --> L --> D
+  D --> P
   D --> C
   D --> K
   D --> E
-  L -.-> U
-  D -.-> N
-  E -.-> ON
-  L -.-> W
+  W -.-> U
+  D -.-> AN
+  L -.-> CL
 ```
 
 **Production checklist — Module B:** B-M1 → B-M2 → B-M3 → B-M7 (minimum).
@@ -1247,15 +1253,15 @@ RBAC permissions gate every route. Audit log on admin mutations.
 | ID | Feature | Priority | Suggested route / API | Notes |
 |----|---------|----------|----------------------|-------|
 | F-M1 | ✅ Review moderation queue | P1 | `/reviews` — ties to E-M3 | Reported content workflow |
-| F-M2 | ⚠️ Form builder — conditional fields | P1 | UI for `conditionalRules` | Avoid code deploys per category |
+| F-M2 | ✅ Form builder — conditional fields | P1 | UI for `conditionalRules` | [`FormBuilderPage.tsx`](../apps/super-admin/src/pages/FormBuilderPage.tsx) — field-key select + equals + PATCH |
 | F-M3 | ✅ Form builder — field reorder | P1 | Wire `PUT /category-fields/reorder` | [`FormBuilderPage.tsx`](../apps/super-admin/src/pages/FormBuilderPage.tsx) up/down reorder buttons |
 | F-M4 | ✅ Enquiry `ownerNote` (admin) | P1 | All `*EnquiriesPage.tsx` | Same as D-M7 |
-| F-M5 | ❌ Bulk business actions | P2 | Multi-select activate/suspend/delete | Ops at scale |
-| F-M6 | ⚠️ Platform settings editor | P2 | `/settings`, `GET /api/admin/settings` | Read-only stub; PATCH editor deferred |
-| F-M7 | ❌ Category bulk import/export | P2 | JSON/CSV taxonomy | Launch new city/vertical fast |
-| F-M8 | ❌ Dashboard alert widgets | P2 | Failed uploads, error rate, pending spikes | Proactive ops |
-| F-M9 | ❌ Content moderation (category images) | P2 | Review uploaded category banners | NSFW / copyright |
-| F-M10 | ❌ Data export for compliance | P2 | Export user/business PII on request | DPDP subject access |
+| F-M5 | ✅ Bulk business actions | P2 | Multi-select activate/suspend/delete | `POST /api/admin/businesses/bulk`, [`BusinessesPage.tsx`](../apps/super-admin/src/pages/BusinessesPage.tsx) |
+| F-M6 | ✅ Platform settings editor | P2 | `/settings`, `GET/PATCH /api/admin/settings` | `PlatformSettings` table; maintenance mode + support email |
+| F-M7 | ✅ Category bulk import/export | P2 | JSON taxonomy | `GET/POST /api/admin/categories/export|import`, [`CategoriesPage.tsx`](../apps/super-admin/src/pages/CategoriesPage.tsx) |
+| F-M8 | ✅ Dashboard alert widgets | P2 | Pending spikes + health | [`DashboardPage.tsx`](../apps/super-admin/src/pages/DashboardPage.tsx) — pending businesses/listings, review reports, KYC, flagged images, DB health |
+| F-M9 | ✅ Content moderation (category images) | P2 | Review status + replace workflow | `Category.imageReviewStatus/Note` + [`CategoryEditorForm.tsx`](../apps/super-admin/src/components/CategoryEditorForm.tsx) image replace |
+| F-M10 | ✅ Data export for compliance | P2 | Export user PII on request | `GET /api/admin/users/:id/export` CSV, audit logged, [`UsersPage.tsx`](../apps/super-admin/src/pages/UsersPage.tsx) |
 
 #### Suggested extra functionality 💡
 
@@ -1496,6 +1502,33 @@ Phase 4 — Growth (Module H)
 ### Tests (third pass)
 
 - `cd apps/api && npm test` — **68 passed**, 19 integration tests skipped (no test DB)
+
+---
+
+**Date:** 24 August 2026 (fourth pass — Module B P1 + Module F P1/P2)
+
+### Completed
+
+| ID | Item | Files / notes |
+|----|------|----------------|
+| B-M4 | Multi-step onboarding wizard | `ListBusiness.tsx` — 6 steps, `localStorage` draft, final `POST /api/businesses` |
+| B-M5 | Dynamic asset_ref / asset_gallery | `CategoryFieldsEditor.tsx` — `ImagePreviewUpload`, `GalleryUpload`, `api.upload()` |
+| B-M6 | Owner pause / restore listing | `businesses.routes.ts` pause/unpause; `ProviderDashboard.tsx` buttons; uses `BusinessStatus.suspended` |
+| F-M2 | Conditional field rules UI | `FormBuilderPage.tsx` — field-key select, equals value, table column, PATCH `conditionalRules` |
+| F-M5 | Bulk business actions | `POST /api/admin/businesses/bulk`; `BusinessesPage.tsx` checkboxes |
+| F-M6 | Platform settings editor | `PlatformSettings` model; `GET/PATCH /api/admin/settings`; editable `SettingsPage.tsx` |
+| F-M7 | Category import/export | `categories.service.ts` export/import; `CategoriesPage.tsx` JSON buttons |
+| F-M8 | Dashboard alert widgets | `admin.repository.ts` stats extended; `DashboardPage.tsx` alert cards |
+| F-M9 | Category image moderation | `Category.imageReviewStatus/Note`; `CategoryEditorForm.tsx`; summary on `CategoriesPage.tsx` |
+| F-M10 | User PII export | `GET /api/admin/users/:id/export` CSV + audit; `UsersPage.tsx` Export PII button |
+
+### Migration
+
+- `20260824140000_platform_settings_category_review` — `PlatformSettings` table; `Category.imageReviewStatus`, `imageReviewNote`
+
+### Tests (fourth pass)
+
+- `cd apps/api && npx prisma generate && npm test` — **68 passed**, 19 integration tests skipped (no test DB)
 
 ---
 

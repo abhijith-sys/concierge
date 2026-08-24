@@ -86,3 +86,37 @@ export const adminListingPatchSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, "At least one field is required");
 
+export const adminBulkBusinessSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+  action: z.enum(["activate", "suspend", "delete"]),
+});
+
+export const adminSettingsPatchSchema = z
+  .object({
+    maintenanceMode: z.boolean().optional(),
+    maintenanceMessage: z.string().trim().max(2000).nullable().optional(),
+    supportEmail: z.string().trim().email().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "At least one field is required");
+
+export const categoryImportSchema = z.object({
+  version: z.literal(1),
+  categories: z
+    .array(
+      z.object({
+        slug: z.string().trim().min(1).max(160),
+        name: z.string().trim().min(2).max(120),
+        parentSlug: z.string().trim().max(160).nullable().optional(),
+        description: z.string().trim().max(2000).nullable().optional(),
+        icon: z.string().trim().max(80).nullable().optional(),
+        imageUrl: z.string().trim().max(2000).nullable().optional(),
+        bannerUrl: z.string().trim().max(2000).nullable().optional(),
+        kind: z.enum(["supplier", "service"]).optional(),
+        sortOrder: z.number().int().min(0).max(10_000).optional(),
+        isActive: z.boolean().optional(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+

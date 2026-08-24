@@ -146,6 +146,23 @@ export function UsersPage() {
                       {item.disabledAt ? "Enable" : "Disable"}
                     </button>
                   ) : null}
+                  {hasPermission(user, "users.read") ? (
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={async () => {
+                        const { blob, filename } = await api.exportUserPii(item.id);
+                        const url = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        anchor.download = filename;
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Export PII
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             ))}

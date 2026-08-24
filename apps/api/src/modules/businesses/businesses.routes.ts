@@ -31,3 +31,15 @@ businessesRouter.patch("/:id", requireAuth, async (req, res) => {
   const business = await businessesService.update(id, data, req.user!);
   res.json({ business });
 });
+
+businessesRouter.post("/:id/pause", requireAuth, async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const business = await businessesService.pause(id, req.user!);
+  res.json({ business });
+});
+
+businessesRouter.post("/:id/unpause", requireAuth, async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const business = await businessesService.unpause(id, req.user!);
+  res.json({ business });
+});

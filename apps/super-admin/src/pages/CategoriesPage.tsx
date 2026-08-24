@@ -86,16 +86,56 @@ export function CategoriesPage() {
           </p>
         </div>
         {canWrite ? (
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => {
-              setShowCreate((open) => !open);
-              setDraft(emptyCategoryDraft(String(roots.length + 1)));
-            }}
-          >
-            {showCreate ? "Close" : "Add main category"}
-          </button>
+          <div className="row">
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => {
+                setShowCreate((open) => !open);
+                setDraft(emptyCategoryDraft(String(roots.length + 1)));
+              }}
+            >
+              {showCreate ? "Close" : "Add main category"}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              onClick={async () => {
+                const payload = await api.exportCategories();
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = `categories-export-${new Date().toISOString().slice(0, 10)}.json`;
+                anchor.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export JSON
+            </button>
+            <label className="btn" style={{ cursor: "pointer" }}>
+              Import JSON
+              <input
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const payload = JSON.parse(text) as { version: 1; categories: Array<Record<string, unknown>> };
+                    const result = await api.importCategories(payload);
+                    window.alert(`Import complete: ${result.created} created, ${result.updated} updated.`);
+                    await refresh();
+                  } catch {
+                    window.alert("Import failed — check JSON format.");
+                  }
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          </div>
         ) : null}
       </div>
 
@@ -360,6 +400,12 @@ function CategorySummary({
           <code>{category.slug}</code>
           {category.imageUrl ? " · background set" : " · missing background"}
           {category.bannerUrl ? " · banner set" : " · missing banner"}
+          {category.imageReviewStatus === "flagged" ? (
+            <span className="error"> · image flagged</span>
+          ) : category.imageReviewStatus === "pending" ? (
+            <span> · image pending review</span>
+          ) : null}
+          {category.imageReviewNote ? ` · note: ${category.imageReviewNote}` : ""}
         </p>
       </div>
       <div className="actions">

@@ -23,6 +23,8 @@ import type {
   adminUserPatchSchema,
   adminListingListSchema,
   adminListingPatchSchema,
+  adminBulkBusinessSchema,
+  adminSettingsPatchSchema,
 } from "./admin.schemas.js";
 
 type ListInput = z.infer<typeof adminListSchema>;
@@ -34,6 +36,8 @@ type AuditListInput = z.infer<typeof adminAuditListSchema>;
 type AssetListInput = z.infer<typeof adminAssetListSchema>;
 type ListingListInput = z.infer<typeof adminListingListSchema>;
 type ListingPatchInput = z.infer<typeof adminListingPatchSchema>;
+type BulkBusinessInput = z.infer<typeof adminBulkBusinessSchema>;
+type SettingsPatchInput = z.infer<typeof adminSettingsPatchSchema>;
 
 const STAFF_ROLE_KEYS = new Set<string>([
   ROLE_KEYS.SUPER_ADMIN,
@@ -168,6 +172,74 @@ export const adminService = {
       return;
     }
     await this.setStatus(id, BusinessStatus.deleted, ctx);
+  },
+
+  async bulkBusinesses(
+    input: BulkBusinessInput,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    let updated = 0;
+    for (const id of input.ids) {
+      if (input.action === "activate") {
+        await this.setStatus(id, BusinessStatus.active, ctx);
+        updated += 1;
+      } else if (input.action === "suspend") {
+        await this.setStatus(id, BusinessStatus.suspended, ctx);
+        updated += 1;
+      } else {
+        await this.remove(id, false, ctx);
+        updated += 1;
+      }
+    }
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: `admin.business.bulk_${input.action}`,
+      entityType: "business",
+      meta: { ids: input.ids, count: updated },
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return { updated };
+  },
+
+  async exportUser(
+    id: string,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    const user = await adminRepository.findUserForExport(id);
+    if (!user) throw new ApiError(404, "USER_NOT_FOUND", "User not found");
+
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: "admin.user.export",
+      entityType: "user",
+      entityId: id,
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+
+    const rows: Array<[string, string]> = [
+      ["field", "value"],
+      ["id", user.id],
+      ["name", user.name],
+      ["email", user.email],
+      ["phone", user.phone ?? ""],
+      ["role", user.role],
+      ["recoveryEmail", user.recoveryEmail ?? ""],
+      ["emailVerifiedAt", user.emailVerifiedAt?.toISOString() ?? ""],
+      ["phoneVerifiedAt", user.phoneVerifiedAt?.toISOString() ?? ""],
+      ["recoveryEmailVerifiedAt", user.recoveryEmailVerifiedAt?.toISOString() ?? ""],
+      ["disabledAt", user.disabledAt?.toISOString() ?? ""],
+      ["createdAt", user.createdAt.toISOString()],
+      ["businessCount", String(user._count.businesses)],
+      ["reviewCount", String(user._count.reviews)],
+      ["roles", user.userRoles.map((row) => row.role.key).join("; ")],
+    ];
+
+    const csv = rows
+      .map(([key, value]) => `${escapeCsv(key)},${escapeCsv(value)}`)
+      .join("\n");
+    return { csv, filename: `user-${user.id}-pii-export.csv` };
   },
 
   async listUsers(query: UserListInput) {
@@ -406,8 +478,9 @@ export const adminService = {
     return adminRepository.stats();
   },
 
-  settings() {
+  async settings() {
     const env = getEnv();
+    const runtime = await adminRepository.getPlatformSettings();
     return {
       nodeEnv: env.NODE_ENV,
       cookieSecure: env.COOKIE_SECURE,
@@ -416,6 +489,31 @@ export const adminService = {
       runSeed: env.RUN_SEED,
       corsOrigins: env.corsOrigins,
       logLevel: env.LOG_LEVEL,
+      maintenanceMode: runtime.maintenanceMode,
+      maintenanceMessage: runtime.maintenanceMessage,
+      supportEmail: runtime.supportEmail,
     };
   },
+
+  async patchSettings(
+    input: SettingsPatchInput,
+    ctx: { actorId: string; ip?: string; requestId?: string },
+  ) {
+    await adminRepository.updatePlatformSettings(input);
+    await writeAuditLog({
+      actorId: ctx.actorId,
+      action: "admin.settings.update",
+      entityType: "platform_settings",
+      entityId: "default",
+      meta: input,
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return this.settings();
+  },
 };
+
+function escapeCsv(value: string) {
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}

@@ -19,6 +19,9 @@ import {
   adminUpdateSchema,
   adminUserListSchema,
   adminUserPatchSchema,
+  adminBulkBusinessSchema,
+  adminSettingsPatchSchema,
+  categoryImportSchema,
 } from "./admin.schemas.js";
 import { adminService } from "./admin.service.js";
 import { reviewsService } from "../reviews/reviews.service.js";
@@ -118,6 +121,20 @@ adminRouter.delete(
   },
 );
 
+adminRouter.post(
+  "/businesses/bulk",
+  requirePermission(PERMISSIONS.BUSINESSES_MODERATE),
+  async (req, res) => {
+    const data = adminBulkBusinessSchema.parse(req.body);
+    const result = await adminService.bulkBusinesses(data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json(result);
+  },
+);
+
 adminRouter.get(
   "/categories",
   requireAnyPermission(
@@ -167,6 +184,29 @@ adminRouter.delete(
       requestId: req.requestId,
     });
     res.json({ category });
+  },
+);
+
+adminRouter.get(
+  "/categories/export",
+  requirePermission(PERMISSIONS.CATEGORIES_WRITE),
+  async (_req, res) => {
+    const payload = await categoriesService.exportCategories();
+    res.json(payload);
+  },
+);
+
+adminRouter.post(
+  "/categories/import",
+  requirePermission(PERMISSIONS.CATEGORIES_WRITE),
+  async (req, res) => {
+    const data = categoryImportSchema.parse(req.body);
+    const result = await categoriesService.importCategories(data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json(result);
   },
 );
 
@@ -341,7 +381,21 @@ adminRouter.get(
   "/settings",
   requireAnyPermission(PERMISSIONS.SETTINGS_WRITE, PERMISSIONS.AUDIT_READ, PERMISSIONS.BUSINESSES_READ),
   async (_req, res) => {
-    res.json({ settings: adminService.settings() });
+    res.json({ settings: await adminService.settings() });
+  },
+);
+
+adminRouter.patch(
+  "/settings",
+  requirePermission(PERMISSIONS.SETTINGS_WRITE),
+  async (req, res) => {
+    const data = adminSettingsPatchSchema.parse(req.body);
+    const settings = await adminService.patchSettings(data, {
+      actorId: req.user!.id,
+      ip: req.ip,
+      requestId: req.requestId,
+    });
+    res.json({ settings });
   },
 );
 
@@ -394,6 +448,18 @@ adminRouter.patch("/users/:id", requirePermission(PERMISSIONS.USERS_WRITE), asyn
     requestId: req.requestId,
   });
   res.json({ user });
+});
+
+adminRouter.get("/users/:id/export", requirePermission(PERMISSIONS.USERS_READ), async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const result = await adminService.exportUser(id, {
+    actorId: req.user!.id,
+    ip: req.ip,
+    requestId: req.requestId,
+  });
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+  res.send(result.csv);
 });
 
 adminRouter.get("/roles", requirePermission(PERMISSIONS.ROLES_MANAGE), async (_req, res) => {
