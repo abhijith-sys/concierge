@@ -25,6 +25,12 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+/** Temporary bypass while transactional email is unreliable; always on in development. */
+function shouldSkipOtpVerification() {
+  const env = getEnv();
+  return env.SKIP_OTP_VERIFICATION || env.NODE_ENV === "development";
+}
+
 async function issueOtp(
   userId: string,
   input: { channel: "email" | "sms"; purpose: OtpRequestInput["purpose"]; phone?: string },
@@ -44,23 +50,28 @@ async function issueOtp(
     expiresAt: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
   });
 
-  if (input.channel === "email") {
-    await EmailService.send({
-      to: destination.email,
-      subject: `Your ${brand.name} verification code`,
-      body: `Your verification code is ${code}. It expires in 10 minutes.`,
-    });
-  } else {
-    const phone = input.phone ?? destination.phone!;
-    try {
-      await SmsService.send(phone, `${brand.name} code: ${code}`);
-    } catch {
+  try {
+    if (input.channel === "email") {
       await EmailService.send({
         to: destination.email,
-        subject: `[SMS stub] ${brand.name} verification code`,
-        body: `SMS to ${phone}: ${brand.name} code ${code}`,
+        subject: `Your ${brand.name} verification code`,
+        body: `Your verification code is ${code}. It expires in 10 minutes.`,
       });
+    } else {
+      const phone = input.phone ?? destination.phone!;
+      try {
+        await SmsService.send(phone, `${brand.name} code: ${code}`);
+      } catch {
+        await EmailService.send({
+          to: destination.email,
+          subject: `[SMS stub] ${brand.name} verification code`,
+          body: `SMS to ${phone}: ${brand.name} code ${code}`,
+        });
+      }
     }
+  } catch (error) {
+    if (!shouldSkipOtpVerification()) throw error;
+    console.warn("[auth.issueOtp] delivery failed; OTP bypass is enabled", error);
   }
 
   return { sent: true as const, channel: input.channel, expiresInSeconds: OTP_TTL_SECONDS };
@@ -70,6 +81,11 @@ async function consumeOtp(
   userId: string,
   input: { channel: "email" | "sms"; purpose: OtpVerifyInput["purpose"]; code: string },
 ) {
+  if (shouldSkipOtpVerification()) {
+    const challenge = await authRepository.findLatestOtp(userId, input.channel, input.purpose);
+    if (challenge) await authRepository.markOtpConsumed(challenge.id);
+    return;
+  }
   const challenge = await authRepository.findLatestOtp(userId, input.channel, input.purpose);
   if (!challenge) throw new ApiError(400, "OTP_NOT_FOUND", "No active verification challenge");
   if (challenge.expiresAt.getTime() < Date.now()) {
@@ -99,7 +115,7 @@ export const authService = {
         throw new ApiError(409, "EMAIL_IN_USE", "This recovery email is already in use on another account");
       }
     }
-    const user = await authRepository.createUser({
+    let user = await authRepository.createUser({
       name: input.name,
       email,
       phone: input.phone,
@@ -107,6 +123,10 @@ export const authService = {
       passwordHash: await bcrypt.hash(input.password, 12),
       role: "user",
     });
+    if (shouldSkipOtpVerification()) {
+      user = await authRepository.updateUser(user.id, { emailVerifiedAt: new Date() });
+      return authRepository.withAccess(user);
+    }
     try {
       await issueOtp(user.id, { channel: "email", purpose: "register" }, { email: user.email, name: user.name });
     } catch (error) {
@@ -123,7 +143,10 @@ export const authService = {
     if (record.disabledAt) {
       throw new ApiError(403, "ACCOUNT_DISABLED", "This account has been disabled");
     }
-    const { passwordHash: _passwordHash, updatedAt: _updatedAt, ...user } = record;
+    let { passwordHash: _passwordHash, updatedAt: _updatedAt, ...user } = record;
+    if (shouldSkipOtpVerification() && !user.emailVerifiedAt) {
+      user = await authRepository.updateUser(user.id, { emailVerifiedAt: new Date() });
+    }
     return authRepository.withAccess(user);
   },
 
@@ -230,6 +253,9 @@ export const authService = {
       );
     }
     const destination = input.method === "recovery" ? email : user.email;
+    if (shouldSkipOtpVerification()) {
+      return { sent: true as const, channel: "email" as const, expiresInSeconds: OTP_TTL_SECONDS };
+    }
     return issueOtp(user.id, { channel: "email", purpose: "reset" }, { email: destination, name: user.name });
   },
 
@@ -279,6 +305,9 @@ export const authService = {
     if (user.recoveryEmailVerifiedAt) {
       return { sent: true, alreadyVerified: true as const, expiresInSeconds: OTP_TTL_SECONDS };
     }
+    if (shouldSkipOtpVerification()) {
+      return { sent: true as const, channel: "email" as const, expiresInSeconds: OTP_TTL_SECONDS };
+    }
     return issueOtp(
       userId,
       { channel: "email", purpose: "recovery" },
@@ -311,12 +340,14 @@ export const authService = {
   },
 
   assertEmailVerified(user: { emailVerifiedAt?: Date | string | null }) {
+    if (shouldSkipOtpVerification()) return;
     if (!user.emailVerifiedAt) {
       throw new ApiError(403, "EMAIL_UNVERIFIED", "Verify your email before continuing");
     }
   },
 
   assertEmailVerifiedIfRequired(user: { role: string; emailVerifiedAt?: Date | null }) {
+    if (shouldSkipOtpVerification()) return;
     const env = getEnv();
     const required =
       env.REQUIRE_EMAIL_VERIFICATION ||

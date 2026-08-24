@@ -37,7 +37,7 @@ export function professionalServiceRates(service: Pick<Service, "price" | "curre
   const retainer = fieldNumber(service.fieldValues, "price_retainer");
   const project = fieldNumber(service.fieldValues, "price_project");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, retainer, project, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, retainer, project, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     retainer,
