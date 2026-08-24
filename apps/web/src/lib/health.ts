@@ -36,7 +36,7 @@ export function healthServiceRates(service: Pick<Service, "price" | "currency" |
   const session = fieldNumber(service.fieldValues, "price_session");
   const packageRate = fieldNumber(service.fieldValues, "price_package");
   const fallback = Number(service.price) || 0;
-  const from = [session, packageRate, fallback].filter((value) => value != null && value > 0);
+  const from = [session, packageRate, fallback].filter((value): value is number => value != null && value > 0);
   return {
     session,
     package: packageRate,

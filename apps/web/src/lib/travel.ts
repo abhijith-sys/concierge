@@ -40,7 +40,7 @@ export function travelVehicleRates(service: Pick<Service, "price" | "currency" |
   const airport = fieldNumber(service.fieldValues, "price_airport");
   const outstation = fieldNumber(service.fieldValues, "price_outstation_day");
   const fallback = Number(service.price) || 0;
-  const from = [hourly, airport, outstation, fallback].filter((value) => value != null && value > 0);
+  const from = [hourly, airport, outstation, fallback].filter((value): value is number => value != null && value > 0);
   return {
     hourly,
     perKm,
